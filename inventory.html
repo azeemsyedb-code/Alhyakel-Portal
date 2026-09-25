@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Alhyakel Inventory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="assets/config.js"></script>
+<script src="assets/portal.js" data-module="inv"></script>
+<style>
+:root{
+  --bg:#e9ecef; --panel:#ffffff; --ink:#1c2631; --steel:#3d5468; --muted:#66727f;
+  --line:#d3d9df; --accent:#f2b705; --accent-ink:#1c2631; --ok:#2e7d4f; --danger:#b83227;
+  --in:#2e7d4f; --out:#b8581f; --adj:#4a5fa8;
+  --font:'Barlow',system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;
+  --cond:'Barlow Condensed','Arial Narrow',var(--font);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#141a20;--panel:#1d252d;--ink:#e6eaee;--steel:#8fa7bb;--muted:#9aa6b2;--line:#2f3a45;--accent:#f2b705;--accent-ink:#141a20;--ok:#58b07e;--danger:#e0685c;--in:#58b07e;--out:#e08b52;--adj:#8c9ee0}
+}
+*,*::before,*::after{box-sizing:inherit}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{font-family:var(--cond);letter-spacing:.01em;margin:0}
+.hidden{display:none!important}
+
+/* Login */
+#login{min-height:100%;display:grid;place-items:center;padding:24px}
+.login-box{width:100%;max-width:360px;background:var(--panel);border:1px solid var(--line);border-top:6px solid var(--accent);padding:28px}
+.login-box h1{font-size:30px;line-height:1.1}
+.login-box p{color:var(--muted);margin:6px 0 22px}
+
+/* Layout */
+header{background:var(--steel);color:#fff;display:flex;align-items:center;gap:16px;padding:10px 18px;flex-wrap:wrap;position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+@media (prefers-color-scheme:dark){header{background:#26323d}}
+header .brand{font-family:var(--cond);font-size:22px;font-weight:700;margin-right:auto;display:flex;align-items:center;gap:10px}
+header .brand i{width:14px;height:22px;background:var(--accent);display:inline-block}
+nav{display:flex;gap:2px;flex-wrap:wrap}
+nav button{background:none;border:0;color:#dfe6ec;padding:8px 12px;cursor:pointer;font-weight:600;border-bottom:3px solid transparent}
+nav button.active{color:#fff;border-bottom-color:var(--accent)}
+.who{font-size:13px;color:#dfe6ec;display:flex;gap:10px;align-items:center}
+.who button{background:none;border:1px solid #8aa0b3;color:#fff;padding:4px 10px;cursor:pointer}
+main{max-width:1200px;margin:0 auto;padding:22px 18px 60px}
+.page-head{display:flex;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.page-head h2{font-size:28px;margin-right:auto}
+
+/* Controls */
+label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:4px}
+input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);background:var(--panel);border-radius:3px}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.btn{border:1px solid var(--line);background:var(--panel);padding:9px 14px;border-radius:3px;cursor:pointer;font-weight:600;white-space:nowrap}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--danger);border-color:var(--danger)}
+.btn.small{padding:5px 10px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.row > *{flex:1 1 150px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.field{margin-bottom:12px}
+.err{color:var(--danger);font-size:14px;margin-top:8px;min-height:1em}
+
+/* Panels & tables */
+.panel{background:var(--panel);border:1px solid var(--line);padding:16px;margin-bottom:18px}
+.panel h3{font-size:20px;margin-bottom:10px}
+.tablewrap{overflow-x:auto;background:var(--panel);border:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--muted);background:color-mix(in srgb,var(--panel) 92%,var(--steel));position:sticky;top:0}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tr.low td{background:color-mix(in srgb,var(--panel) 88%,var(--danger))}
+.sku{font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.tag{display:inline-block;padding:1px 8px;border-radius:2px;font-size:12px;font-weight:700;color:#fff}
+.tag.IN{background:var(--in)}.tag.OUT{background:var(--out)}.tag.ADJUST{background:var(--adj)}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+
+/* Dashboard stock gauge strip */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0;border:1px solid var(--line);background:var(--panel);margin-bottom:18px}
+.stat{padding:16px;border-right:1px solid var(--line)}
+.stat:last-child{border-right:0}
+.stat b{display:block;font-family:var(--cond);font-size:34px;line-height:1}
+.stat span{color:var(--muted);font-size:13px}
+.stat.alert b{color:var(--danger)}
+
+/* Scan */
+.scanbar{display:flex;gap:10px;flex-wrap:wrap}
+.scanbar input{flex:1 1 260px;font-size:20px;padding:14px;font-family:ui-monospace,Consolas,monospace;border:2px solid var(--steel)}
+#reader{max-width:420px;margin-top:12px}
+.found{border-left:6px solid var(--accent)}
+.found .qty{font-family:var(--cond);font-size:44px;line-height:1}
+.typepick{display:flex;gap:0;margin-bottom:12px}
+.typepick button{flex:1;padding:12px;border:1px solid var(--line);background:var(--panel);font-weight:700;cursor:pointer}
+.typepick button.on[data-t=IN]{background:var(--in);color:#fff;border-color:var(--in)}
+.typepick button.on[data-t=OUT]{background:var(--out);color:#fff;border-color:var(--out)}
+.typepick button.on[data-t=ADJUST]{background:var(--adj);color:#fff;border-color:var(--adj)}
+
+/* Modal */
+.modal{position:fixed;inset:0;background:rgba(10,15,20,.55);display:grid;place-items:center;padding:16px;z-index:20}
+.modal .box{background:var(--panel);width:100%;max-width:640px;max-height:90vh;overflow:auto;padding:20px;border-top:6px solid var(--accent)}
+.modal .box h3{font-size:24px;margin-bottom:14px}
+.modal .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
+
+/* Toast */
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:3px;z-index:30;font-weight:600}
+
+/* Labels (print) */
+#printArea{display:none}
+@media print{
+  body > *:not(#printArea){display:none!important}
+  #printArea{display:flex;flex-wrap:wrap;gap:4mm}
+  .label{width:62mm;border:1px dashed #999;padding:3mm;page-break-inside:avoid;font-family:Arial,sans-serif;color:#000}
+  .label .n{font-size:10pt;font-weight:700}
+  .label svg{width:100%;height:auto}
+}
+#logout{display:none!important}   /* Logout is in the portal bar */
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<section id="login" class="hidden">
+  <form class="login-box" id="loginForm">
+    <h1>Alhyakel Inventory</h1>
+    <p>Sign in with the user ID your admin gave you.</p>
+    <div class="field"><label for="lid">User ID</label><input id="lid" autocomplete="username" required></div>
+    <div class="field"><label for="lpw">Password</label><input id="lpw" type="password" autocomplete="current-password" required></div>
+    <button class="btn primary" style="width:100%" type="submit">Sign in</button>
+    <div class="err" id="loginErr"></div>
+  </form>
+</section>
+
+<!-- ============ APP ============ -->
+<div id="app" class="hidden">
+  <header>
+    <div class="brand"><i></i>Alhyakel Inventory</div>
+    <nav id="nav">
+      <button data-v="dashboard">Dashboard</button>
+      <button data-v="scan">Scan</button>
+      <button data-v="products">Products</button>
+      <button data-v="movements">Movements</button>
+      <button data-v="suppliers">Suppliers</button>
+      
+    </nav>
+    <div class="who"><span id="whoami"></span><button id="logout">Sign out</button></div>
+  </header>
+  <main id="view"></main>
+</div>
+
+<div id="modalRoot"></div>
+<div id="toast" class="hidden"></div>
+<div id="printArea"></div>
+
+<script>
+/* =====================================================================
+   CONFIG - paste your Supabase values here (see SETUP.md)
+   ===================================================================== */
+const PC = window.PORTAL_CONFIG || {};
+const SUPABASE_URL = PC.SUPABASE_URL, SUPABASE_ANON_KEY = PC.SUPABASE_ANON_KEY, LOGIN_DOMAIN = PC.LOGIN_DOMAIN;
+
+/* ===================================================================== */
+const CATEGORIES = {
+  "Steel Sheet": "SHT", "Tank Light": "LGT", "Tyre": "TYR", "Rim": "RIM",
+  "Nut & Bolt": "BLT", "Welding Rod": "ROD", "Consumable": "CON", "Other": "OTH"
+};
+const UNITS = ["pcs","kg","box","packet","set","m","ltr","roll"];
+
+/* ---------------- DEMO MODE (runs automatically until real keys are pasted above) ---------------- */
+const DEMO = false;   // the portal always uses the real database
+function makeDemo(){
+  const now = Date.now(), day = 864e5;
+  const users = [
+    { id:"u1", username:"azeem", full_name:"Azeem Bukhari", role:"admin" },
+    { id:"u2", username:"ahmed", full_name:"Ahmed (Store)", role:"storekeeper" },
+    { id:"u3", username:"guest", full_name:"Guest Viewer", role:"viewer" }
+  ];
+  const T = {
+    profiles: users.map(u => ({...u})),
+    suppliers: [
+      { id:1, name:"Al Rajhi Steel", contact_person:"Khalid", phone:"+966 12 000 0001", email:"sales@example.com" },
+      { id:2, name:"Jeddah Fasteners Trading", contact_person:"Imran", phone:"+966 12 000 0002" },
+      { id:3, name:"Gulf Tyre Center", contact_person:"Faisal", phone:"+966 12 000 0003" }
+    ],
+    products: [
+      { id:1, sku:"SHT-MS-3-1250X2500", name:"MS Plate", category:"Steel Sheet", grade:"MS", thickness_mm:3, width_mm:1250, length_mm:2500, unit:"pcs", weight_kg:73.6, min_stock:20, location:"Yard A1", supplier_id:1, qty:46 },
+      { id:2, sku:"SHT-MS-5-1500X6000", name:"MS Plate", category:"Steel Sheet", grade:"MS", thickness_mm:5, width_mm:1500, length_mm:6000, unit:"pcs", weight_kg:353, min_stock:10, location:"Yard A2", supplier_id:1, qty:8 },
+      { id:3, sku:"SHT-SS304-2-1220X2440", name:"Stainless Sheet", category:"Steel Sheet", grade:"SS304", thickness_mm:2, width_mm:1220, length_mm:2440, unit:"pcs", weight_kg:47.6, min_stock:5, location:"Rack S1", supplier_id:1, qty:14 },
+      { id:4, sku:"LGT-LED-24V-AMBER", name:"Tank side marker light", category:"Tank Light", grade:"LED", size:"24V amber", unit:"pcs", min_stock:40, location:"Rack L2", qty:120 },
+      { id:5, sku:"LGT-LED-24V-RED", name:"Tank tail light", category:"Tank Light", grade:"LED", size:"24V red", unit:"pcs", min_stock:30, location:"Rack L2", qty:22 },
+      { id:6, sku:"TYR-385/65R22.5", name:"Trailer tyre", category:"Tyre", size:"385/65R22.5", unit:"pcs", min_stock:12, location:"Tyre bay", supplier_id:3, qty:18 },
+      { id:7, sku:"RIM-22.5X11.75", name:"Steel rim", category:"Rim", size:"22.5x11.75", unit:"pcs", min_stock:12, location:"Tyre bay", supplier_id:3, qty:16 },
+      { id:8, sku:"BLT-8.8-M12X50", name:"Hex bolt with nut", category:"Nut & Bolt", grade:"8.8", size:"M12x50", unit:"box", min_stock:5, location:"Bin B4", supplier_id:2, qty:12 },
+      { id:9, sku:"BLT-8.8-M16X60", name:"Hex bolt with nut", category:"Nut & Bolt", grade:"8.8", size:"M16x60", unit:"box", min_stock:5, location:"Bin B5", supplier_id:2, qty:3 },
+      { id:10, sku:"ROD-E6013-3.2", name:"Welding electrode", category:"Welding Rod", grade:"E6013", size:"3.2", unit:"packet", weight_kg:5, min_stock:30, location:"Store R1", qty:64 },
+      { id:11, sku:"ROD-E7018-4.0", name:"Welding electrode", category:"Welding Rod", grade:"E7018", size:"4.0", unit:"packet", weight_kg:5, min_stock:20, location:"Store R1", qty:17 }
+    ],
+    movements: []
+  };
+  let mid = 1;
+  const seed = [[1,"IN",50,"PO-1021",6],[1,"OUT",4,"JOB-45 Tanker",3],[2,"IN",12,"PO-1022",5],[2,"OUT",4,"JOB-45 Tanker",1],
+    [4,"IN",150,"PO-1019",8],[4,"OUT",30,"JOB-44",2],[9,"IN",8,"PO-1020",7],[9,"OUT",5,"JOB-45 Tanker",0],[11,"OUT",3,"JOB-46",0]];
+  const bal = {}; T.products.forEach(p => bal[p.id] = 0);
+  seed.sort((a,b)=>b[4]-a[4]).forEach(([pid,type,qty,ref,ago]) => {
+    bal[pid] += type==="IN"?qty:-qty;
+    T.movements.push({ id:mid++, product_id:pid, type, qty, balance_after:bal[pid], reference:ref, user_id: type==="IN"?"u1":"u2", created_at:new Date(now-ago*day-3600e3*(mid%5)).toISOString() });
+  });
+  // make seeded balances consistent with current stock
+  T.products.forEach(p => { let b = p.qty;
+    T.movements.filter(m => m.product_id===p.id).sort((x,y)=>y.created_at.localeCompare(x.created_at))
+      .forEach(m => { m.balance_after = b; b -= m.type==="IN" ? m.qty : -m.qty; }); });
+  let session = null;
+  const me = () => T.profiles.find(p => p.id === session?.user.id);
+  const role = () => me()?.role;
+  const err = (message, code) => ({ data:null, error:{ message, code } });
+  const nextId = t => Math.max(0, ...T[t].map(r => r.id)) + 1;
+
+  class Q {
+    constructor(t){ this.t=t; this.op="select"; this.f=[]; }
+    select(){ return this } order(k,o){ this.ord=[k,o?.ascending!==false]; return this }
+    limit(n){ this.lim=n; return this } eq(k,v){ this.f.push([k,v]); return this } single(){ this.one=true; return this }
+    insert(r){ this.op="insert"; this.p=r; return this } update(r){ this.op="update"; this.p=r; return this } delete(){ this.op="delete"; return this }
+    then(a,b){ return new Promise(r => setTimeout(r,120)).then(() => this.run()).then(a,b) }
+    run(){
+      const t = this.t, rows = T[t], match = r => this.f.every(([k,v]) => r[k] === v);
+      const writer = ["admin","storekeeper"].includes(role());
+      if (this.op === "select") {
+        let out = rows.filter(match).map(r => ({...r}));
+        if (this.ord) { const [k,asc] = this.ord; out.sort((x,y) => (x[k]>y[k]?1:x[k]<y[k]?-1:0) * (asc?1:-1)); }
+        if (this.lim) out = out.slice(0,this.lim);
+        return { data: this.one ? out[0] || null : out, error:null };
+      }
+      if (t === "profiles") { if (role()!=="admin") return err("Not allowed"); rows.filter(match).forEach(r => Object.assign(r,this.p)); return { data:null, error:null }; }
+      if (!writer) return err("You do not have permission to do this");
+      if (this.op === "delete") { if (role()!=="admin") return err("Only an admin can delete");
+        T[t] = rows.filter(r => !match(r));
+        if (t==="products") T.movements = T.movements.filter(m => T.products.some(p => p.id===m.product_id));
+        if (t==="suppliers") T.products.forEach(p => { if (!T.suppliers.some(s=>s.id===p.supplier_id)) p.supplier_id=null; });
+        return { data:null, error:null }; }
+      if (t==="products" && this.p.sku && rows.some(r => r.sku===this.p.sku && (this.op==="insert" || !match(r))))
+        return err("duplicate", "23505");
+      if (this.op === "insert") { const row = { ...this.p, id: nextId(t) }; if (t==="products") row.qty = 0; rows.push(row); return { data:null, error:null }; }
+      if (this.op === "update") { const p = {...this.p}; delete p.qty; rows.filter(match).forEach(r => Object.assign(r,p)); return { data:null, error:null }; }
+    }
+  }
+  return {
+    from: t => new Q(t),
+    auth: {
+      getSession: async () => ({ data:{ session } }),
+      signOut: async () => { session = null; },
+      signInWithPassword: async ({ email, password }) => {
+        const u = users.find(x => x.username === email.split("@")[0]);
+        if (!u || password !== "demo") return { error:{ message:"bad login" } };
+        session = { user:{ id:u.id, email } }; return { error:null };
+      }
+    },
+    rpc: async (fn, a) => {
+      await new Promise(r => setTimeout(r,150));
+      const r = role();
+      if (!["admin","storekeeper"].includes(r)) return err("You do not have permission to change stock");
+      const p = T.products.find(x => x.id === a.p_product_id); if (!p) return err("Product not found");
+      const q = a.p_qty, old = Number(p.qty); let nw;
+      if (a.p_qty === null || isNaN(q)) return err("Enter a quantity");
+      if (a.p_type === "IN") { if (q<=0) return err("Quantity must be more than 0"); nw = old+q; }
+      else if (a.p_type === "OUT") { if (q<=0) return err("Quantity must be more than 0"); if (q>old) return err(`Not enough stock. Available: ${old}`); nw = old-q; }
+      else { if (r!=="admin") return err("Only an admin can adjust stock"); if (q<0) return err("Counted quantity cannot be negative"); nw = q; }
+      p.qty = nw;
+      T.movements.push({ id:mid++, product_id:p.id, type:a.p_type, qty: a.p_type==="ADJUST"? nw-old : q, balance_after:nw,
+        reference:(a.p_reference||"").trim()||null, note:(a.p_note||"").trim()||null, user_id:session.user.id, created_at:new Date().toISOString() });
+      return { data:nw, error:null };
+    }
+  };
+}
+const sb = window.portalSb;   // shared portal login
+if (DEMO) {
+  document.querySelector(".login-box p").innerHTML = `<b>Demo mode</b> with sample data. Try <span class="sku">azeem</span> (admin), <span class="sku">ahmed</span> (storekeeper) or <span class="sku">guest</span> (viewer). Password for all: <span class="sku">demo</span>. Changes are not saved.`;
+  document.querySelector("header .brand").insertAdjacentHTML("beforeend", ` <span style="background:var(--accent);color:var(--accent-ink);font-size:13px;padding:1px 8px;border-radius:2px">DEMO</span>`);
+}
+const S = { user:null, profile:null, products:[], suppliers:[], profiles:[], movements:[], view:"dashboard", selected:new Set() };
+const $ = s => document.querySelector(s);
+const h = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = n => (n === null || n === undefined || n === "") ? "" : Number(n).toLocaleString("en-US",{maximumFractionDigits:3});
+const canWrite = () => ["admin","storekeeper"].includes(S.profile?.role);
+const isAdmin = () => S.profile?.role === "admin";
+
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.remove("hidden"); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.add("hidden"),2600); }
+function niceErr(e){ return (e?.message || String(e)).replace(/^.*?exception:\s*/i,""); }
+
+/* ---------------- Auth ---------------- */
+$("#logout").onclick = () => { location.href = PC.links.logout; };
+
+
+async function boot(){
+  await window.PORTAL_READY;
+  const { data:{ session } } = await sb.auth.getSession();
+  // signed in through the portal; a missing or different Supabase session means the login expired
+  if (!session || !PC.user || session.user.id !== PC.user.id) { location.replace(PC.links.logout); return; }
+  S.user = session.user;
+  S.profile = { username: PC.user.username, full_name: PC.user.full_name, role: PC.user.inv_role };
+  if (!S.profile.role) { location.replace(PC.links.home); return; }
+  $("#whoami").textContent = `${S.profile.full_name || S.profile.username} · ${S.profile.role}`;
+  document.querySelectorAll(".admin-only").forEach(el => el.classList.toggle("hidden", !isAdmin()));
+  $("#login").classList.add("hidden"); $("#app").classList.remove("hidden");
+  await loadAll();
+  go(S.view);
+}
+
+async function loadAll(){
+  const [p, s, pr, m] = await Promise.all([
+    sb.from("inv_products").select("*").order("sku"),
+    sb.from("inv_suppliers").select("*").order("name"),
+    sb.from("portal_users").select("id,username,full_name").order("username"),
+    sb.from("inv_movements").select("*").order("created_at",{ascending:false}).limit(1000)
+  ]);
+  S.products = p.data || []; S.suppliers = s.data || []; S.profiles = pr.data || []; S.movements = m.data || [];
+}
+const prodById = id => S.products.find(p => p.id === id);
+const supName = id => S.suppliers.find(s => s.id === id)?.name || "";
+const userName = id => { const p = S.profiles.find(x => x.id === id); return p ? (p.full_name || p.username) : ""; };
+const isLow = p => Number(p.qty) <= Number(p.min_stock || 0) && Number(p.min_stock || 0) > 0;
+function spec(p){
+  if (p.category === "Steel Sheet") return [p.grade, p.thickness_mm && p.thickness_mm+"mm", (p.width_mm||p.length_mm) && `${p.width_mm||"?"}×${p.length_mm||"?"}`].filter(Boolean).join(" ");
+  return [p.grade, p.size].filter(Boolean).join(" ");
+}
+
+/* ---------------- Navigation ---------------- */
+$("#nav").addEventListener("click", e => { const v = e.target.dataset.v; if (v) go(v); });
+function go(v){
+  stopCamera();
+  S.view = v;
+  document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("active", b.dataset.v === v));
+  ({dashboard, scan, products, movements, suppliers, users})[v]();
+}
+
+/* ---------------- Dashboard ---------------- */
+function dashboard(){
+  const low = S.products.filter(isLow);
+  const today = new Date().toDateString();
+  const todays = S.movements.filter(m => new Date(m.created_at).toDateString() === today);
+  $("#view").innerHTML = `
+    <div class="page-head"><h2>Dashboard</h2><button class="btn" id="refresh">Refresh</button></div>
+    <div class="stats">
+      <div class="stat"><b>${S.products.length}</b><span>Products</span></div>
+      <div class="stat ${low.length?"alert":""}"><b>${low.length}</b><span>At or below minimum</span></div>
+      <div class="stat"><b>${todays.filter(m=>m.type==="IN").length}</b><span>Stock in today</span></div>
+      <div class="stat"><b>${todays.filter(m=>m.type==="OUT").length}</b><span>Stock out today</span></div>
+    </div>
+    <div class="panel"><h3>Needs reorder</h3>${low.length ? table(
+      ["SKU","Product","Supplier","In stock","Minimum"],
+      low.map(p => [`<span class="sku">${h(p.sku)}</span>`, h(p.name), h(supName(p.supplier_id)), `<b>${fmt(p.qty)}</b> ${h(p.unit)}`, fmt(p.min_stock)]), [3,4]
+    ) : `<div class="empty">Everything is above its minimum level.</div>`}</div>
+    <div class="panel"><h3>Latest movements</h3>${movTable(S.movements.slice(0,10))}</div>`;
+  $("#refresh").onclick = async () => { await loadAll(); dashboard(); toast("Updated"); };
+}
+
+function table(heads, rows, numCols=[]){
+  return `<div class="tablewrap"><table><thead><tr>${heads.map((x,i)=>`<th class="${numCols.includes(i)?"num":""}">${x}</th>`).join("")}</tr></thead>
+  <tbody>${rows.map(r=>`<tr>${r.map((c,i)=>`<td class="${numCols.includes(i)?"num":""}">${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+function movTable(list){
+  if (!list.length) return `<div class="empty">No movements yet. Scan an item to record the first one.</div>`;
+  return table(["Date","Type","SKU","Product","Qty","Balance","Reference","By"], list.map(m => {
+    const p = prodById(m.product_id) || {};
+    return [new Date(m.created_at).toLocaleString("en-GB",{dateStyle:"short",timeStyle:"short"}),
+      `<span class="tag ${m.type}">${m.type}</span>`, `<span class="sku">${h(p.sku)}</span>`, h(p.name),
+      `${m.qty>0&&m.type==="ADJUST"?"+":""}${fmt(m.qty)} ${h(p.unit||"")}`, fmt(m.balance_after),
+      h([m.reference,m.note].filter(Boolean).join(" · ")), h(userName(m.user_id))];
+  }), [4,5]);
+}
+
+/* ---------------- Scan ---------------- */
+let camera = null;
+function stopCamera(){ if (camera) { camera.stop().catch(()=>{}).finally(()=>{ camera.clear?.(); camera=null; }); } }
+
+function scan(prefill=""){
+  $("#view").innerHTML = `
+    <div class="page-head"><h2>Scan</h2></div>
+    <div class="panel">
+      <label for="code">Scan a barcode or type the SKU, then press Enter</label>
+      <div class="scanbar">
+        <input id="code" autocomplete="off" value="${h(prefill)}" placeholder="e.g. SHT-MS-3-1250X2500">
+        <button class="btn" id="camBtn">Use camera</button>
+      </div>
+      <div id="reader"></div>
+    </div>
+    <div id="result"></div>`;
+  const inp = $("#code"); inp.focus();
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); lookup(inp.value); } });
+  $("#camBtn").onclick = () => {
+    if (camera) { stopCamera(); $("#camBtn").textContent = "Use camera"; return; }
+    camera = new Html5Qrcode("reader");
+    camera.start({ facingMode:"environment" }, { fps:10, qrbox:{ width:280, height:140 } },
+      text => { stopCamera(); $("#camBtn").textContent = "Use camera"; inp.value = text; lookup(text); }
+    ).then(()=> $("#camBtn").textContent = "Stop camera")
+     .catch(() => { camera=null; toast("Camera not available. Allow camera access or type the SKU."); });
+  };
+  if (prefill) lookup(prefill);
+}
+
+function lookup(code){
+  code = code.trim();
+  if (!code) return;
+  const p = S.products.find(x => x.sku.toLowerCase() === code.toLowerCase());
+  const box = $("#result");
+  if (!p) {
+    box.innerHTML = `<div class="panel"><h3>No product has this barcode</h3>
+      <p><span class="sku">${h(code)}</span> is not linked to any product yet.</p>
+      ${canWrite() ? `<button class="btn primary" id="newFromScan">Add as new product</button>` : ""}</div>`;
+    $("#newFromScan")?.addEventListener("click", () => productForm({ sku: code.toUpperCase() }));
+    return;
+  }
+  let type = "IN";
+  const render = () => {
+    box.innerHTML = `<div class="panel found">
+      <div class="row" style="align-items:center">
+        <div><span class="sku">${h(p.sku)}</span><h3 style="margin:2px 0 0">${h(p.name)}</h3>
+          <div style="color:var(--muted)">${h(p.category)} ${h(spec(p))} ${p.location?"· "+h(p.location):""}</div></div>
+        <div style="text-align:right;flex:0 0 auto"><div class="qty">${fmt(p.qty)}</div><div style="color:var(--muted)">${h(p.unit)} in stock</div></div>
+      </div>
+      ${canWrite() ? `
+      <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
+      <div class="typepick">
+        <button data-t="IN" class="${type==="IN"?"on":""}">Stock in</button>
+        <button data-t="OUT" class="${type==="OUT"?"on":""}">Stock out</button>
+        ${isAdmin()?`<button data-t="ADJUST" class="${type==="ADJUST"?"on":""}">Count / adjust</button>`:""}
+      </div>
+      <div class="grid2">
+        <div><label for="mq">${type==="ADJUST"?"Counted quantity":"Quantity"} (${h(p.unit)})</label><input id="mq" type="number" step="any" min="0" inputmode="decimal"></div>
+        <div><label for="mr">${type==="IN"?"PO / delivery note no.":type==="OUT"?"Job / project no.":"Reason"}</label><input id="mr"></div>
+      </div>
+      <div class="field" style="margin-top:12px"><label for="mn">Note (optional)</label><input id="mn"></div>
+      <button class="btn primary" id="saveMov">Save ${type==="IN"?"stock in":type==="OUT"?"stock out":"count"}</button>
+      <div class="err" id="movErr"></div>` : `<p style="color:var(--muted)">You have view-only access.</p>`}
+    </div>`;
+    box.querySelectorAll(".typepick button").forEach(b => b.onclick = () => { type = b.dataset.t; render(); });
+    const q = $("#mq"); q?.focus();
+    $("#saveMov")?.addEventListener("click", async (ev) => {
+      ev.target.disabled = true;
+      const { data, error } = await sb.rpc("inv_record_movement", {
+        p_product_id: p.id, p_type: type, p_qty: Number($("#mq").value),
+        p_reference: $("#mr").value, p_note: $("#mn").value
+      });
+      if (error) { $("#movErr").textContent = niceErr(error); ev.target.disabled = false; return; }
+      toast(`Saved. ${p.sku} now has ${fmt(data)} ${p.unit}`);
+      await loadAll();
+      scan();
+    });
+    q?.addEventListener("keydown", e => { if (e.key==="Enter") $("#mr").focus(); });
+  };
+  render();
+}
+
+/* ---------------- Products ---------------- */
+function products(){
+  $("#view").innerHTML = `
+    <div class="page-head"><h2>Products</h2>
+      ${canWrite()?`<button class="btn primary" id="addP">Add product</button>`:""}
+      <button class="btn" id="printL">Print labels (<span id="selN">0</span>)</button>
+      <button class="btn" id="csvP">Export CSV</button>
+    </div>
+    <div class="row" style="margin-bottom:12px">
+      <div><label for="fq">Search</label><input id="fq" placeholder="SKU, name, size, location"></div>
+      <div><label for="fc">Category</label><select id="fc"><option value="">All</option>${Object.keys(CATEGORIES).map(c=>`<option>${c}</option>`).join("")}</select></div>
+      <div style="flex:0 0 auto"><label><input type="checkbox" id="fl" style="width:auto"> Low stock only</label></div>
+    </div>
+    <div id="plist"></div>`;
+  const draw = () => {
+    const q = $("#fq").value.toLowerCase(), c = $("#fc").value, lo = $("#fl").checked;
+    const list = S.products.filter(p =>
+      (!c || p.category === c) && (!lo || isLow(p)) &&
+      (!q || [p.sku,p.name,p.size,p.grade,p.location,spec(p)].join(" ").toLowerCase().includes(q)));
+    $("#selN").textContent = S.selected.size;
+    if (!list.length) { $("#plist").innerHTML = `<div class="tablewrap"><div class="empty">${S.products.length?"No products match these filters.":"No products yet. Add your first raw material to get started."}</div></div>`; return; }
+    $("#plist").innerHTML = `<div class="tablewrap"><table><thead><tr>
+      <th><input type="checkbox" id="selAll" style="width:auto" aria-label="Select all"></th><th>SKU</th><th>Product</th><th>Category</th><th>Spec</th><th class="num">In stock</th><th class="num">Min</th><th>Location</th><th></th></tr></thead><tbody>
+      ${list.map(p => `<tr class="${isLow(p)?"low":""}">
+        <td><input type="checkbox" class="sel" data-id="${p.id}" ${S.selected.has(p.id)?"checked":""} style="width:auto" aria-label="Select ${h(p.sku)}"></td>
+        <td class="sku">${h(p.sku)}</td><td>${h(p.name)}</td><td>${h(p.category)}</td><td>${h(spec(p))}</td>
+        <td class="num"><b>${fmt(p.qty)}</b> ${h(p.unit)}</td><td class="num">${fmt(p.min_stock)}</td><td>${h(p.location)}</td>
+        <td style="white-space:nowrap"><button class="btn small" data-scan="${h(p.sku)}">Stock</button> ${canWrite()?`<button class="btn small" data-edit="${p.id}">Edit</button>`:""}</td></tr>`).join("")}
+    </tbody></table></div>`;
+    $("#selAll").onchange = e => { list.forEach(p => e.target.checked ? S.selected.add(p.id) : S.selected.delete(p.id)); draw(); };
+    document.querySelectorAll(".sel").forEach(cb => cb.onchange = () => { const id=+cb.dataset.id; cb.checked?S.selected.add(id):S.selected.delete(id); $("#selN").textContent=S.selected.size; });
+    document.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => productForm(prodById(+b.dataset.edit)));
+    document.querySelectorAll("[data-scan]").forEach(b => b.onclick = () => { go("scan"); scan(b.dataset.scan); });
+  };
+  ["fq","fc","fl"].forEach(id => $("#"+id).addEventListener("input", draw));
+  $("#addP")?.addEventListener("click", () => productForm({}));
+  $("#printL").onclick = printLabels;
+  $("#csvP").onclick = () => csv("products.csv",
+    ["SKU","Name","Category","Grade","Thickness mm","Width mm","Length mm","Size","Unit","Weight kg/unit","In stock","Min stock","Location","Supplier"],
+    S.products.map(p => [p.sku,p.name,p.category,p.grade,p.thickness_mm,p.width_mm,p.length_mm,p.size,p.unit,p.weight_kg,p.qty,p.min_stock,p.location,supName(p.supplier_id)]));
+  draw();
+}
+
+function genSku(f){
+  const pre = CATEGORIES[f.category] || "OTH";
+  const clean = s => String(s||"").trim().toUpperCase().replace(/\s+/g,"-").replace(/[^A-Z0-9.\-/X×]/g,"");
+  if (f.category === "Steel Sheet")
+    return [pre, clean(f.grade), clean(f.thickness_mm), (f.width_mm||f.length_mm) ? `${clean(f.width_mm)}X${clean(f.length_mm)}` : ""].filter(Boolean).join("-");
+  return [pre, clean(f.grade), clean(f.size)].filter(Boolean).join("-");
+}
+
+function productForm(p){
+  const isNew = !p.id;
+  const cat = p.category || "Steel Sheet";
+  $("#modalRoot").innerHTML = `<div class="modal"><form class="box" id="pf">
+    <h3>${isNew?"Add product":"Edit product"}</h3>
+    <div class="grid2">
+      <div class="field"><label for="f_category">Category</label><select id="f_category">${Object.keys(CATEGORIES).map(c=>`<option ${c===cat?"selected":""}>${c}</option>`).join("")}</select></div>
+      <div class="field"><label for="f_name">Product name</label><input id="f_name" required value="${h(p.name)}" placeholder="e.g. MS Plate"></div>
+      <div class="field"><label for="f_grade">Grade / type</label><input id="f_grade" value="${h(p.grade)}" placeholder="MS, SS304, GI, E6013, 8.8"></div>
+      <div class="field sheet"><label for="f_thickness_mm">Thickness (mm)</label><input id="f_thickness_mm" type="number" step="any" value="${h(p.thickness_mm)}"></div>
+      <div class="field sheet"><label for="f_width_mm">Width (mm)</label><input id="f_width_mm" type="number" step="any" value="${h(p.width_mm)}"></div>
+      <div class="field sheet"><label for="f_length_mm">Length (mm)</label><input id="f_length_mm" type="number" step="any" value="${h(p.length_mm)}"></div>
+      <div class="field nonsheet"><label for="f_size">Size / spec</label><input id="f_size" value="${h(p.size)}" placeholder="385/65R22.5, M12x50, 3.2mm, 24V amber"></div>
+      <div class="field"><label for="f_unit">Unit</label><select id="f_unit">${UNITS.map(u=>`<option ${u===(p.unit||"pcs")?"selected":""}>${u}</option>`).join("")}</select></div>
+      <div class="field"><label for="f_weight_kg">Weight per unit (kg)</label><input id="f_weight_kg" type="number" step="any" value="${h(p.weight_kg)}"></div>
+      <div class="field"><label for="f_min_stock">Minimum stock (alert)</label><input id="f_min_stock" type="number" step="any" value="${h(p.min_stock ?? 0)}"></div>
+      <div class="field"><label for="f_location">Location / rack</label><input id="f_location" value="${h(p.location)}" placeholder="Rack A3"></div>
+      <div class="field"><label for="f_supplier_id">Supplier</label><select id="f_supplier_id"><option value="">None</option>${S.suppliers.map(s=>`<option value="${s.id}" ${s.id===p.supplier_id?"selected":""}>${h(s.name)}</option>`).join("")}</select></div>
+    </div>
+    <div class="field"><label for="f_sku">SKU / barcode</label>
+      <div class="row"><input id="f_sku" required value="${h(p.sku)}" class="sku" style="flex:3 1 200px"><button type="button" class="btn" id="gen" style="flex:0 0 auto">Generate from details</button></div></div>
+    ${isNew?`<p style="color:var(--muted);font-size:13px;margin:0">New products start at 0. Add opening stock with Stock in after saving.</p>`:""}
+    <div class="err" id="pfErr"></div>
+    <div class="actions">
+      ${!isNew && isAdmin() ? `<button type="button" class="btn danger" id="delP" style="margin-right:auto">Delete</button>`:""}
+      <button type="button" class="btn" id="cancel">Cancel</button><button class="btn primary" type="submit">Save product</button>
+    </div></form></div>`;
+  const fields = ["category","name","grade","thickness_mm","width_mm","length_mm","size","unit","weight_kg","min_stock","location","supplier_id","sku"];
+  const val = () => Object.fromEntries(fields.map(k => [k, $("#f_"+k).value.trim()]));
+  const toggle = () => { const s = $("#f_category").value === "Steel Sheet";
+    document.querySelectorAll("#pf .sheet").forEach(e=>e.classList.toggle("hidden",!s));
+    document.querySelectorAll("#pf .nonsheet").forEach(e=>e.classList.toggle("hidden",s)); };
+  $("#f_category").onchange = toggle; toggle();
+  $("#gen").onclick = () => { $("#f_sku").value = genSku(val()); };
+  $("#cancel").onclick = () => $("#modalRoot").innerHTML = "";
+  $("#delP")?.addEventListener("click", async () => {
+    if (!confirm(`Delete ${p.sku}? Its movement history will also be deleted.`)) return;
+    const { error } = await sb.from("inv_products").delete().eq("id", p.id);
+    if (error) { $("#pfErr").textContent = niceErr(error); return; }
+    $("#modalRoot").innerHTML = ""; await loadAll(); products(); toast("Product deleted");
+  });
+  $("#pf").onsubmit = async e => {
+    e.preventDefault();
+    const v = val();
+    if (!v.sku) v.sku = genSku(v);
+    v.sku = v.sku.toUpperCase();
+    const row = { ...v };
+    ["thickness_mm","width_mm","length_mm","weight_kg","min_stock"].forEach(k => row[k] = row[k]==="" ? null : Number(row[k]));
+    row.min_stock = row.min_stock ?? 0;
+    row.supplier_id = row.supplier_id ? Number(row.supplier_id) : null;
+    if (row.category !== "Steel Sheet") { row.thickness_mm = row.width_mm = row.length_mm = null; } else row.size = null;
+    Object.keys(row).forEach(k => { if (row[k] === "") row[k] = null; });
+    const res = isNew ? await sb.from("inv_products").insert(row) : await sb.from("inv_products").update(row).eq("id", p.id);
+    if (res.error) { $("#pfErr").textContent = res.error.code === "23505" ? "This SKU already exists. Use a different one." : niceErr(res.error); return; }
+    $("#modalRoot").innerHTML = ""; await loadAll(); toast(isNew ? "Product added" : "Product updated");
+    S.view === "scan" ? scan(row.sku) : products();
+  };
+}
+
+function printLabels(){
+  const list = S.products.filter(p => S.selected.has(p.id));
+  if (!list.length) { toast("Tick the products you want labels for first."); return; }
+  const area = $("#printArea");
+  area.innerHTML = list.map((p,i) => `<div class="label"><div class="n">${h(p.name)}</div><div>${h(spec(p))}</div><svg id="bc${i}"></svg></div>`).join("");
+  list.forEach((p,i) => JsBarcode(`#bc${i}`, p.sku, { format:"CODE128", height:50, fontSize:13, margin:4 }));
+  window.print();
+}
+
+/* ---------------- Movements ---------------- */
+function movements(){
+  $("#view").innerHTML = `
+    <div class="page-head"><h2>Movements</h2><button class="btn" id="csvM">Export CSV</button></div>
+    <div class="row" style="margin-bottom:12px">
+      <div><label for="mq2">Search</label><input id="mq2" placeholder="SKU, product, PO or job no."></div>
+      <div><label for="mt">Type</label><select id="mt"><option value="">All</option><option>IN</option><option>OUT</option><option>ADJUST</option></select></div>
+      <div><label for="md1">From</label><input id="md1" type="date"></div>
+      <div><label for="md2">To</label><input id="md2" type="date"></div>
+    </div><div id="mlist"></div>`;
+  let current = [];
+  const draw = () => {
+    const q = $("#mq2").value.toLowerCase(), t = $("#mt").value, d1 = $("#md1").value, d2 = $("#md2").value;
+    current = S.movements.filter(m => {
+      const p = prodById(m.product_id) || {}; const d = m.created_at.slice(0,10);
+      return (!t || m.type===t) && (!d1 || d>=d1) && (!d2 || d<=d2) &&
+        (!q || [p.sku,p.name,m.reference,m.note].join(" ").toLowerCase().includes(q));
+    });
+    $("#mlist").innerHTML = movTable(current);
+  };
+  ["mq2","mt","md1","md2"].forEach(id => $("#"+id).addEventListener("input", draw));
+  $("#csvM").onclick = () => csv("movements.csv", ["Date","Type","SKU","Product","Qty","Unit","Balance after","Reference","Note","By"],
+    current.map(m => { const p = prodById(m.product_id)||{}; return [m.created_at,m.type,p.sku,p.name,m.qty,p.unit,m.balance_after,m.reference,m.note,userName(m.user_id)]; }));
+  draw();
+}
+
+/* ---------------- Suppliers ---------------- */
+function suppliers(){
+  $("#view").innerHTML = `
+    <div class="page-head"><h2>Suppliers</h2>${canWrite()?`<button class="btn primary" id="addS">Add supplier</button>`:""}</div>
+    ${S.suppliers.length ? table(["Name","Contact","Phone","Email","Products",""], S.suppliers.map(s => [
+      `<b>${h(s.name)}</b>`, h(s.contact_person), h(s.phone), h(s.email),
+      S.products.filter(p=>p.supplier_id===s.id).length,
+      canWrite()?`<button class="btn small" data-es="${s.id}">Edit</button>`:""]), [4])
+    : `<div class="tablewrap"><div class="empty">No suppliers yet. Add one so products can be linked to it.</div></div>`}`;
+  $("#addS")?.addEventListener("click", () => supplierForm({}));
+  document.querySelectorAll("[data-es]").forEach(b => b.onclick = () => supplierForm(S.suppliers.find(s=>s.id===+b.dataset.es)));
+}
+function supplierForm(s){
+  const isNew = !s.id;
+  $("#modalRoot").innerHTML = `<div class="modal"><form class="box" id="sf"><h3>${isNew?"Add supplier":"Edit supplier"}</h3>
+    <div class="grid2">
+      <div class="field"><label for="s_name">Company name</label><input id="s_name" required value="${h(s.name)}"></div>
+      <div class="field"><label for="s_contact_person">Contact person</label><input id="s_contact_person" value="${h(s.contact_person)}"></div>
+      <div class="field"><label for="s_phone">Phone</label><input id="s_phone" value="${h(s.phone)}"></div>
+      <div class="field"><label for="s_email">Email</label><input id="s_email" type="email" value="${h(s.email)}"></div>
+    </div>
+    <div class="field"><label for="s_notes">Notes</label><textarea id="s_notes" rows="2">${h(s.notes)}</textarea></div>
+    <div class="err" id="sfErr"></div>
+    <div class="actions">${!isNew&&isAdmin()?`<button type="button" class="btn danger" id="delS" style="margin-right:auto">Delete</button>`:""}
+    <button type="button" class="btn" id="cancel">Cancel</button><button class="btn primary">Save supplier</button></div></form></div>`;
+  $("#cancel").onclick = () => $("#modalRoot").innerHTML = "";
+  $("#delS")?.addEventListener("click", async () => {
+    if (!confirm(`Delete ${s.name}?`)) return;
+    const { error } = await sb.from("inv_suppliers").delete().eq("id", s.id);
+    if (error) { $("#sfErr").textContent = niceErr(error); return; }
+    $("#modalRoot").innerHTML = ""; await loadAll(); suppliers();
+  });
+  $("#sf").onsubmit = async e => {
+    e.preventDefault();
+    const row = Object.fromEntries(["name","contact_person","phone","email","notes"].map(k => [k, $("#s_"+k).value.trim() || null]));
+    const res = isNew ? await sb.from("inv_suppliers").insert(row) : await sb.from("inv_suppliers").update(row).eq("id", s.id);
+    if (res.error) { $("#sfErr").textContent = niceErr(res.error); return; }
+    $("#modalRoot").innerHTML = ""; await loadAll(); suppliers(); toast("Supplier saved");
+  };
+}
+
+/* ---------------- Users (admin) ---------------- */
+function users(){
+  return go("dashboard");   // users & roles: portal > Users & Access
+  $("#view").innerHTML = `
+    <div class="page-head"><h2>Users</h2></div>
+    <div class="panel"><h3>Add a new user</h3>
+      <p style="margin:0">In Supabase open <b>Authentication → Users → Add user → Create new user</b>. Email: <span class="sku">userid@${h(LOGIN_DOMAIN)}</span>, set a password, tick <b>Auto confirm</b>. They then sign in here with just the user ID. New users start as <b>viewer</b>; set their role below.</p></div>
+    ${table(["User ID","Name","Role"], S.profiles.map(u => [
+      `<span class="sku">${h(u.username)}</span>`, h(u.full_name),
+      u.id===S.user.id ? `<b>${u.role}</b> (you)` :
+      `<select data-role="${u.id}" style="max-width:180px">${["admin","storekeeper","viewer"].map(r=>`<option ${r===u.role?"selected":""}>${r}</option>`).join("")}</select>`]))}
+    <p style="color:var(--muted);font-size:13px">Admin: everything, including users, deletes and stock counts. Storekeeper: add products and suppliers, stock in and out. Viewer: can only look.</p>`;
+  document.querySelectorAll("[data-role]").forEach(sel => sel.onchange = async () => {
+    const { error } = await sb.from("profiles").update({ role: sel.value }).eq("id", sel.dataset.role);
+    if (error) { toast(niceErr(error)); return; }
+    await loadAll(); toast("Role updated");
+  });
+}
+
+/* ---------------- CSV ---------------- */
+function csv(name, heads, rows){
+  const esc = v => { v = v ?? ""; v = String(v); return /[",\n]/.test(v) ? `"${v.replace(/"/g,'""')}"` : v; };
+  const text = "\ufeff" + [heads, ...rows].map(r => r.map(esc).join(",")).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type:"text/csv" })); a.download = name; a.click();
+}
+
+document.addEventListener("keydown", e => { if (e.key === "Escape") $("#modalRoot").innerHTML = ""; });
+boot();
+</script>
+</body>
+</html>

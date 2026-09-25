@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Employee Portal</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦺</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --steel:#25313B; --steel2:#33424E; --steel3:#4A5B68;
+  --paper:#ECEFF1; --panel:#FFFFFF; --ink:#1A242C; --muted:#5D6B76; --line:#D4DADF;
+  --yellow:#F2B705; --green:#2D7A4C; --red:#B3261E; --amber:#9A5B00; --blue:#2A5C88; --grey:#6F7B84;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{font:15px/1.45 Barlow,"Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--paper)}
+[hidden]{display:none!important}
+h1,h2,.num,.dlg-h{font-family:"Barlow Condensed",Barlow,"Arial Narrow",sans-serif}
+h1{font-size:34px;font-weight:600;margin:0;line-height:1.1}
+h2{font-size:22px;font-weight:600;margin:30px 0 10px}
+a{color:var(--blue)}
+input,select,textarea,button{font:inherit;color:inherit}
+input,select,textarea{border:1px solid var(--line);background:#fff;border-radius:4px;padding:7px 9px;max-width:100%}
+textarea{resize:vertical}
+:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.btn{border:1px solid var(--steel3);background:#fff;padding:7px 14px;border-radius:4px;cursor:pointer;font-weight:600;white-space:nowrap;display:inline-block;text-decoration:none;color:inherit}
+.btn:hover{background:#F3F5F6}
+.btn.primary{background:var(--steel);border-color:var(--steel);color:#fff}
+.btn.primary:hover{background:var(--steel2)}
+.btn.danger{color:var(--red);border-color:var(--red)}
+.btn:disabled{opacity:.55;cursor:default}
+.link{background:none;border:0;padding:0;cursor:pointer;color:var(--blue);text-decoration:underline;font-size:13px}
+
+/* login */
+.login{min-height:100vh;display:grid;place-items:center;background:var(--steel);padding:20px}
+.login form{background:#fff;padding:30px 32px;border-radius:8px;width:min(380px,100%);display:grid;gap:12px;border-top:6px solid var(--yellow)}
+.login label{display:grid;gap:4px;font-weight:600;font-size:14px}
+.login .msg{color:var(--red);font-size:14px;min-height:1.2em;margin:0}
+
+/* shell */
+.app{display:grid;grid-template-columns:224px minmax(0,1fr);min-height:100vh}
+.side{background:var(--steel);color:#DCE3E8;display:flex;flex-direction:column;padding:22px 14px;position:sticky;top:0;height:calc(100vh - 42px)}
+.brand{display:flex;gap:12px;align-items:center;padding:0 6px 24px}
+.mark{flex:none;width:10px;height:38px;background:repeating-linear-gradient(135deg,var(--yellow) 0 6px,var(--steel) 6px 12px)}
+.brand b{display:block;color:#fff;font-size:16px;line-height:1.2}
+.brand small{color:#9DAAB4}
+nav a{display:block;color:#C9D2D9;text-decoration:none;padding:9px 12px;border-radius:4px;font-weight:500;margin-bottom:2px}
+nav a:hover{background:var(--steel2);color:#fff}
+nav a.on{background:var(--steel2);color:#fff;box-shadow:inset 3px 0 var(--yellow)}
+.side-foot{margin-top:auto;display:flex;flex-direction:column;gap:10px;padding:0 12px}
+.side-foot a,.side-foot button{color:#9DAAB4;font-size:14px;text-align:left;background:none;border:0;padding:0;cursor:pointer;text-decoration:none}
+.side-foot a:hover,.side-foot button:hover{color:#fff}
+main{padding:28px 36px 64px;min-width:0}
+.head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.head p{margin:4px 0 0;color:var(--muted)}
+.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+/* figures strip */
+.figs{display:flex;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:6px;margin-bottom:8px}
+.fig{padding:14px 24px;border-right:1px solid var(--line);min-width:120px}
+.fig:last-child{border-right:0}
+.fig .num{font-size:38px;line-height:1;font-weight:600}
+.fig span{display:block;color:var(--muted);font-size:13px;margin-top:5px}
+.fig.warn .num{color:var(--red)}
+
+/* tables */
+.wrap{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px}
+table{border-collapse:collapse;width:100%}
+th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+th{font-size:13px;color:var(--muted);font-weight:600;background:#F5F7F8}
+tbody tr:hover{background:#F8FAFB}
+tr.click{cursor:pointer}
+.r{text-align:right}
+td.wrapcell{white-space:normal;min-width:240px}
+tfoot td{font-weight:700;background:#F5F7F8;border-top:2px solid var(--line)}
+td input{padding:4px 6px}
+td input[type=number]{width:72px;text-align:right}
+td input.note{width:170px}
+.sv{font-size:12px;color:var(--green);min-width:44px}
+.sv.err{color:var(--red)}
+.muted{color:var(--muted)}
+.over{color:var(--red);font-weight:600}
+.sub{display:block;color:var(--muted);font-size:13px;white-space:normal;max-width:420px}
+.empty{padding:34px;text-align:center;color:var(--muted)}
+
+.chip{display:inline-block;padding:2px 9px;border-radius:999px;font-size:13px;font-weight:600;background:#E6EAED;color:var(--muted)}
+.chip.present,.chip.done{background:#DCEFE3;color:var(--green)}
+.chip.absent,.chip.urgent{background:#F7DEDC;color:var(--red)}
+.chip.leave,.chip.in_progress{background:#DDE8F3;color:var(--blue)}
+.chip.half_day,.chip.high{background:#F8EACB;color:var(--amber)}
+.chip.off,.chip.cancelled,.chip.low{background:#ECEEF0;color:var(--grey)}
+.chip.onshift{background:var(--yellow);color:var(--ink)}
+
+.seg{display:inline-flex;border:1px solid var(--steel3);border-radius:4px;overflow:hidden}
+.seg button{border:0;background:#fff;padding:7px 16px;cursor:pointer;font-weight:600}
+.seg button+button{border-left:1px solid var(--steel3)}
+.seg button.on{background:var(--steel);color:#fff}
+
+/* month grid */
+.grid th,.grid td{padding:0;text-align:center;font-size:13px}
+.grid th.d,.grid td.d{width:30px;min-width:30px}
+.grid td.d{height:32px;cursor:pointer;font-weight:700;border-left:1px solid #EEF1F3}
+.grid td.d:hover{outline:2px solid var(--blue);outline-offset:-2px}
+.grid .fri{background:#EEF1F3}
+.grid td.P{background:#DCEFE3;color:var(--green)}
+.grid td.H{background:#F8EACB;color:var(--amber)}
+.grid td.A{background:#F7DEDC;color:var(--red)}
+.grid td.L{background:#DDE8F3;color:var(--blue)}
+.grid td.O{background:#ECEEF0;color:var(--grey)}
+.grid th.nm,.grid td.nm{text-align:left;padding:0 12px;position:sticky;left:0;background:#fff;z-index:1}
+.grid th.nm{background:#F5F7F8}
+.grid td.t,.grid th.t{padding:0 10px;min-width:44px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:13px;margin:10px 0 0}
+.legend b{display:inline-block;width:20px;text-align:center;border-radius:3px;margin-right:4px}
+
+/* dialog */
+dialog{border:0;border-radius:8px;padding:0;width:min(580px,94vw);box-shadow:0 24px 60px rgba(20,30,40,.35)}
+dialog::backdrop{background:rgba(25,35,45,.55)}
+.dlg-h{padding:18px 22px;border-bottom:1px solid var(--line);font-size:24px;font-weight:600;border-top:5px solid var(--yellow);border-radius:8px 8px 0 0}
+.dlg-b{padding:18px 22px;display:grid;gap:12px 14px;grid-template-columns:1fr 1fr;max-height:70vh;overflow:auto}
+.dlg-b label{display:grid;gap:4px;font-size:13px;color:var(--muted);font-weight:600}
+.dlg-b label.chk{display:flex;align-items:center;gap:8px;color:var(--ink)}
+.dlg-b .full{grid-column:1/-1}
+.dlg-b .hint{font-weight:400;font-size:12px}
+.dlg-f{padding:14px 22px;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center}
+.dlg-f .sp{flex:1}
+
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--steel);color:#fff;padding:10px 18px;border-radius:6px;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:90vw}
+.toast.err{background:var(--red)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:20px 22px;max-width:620px}
+.panel label{display:grid;gap:4px;font-weight:600;font-size:14px;margin-bottom:14px}
+.panel .hint{font-weight:400;color:var(--muted);font-size:13px}
+code.url{display:block;background:#F5F7F8;border:1px solid var(--line);padding:8px 10px;border-radius:4px;word-break:break-all;margin:6px 0 10px}
+
+@media (max-width:860px){
+  .app{grid-template-columns:1fr}
+  .side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px;padding:10px 12px}
+  .brand{padding:0 12px 0 0}
+  nav{display:flex;flex-wrap:wrap;gap:2px}
+  nav a{padding:6px 10px;margin:0}
+  .side-foot{margin:0 0 0 auto;flex-direction:row;padding:0}
+  main{padding:20px 14px 48px}
+  .dlg-b{grid-template-columns:1fr}
+  .fig{padding:12px 16px;min-width:0;flex:1 1 30%}
+}
+@media (prefers-reduced-motion:no-preference){.toast{animation:rise .2s ease-out}@keyframes rise{from{opacity:0;transform:translate(-50%,8px)}}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/config.js"></script>
+<script src="assets/portal.js" data-module="hr"></script>
+</head>
+<body>
+
+<div id="login" class="login" hidden>
+  <form id="loginForm">
+    <div>
+      <h1>Employee portal</h1>
+      <p class="muted" style="margin:4px 0 6px">Sign in with your admin account.</p>
+    </div>
+    <label>Email<input id="email" type="email" autocomplete="username" required></label>
+    <label>Password<input id="password" type="password" autocomplete="current-password" required></label>
+    <p class="msg" id="loginMsg"></p>
+    <button class="btn primary" id="loginBtn">Sign in</button>
+  </form>
+</div>
+
+<div id="app" class="app" hidden>
+  <aside class="side">
+    <div class="brand"><span class="mark"></span><div><b id="brandName">Employee portal</b><small id="roleName"></small></div></div>
+    <nav id="nav">
+      <a href="#today" data-v="today">Today</a>
+      <a href="#attendance" data-v="attendance">Attendance</a>
+      <a href="#overtime" data-v="overtime">Overtime</a>
+      <a href="#tasks" data-v="tasks">Tasks</a>
+      <a href="#employees" data-v="employees">Employees</a>
+      <a href="#settings" data-v="settings" data-admin-only hidden>Settings</a>
+    </nav>
+    <div class="side-foot">
+      <a href="kiosk.html" target="_blank" rel="noopener" data-admin-only hidden>Open check-in kiosk</a>
+      <a href="index.html">Portal home</a>
+    </div>
+  </aside>
+  <main id="main"></main>
+</div>
+
+<dialog id="dlg"></dialog>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+/* ============ setup & helpers ============ */
+const CFG = window.PORTAL_CONFIG || {};
+const TZ = 'Asia/Riyadh';
+const $ = (s, el = document) => el.querySelector(s);
+const main = $('#main'), dlg = $('#dlg'), loginEl = $('#login'), appEl = $('#app');
+const configured = !!CFG.SUPABASE_URL;
+const sb = window.portalSb;   // shared portal login
+
+const esc = s => (s ?? '').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const todayStr = () => new Intl.DateTimeFormat('en-CA', {timeZone: TZ}).format(new Date());
+const timeOf = ts => ts ? new Intl.DateTimeFormat('en-GB', {timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false}).format(new Date(ts)) : '';
+const toTs = (date, hhmm) => hhmm ? `${date}T${hhmm}:00+03:00` : null;   // Riyadh is UTC+3 all year
+const hoursBetween = (a, b) => (a && b) ? (new Date(b) - new Date(a)) / 36e5 : null;
+const fmtH = h => (h == null || isNaN(h)) ? '' : String(Math.round(h * 100) / 100);
+const money = n => Number(n || 0).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 2});
+const longDate = d => new Intl.DateTimeFormat('en-GB', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC'}).format(new Date(d + 'T00:00:00Z'));
+const shortDate = d => d ? new Intl.DateTimeFormat('en-GB', {day: 'numeric', month: 'short', timeZone: 'UTC'}).format(new Date(d + 'T00:00:00Z')) : '';
+const monthName = ym => new Intl.DateTimeFormat('en-GB', {month: 'long', year: 'numeric', timeZone: 'UTC'}).format(new Date(ym + '-01T00:00:00Z'));
+function addDays(d, n) { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); }
+function monthRange(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return {start: `${ym}-01`, end: `${ym}-${String(days).padStart(2, '0')}`, days};
+}
+function must(res) { if (res.error) throw res.error; return res.data; }
+
+let toastTimer;
+function toast(msg, err) {
+  const t = $('#toast'); t.textContent = msg; t.className = 'toast' + (err ? ' err' : ''); t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, err ? 5000 : 2500);
+}
+function csvDownload(name, rows) {
+  const csv = rows.map(r => r.map(v => { v = (v ?? '').toString(); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }).join(',')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], {type: 'text/csv'}));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+}
+
+const STATUS = {present: 'Present', half_day: 'Half day', absent: 'Absent', leave: 'Leave', off: 'Off day'};
+const LETTER = {present: 'P', half_day: 'H', absent: 'A', leave: 'L', off: 'O'};
+const PRIORITY = {urgent: 'Urgent', high: 'High', normal: 'Normal', low: 'Low'};
+const TSTATUS = {pending: 'Pending', in_progress: 'In progress', done: 'Done', cancelled: 'Cancelled'};
+const chip = (cls, label) => `<span class="chip ${cls}">${esc(label)}</span>`;
+const opts = (map, sel, blank) => (blank != null ? `<option value="">${blank}</option>` : '') +
+  Object.entries(map).map(([k, v]) => `<option value="${k}"${k === sel ? ' selected' : ''}>${v}</option>`).join('');
+
+/* ============ data ============ */
+const S = {employees: [], settings: {company_name: '', shift_hours: 8, default_ot_rate: 50}};
+let ROLE = '';           // admin | supervisor | viewer
+const isAdmin = () => ROLE === 'admin', canEdit = () => ROLE === 'admin' || ROLE === 'supervisor';
+const EMP_COLS = 'id,emp_code,name,designation,phone,active,pin_set';
+async function loadBase() {
+  const [e, s] = await Promise.all([
+    sb.from('hr_employees').select(EMP_COLS).order('emp_code'),
+    sb.from('hr_settings').select('*').eq('id', 1).maybeSingle()
+  ]);
+  S.employees = must(e);
+  const st = must(s); if (st) S.settings = st;
+  if (isAdmin()) {   // pay is only readable by the HR admin
+    const pay = must(await sb.from('hr_pay').select('*'));
+    const byId = Object.fromEntries(pay.map(p => [p.employee_id, p]));
+    S.employees.forEach(e => { const p = byId[e.id] || {}; e.basic_pay = p.basic_pay ?? 0; e.ot_rate = p.ot_rate ?? null; });
+  }
+  $('#brandName').textContent = S.settings.company_name || 'Employee portal';
+}
+const activeEmps = () => S.employees.filter(e => e.active);
+const empById = id => S.employees.find(e => e.id === id);
+const rateOf = e => Number(e && e.ot_rate != null ? e.ot_rate : S.settings.default_ot_rate);
+const empOpts = (sel, blank) => (blank != null ? `<option value="">${blank}</option>` : '') +
+  S.employees.filter(e => e.active || e.id === sel)
+    .map(e => `<option value="${e.id}"${e.id === sel ? ' selected' : ''}>${esc(e.emp_code)}  ${esc(e.name)}</option>`).join('');
+
+/* ============ auth ============ */
+function showLogin() { location.replace(CFG.links.logout); }
+
+async function startApp() {
+  await window.PORTAL_READY;
+  ROLE = CFG.user.hr_role || '';
+  const {data: {session}} = await sb.auth.getSession();
+  if (!session || !CFG.user || session.user.id !== CFG.user.id) { showLogin(); return; }
+  if (!ROLE) { location.replace(CFG.links.home); return; }
+  loginEl.hidden = true; appEl.hidden = false;
+  document.querySelectorAll('[data-admin-only]').forEach(el => el.hidden = !isAdmin());
+  $('#roleName').textContent = ({admin: 'HR admin', supervisor: 'Supervisor', viewer: 'Viewer'})[ROLE] || '';
+  try { await loadBase(); }
+  catch (e) { main.innerHTML = `<div class="empty">Could not load data: ${esc(e.message)}</div>`; return; }
+  if (!location.hash) location.hash = '#today'; else route();
+}
+
+/* ============ router ============ */
+const VIEWS = {today: viewToday, attendance: viewAttendance, overtime: viewOvertime, tasks: viewTasks, employees: viewEmployees, settings: viewSettings};
+async function route() {
+  if (appEl.hidden) return;
+  let v = VIEWS[location.hash.slice(1)] ? location.hash.slice(1) : 'today';
+  if (v === 'settings' && !isAdmin()) v = 'today';
+  document.querySelectorAll('#nav a').forEach(a => a.classList.toggle('on', a.dataset.v === v));
+  main.innerHTML = '<div class="empty">Loading…</div>';
+  try { await VIEWS[v](); }
+  catch (e) { console.error(e); main.innerHTML = `<div class="empty">Something went wrong: ${esc(e.message || e)}</div>`; }
+}
+window.addEventListener('hashchange', route);
+
+/* ============ dialog helper ============ */
+function openDialog({title, body, submit, onSubmit, left = ''}) {
+  dlg.innerHTML = `<form novalidate><div class="dlg-h">${title}</div><div class="dlg-b">${body}</div>
+    <div class="dlg-f">${left}<span class="sp"></span><button type="button" class="btn" data-x>Cancel</button><button class="btn primary">${submit}</button></div></form>`;
+  const f = dlg.querySelector('form');
+  f.querySelector('[data-x]').onclick = () => dlg.close();
+  f.onsubmit = async ev => {
+    ev.preventDefault();
+    if (!f.reportValidity()) return;
+    const btn = f.querySelector('.primary'); btn.disabled = true;
+    try { await onSubmit(Object.fromEntries(new FormData(f)), f); dlg.close(); }
+    catch (e) { toast(e.message || String(e), true); }
+    finally { btn.disabled = false; }
+  };
+  dlg.showModal();
+  return f;
+}
+
+/* ============ TODAY ============ */
+async function viewToday() {
+  const d = todayStr();
+  const [ra, rt] = await Promise.all([
+    sb.from('hr_attendance').select('*').eq('work_date', d),
+    sb.from('hr_tasks').select('id,employee_id,title,due_date,priority,status').in('status', ['pending', 'in_progress'])
+  ]);
+  const att = must(ra), tasks = must(rt);
+  const byEmp = Object.fromEntries(att.map(a => [a.employee_id, a]));
+  const openBy = {};
+  tasks.forEach(t => { if (t.employee_id) openBy[t.employee_id] = (openBy[t.employee_id] || 0) + 1; });
+  const overdue = tasks.filter(t => t.due_date && t.due_date < d).sort((a, b) => a.due_date.localeCompare(b.due_date));
+
+  let present = 0, onShift = 0, notIn = 0, leave = 0, ot = 0;
+  const rows = activeEmps().map(e => {
+    const a = byEmp[e.id];
+    let st;
+    if (!a) { notIn++; st = chip('', 'Not in yet'); }
+    else {
+      if (a.status === 'present' || a.status === 'half_day') {
+        present++;
+        if (a.check_in && !a.check_out) { onShift++; st = chip('onshift', 'On shift'); }
+      }
+      if (a.status === 'leave') leave++;
+      if (!st) st = chip(a.status, STATUS[a.status]);
+      ot += Number(a.ot_hours || 0);
+    }
+    const hrs = a ? hoursBetween(a.check_in, a.check_out) : null;
+    return `<tr><td class="muted">${esc(e.emp_code)}</td><td>${esc(e.name)}</td><td>${st}</td>
+      <td>${timeOf(a && a.check_in)}</td><td>${timeOf(a && a.check_out)}</td>
+      <td class="r">${fmtH(hrs)}</td><td class="r">${a && Number(a.ot_hours) ? fmtH(Number(a.ot_hours)) : ''}</td>
+      <td class="r">${openBy[e.id] || ''}</td></tr>`;
+  }).join('');
+
+  main.innerHTML = `
+    <div class="head"><div><h1>Today</h1><p>${longDate(d)}</p></div>
+      <div class="tools"><button class="btn" id="refresh">Refresh</button><a class="btn" href="#attendance">Edit attendance</a></div></div>
+    <div class="figs">
+      <div class="fig"><div class="num">${present}</div><span>Present</span></div>
+      <div class="fig"><div class="num">${onShift}</div><span>On shift now</span></div>
+      <div class="fig ${notIn ? 'warn' : ''}"><div class="num">${notIn}</div><span>Not checked in</span></div>
+      <div class="fig"><div class="num">${leave}</div><span>On leave</span></div>
+      <div class="fig"><div class="num">${fmtH(ot) || 0}</div><span>Overtime hours</span></div>
+      <div class="fig ${overdue.length ? 'warn' : ''}"><div class="num">${tasks.length}</div><span>Open tasks${overdue.length ? `, ${overdue.length} overdue` : ''}</span></div>
+    </div>
+    <h2>Shift board</h2>
+    <div class="wrap"><table>
+      <thead><tr><th>Code</th><th>Name</th><th>Status</th><th>In</th><th>Out</th><th class="r">Hours</th><th class="r">OT</th><th class="r">Open tasks</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="8" class="empty">No active employees. Add them on the Employees page.</td></tr>'}</tbody>
+    </table></div>
+    ${overdue.length ? `<h2>Overdue tasks</h2><div class="wrap"><table>
+      <thead><tr><th>Task</th><th>Assigned to</th><th>Priority</th><th>Due</th></tr></thead>
+      <tbody>${overdue.map(t => `<tr><td>${esc(t.title)}</td><td>${esc(empById(t.employee_id)?.name || '')}</td>
+        <td>${chip(t.priority, PRIORITY[t.priority])}</td><td class="over">${shortDate(t.due_date)}</td></tr>`).join('')}</tbody></table></div>` : ''}`;
+  $('#refresh').onclick = route;
+}
+
+/* ============ ATTENDANCE ============ */
+const attState = {mode: 'day', date: todayStr(), month: todayStr().slice(0, 7)};
+
+async function viewAttendance() {
+  main.innerHTML = `
+    <div class="head"><div><h1>Attendance</h1><p>Kiosk punches appear here automatically. Change anything and it saves at once.</p></div>
+      <div class="tools"><div class="seg"><button data-m="day">Day</button><button data-m="month">Month</button></div></div></div>
+    <div id="attTools" class="tools" style="margin-bottom:14px"></div>
+    <div id="attBody"></div>`;
+  main.querySelectorAll('.seg button').forEach(b => {
+    b.classList.toggle('on', b.dataset.m === attState.mode);
+    b.onclick = () => { attState.mode = b.dataset.m; viewAttendance(); };
+  });
+  if (attState.mode === 'day') await renderDay(); else await renderMonth();
+}
+
+async function renderDay() {
+  const d = attState.date;
+  $('#attTools').innerHTML = `
+    <button class="btn" id="prev" aria-label="Previous day">‹</button>
+    <input type="date" id="dayPick" value="${d}">
+    <button class="btn" id="next" aria-label="Next day">›</button>
+    <button class="btn" id="todayBtn">Today</button>
+    <strong style="margin-left:6px">${longDate(d)}</strong>
+    <span style="flex:1"></span>
+    <button class="btn" id="markAbsent">Mark everyone not in as absent</button>`;
+  $('#prev').onclick = () => { attState.date = addDays(d, -1); renderDay(); };
+  $('#next').onclick = () => { attState.date = addDays(d, 1); renderDay(); };
+  $('#todayBtn').onclick = () => { attState.date = todayStr(); renderDay(); };
+  $('#dayPick').onchange = ev => { if (ev.target.value) { attState.date = ev.target.value; renderDay(); } };
+
+  const att = must(await sb.from('hr_attendance').select('*').eq('work_date', d));
+  const byEmp = Object.fromEntries(att.map(a => [a.employee_id, a]));
+  const emps = activeEmps();
+  $('#attBody').innerHTML = `<div class="wrap"><table>
+    <thead><tr><th>Code</th><th>Name</th><th>Status</th><th>In</th><th>Out</th><th class="r">Hours</th><th class="r">OT hours</th><th>Note</th><th></th></tr></thead>
+    <tbody id="dayRows">${emps.map(e => dayRow(e, byEmp[e.id])).join('') || '<tr><td colspan="9" class="empty">No active employees.</td></tr>'}</tbody></table></div>
+    <p class="muted" style="font-size:13px">OT is calculated automatically: worked hours minus ${S.settings.shift_hours} shift hours, rounded down to the half hour. Type a number in OT to override it; "auto" switches back.</p>`;
+
+  const tb = $('#dayRows');
+  if (!canEdit()) { tb.querySelectorAll('input,select,button').forEach(el => el.disabled = true); $('#markAbsent').hidden = true; }
+  tb.addEventListener('change', ev => { const tr = ev.target.closest('tr'); if (tr) saveRow(tr, ev.target); });
+  tb.addEventListener('click', ev => {
+    if (!ev.target.classList.contains('auto')) return;
+    const tr = ev.target.closest('tr'); tr.dataset.manual = ''; saveRow(tr, ev.target);
+  });
+  $('#markAbsent').onclick = async () => {
+    if (d > todayStr()) { toast('That day has not happened yet.', true); return; }
+    const missing = emps.filter(e => !byEmp[e.id]);
+    if (!missing.length) { toast('Everyone already has an entry for this day.'); return; }
+    if (!confirm(`Mark ${missing.length} employee(s) as absent on ${longDate(d)}?`)) return;
+    try {
+      must(await sb.from('hr_attendance').insert(missing.map(e => ({employee_id: e.id, work_date: d, status: 'absent', source: 'admin'}))));
+      toast(`${missing.length} marked absent`); renderDay();
+    } catch (e) { toast(e.message, true); }
+  };
+}
+
+function dayRow(e, a) {
+  const hrs = a ? hoursBetween(a.check_in, a.check_out) : null;
+  return `<tr data-emp="${e.id}" data-has="${a ? 1 : ''}" data-manual="${a && a.ot_manual ? 1 : ''}">
+    <td class="muted">${esc(e.emp_code)}</td>
+    <td>${esc(e.name)}${a && a.source === 'kiosk' ? ' <small class="muted" title="Punched at the kiosk">kiosk</small>' : ''}</td>
+    <td><select class="st" aria-label="Status">${opts(STATUS, a ? a.status : '', 'No entry')}</select></td>
+    <td><input type="time" class="tin" aria-label="Check in" value="${timeOf(a && a.check_in)}"></td>
+    <td><input type="time" class="tout" aria-label="Check out" value="${timeOf(a && a.check_out)}"></td>
+    <td class="r hrs">${fmtH(hrs)}</td>
+    <td class="r"><input type="number" class="ot" aria-label="Overtime hours" min="0" step="0.5" value="${a ? Number(a.ot_hours) : ''}">
+      <button type="button" class="link auto"${a && a.ot_manual ? '' : ' hidden'} title="Calculate overtime from in/out times">auto</button></td>
+    <td><input class="note" aria-label="Note" value="${esc(a ? a.note : '')}" placeholder="Note"></td>
+    <td class="sv"></td></tr>`;
+}
+
+async function saveRow(tr, el) {
+  const d = attState.date, sv = tr.querySelector('.sv');
+  const sel = tr.querySelector('.st'), tin = tr.querySelector('.tin').value, tout = tr.querySelector('.tout').value;
+  const otIn = tr.querySelector('.ot');
+  let st = sel.value;
+  if (!st && (tin || tout)) { st = 'present'; sel.value = 'present'; }
+  sv.className = 'sv'; sv.textContent = 'Saving…';
+  try {
+    if (!st) {
+      if (tr.dataset.has) {
+        if (!confirm('Remove this attendance entry?')) { sv.textContent = ''; route(); return; }
+        must(await sb.from('hr_attendance').delete().eq('employee_id', tr.dataset.emp).eq('work_date', d));
+      }
+      tr.dataset.has = ''; tr.dataset.manual = '';
+      otIn.value = ''; tr.querySelector('.hrs').textContent = ''; tr.querySelector('.auto').hidden = true;
+      sv.textContent = tr.dataset.has === '' ? 'Cleared' : ''; return;
+    }
+    const row = {employee_id: tr.dataset.emp, work_date: d, status: st, check_in: toTs(d, tin), check_out: toTs(d, tout),
+                 note: tr.querySelector('.note').value.trim() || null, source: 'admin'};
+    if (row.check_in && row.check_out && new Date(row.check_out) <= new Date(row.check_in)) row.check_out = toTs(addDays(d, 1), tout); // night shift
+    if (el.classList.contains('ot')) tr.dataset.manual = '1';
+    row.ot_manual = !!tr.dataset.manual;
+    if (row.ot_manual) row.ot_hours = Math.max(0, Number(otIn.value || 0));
+    const a = must(await sb.from('hr_attendance').upsert(row, {onConflict: 'employee_id,work_date'}).select().single());
+    tr.dataset.has = '1'; tr.dataset.manual = a.ot_manual ? '1' : '';
+    otIn.value = Number(a.ot_hours);
+    tr.querySelector('.auto').hidden = !a.ot_manual;
+    tr.querySelector('.hrs').textContent = fmtH(hoursBetween(a.check_in, a.check_out));
+    sv.textContent = 'Saved';
+  } catch (e) { sv.className = 'sv err'; sv.textContent = 'Error'; toast(e.message, true); }
+}
+
+async function renderMonth() {
+  const ym = attState.month, {start, end, days} = monthRange(ym);
+  $('#attTools').innerHTML = `<input type="month" id="monPick" value="${ym}"> <strong>${monthName(ym)}</strong>
+    <span style="flex:1"></span><button class="btn" id="exp">Export CSV</button>`;
+  $('#monPick').onchange = ev => { if (ev.target.value) { attState.month = ev.target.value; renderMonth(); } };
+
+  const att = must(await sb.from('hr_attendance').select('employee_id,work_date,status,ot_hours').gte('work_date', start).lte('work_date', end));
+  const key = {}; att.forEach(a => key[a.employee_id + '|' + a.work_date] = a);
+  const dates = Array.from({length: days}, (_, i) => `${ym}-${String(i + 1).padStart(2, '0')}`);
+  const fri = d => new Date(d + 'T00:00:00Z').getUTCDay() === 5;
+  const emps = S.employees.filter(e => e.active || att.some(a => a.employee_id === e.id));
+
+  const data = emps.map(e => {
+    const c = {P: 0, H: 0, A: 0, L: 0, O: 0}, ot = {v: 0};
+    const cells = dates.map(d => {
+      const a = key[e.id + '|' + d]; if (!a) return {d, l: ''};
+      const l = LETTER[a.status]; c[l]++; ot.v += Number(a.ot_hours || 0);
+      return {d, l, ot: Number(a.ot_hours || 0)};
+    });
+    return {e, cells, c, ot: ot.v};
+  });
+
+  $('#attBody').innerHTML = `<div class="wrap"><table class="grid">
+    <thead><tr><th class="nm">Employee</th>${dates.map(d => `<th class="d${fri(d) ? ' fri' : ''}">${+d.slice(8)}</th>`).join('')}
+      <th class="t">P</th><th class="t">H</th><th class="t">A</th><th class="t">L</th><th class="t">OT h</th></tr></thead>
+    <tbody>${data.map(r => `<tr><td class="nm">${esc(r.e.name)} <span class="muted">${esc(r.e.emp_code)}</span></td>
+      ${r.cells.map(c => `<td class="d ${c.l}${!c.l && fri(c.d) ? ' fri' : ''}" data-d="${c.d}" title="${shortDate(c.d)}${c.ot ? ', OT ' + c.ot + ' h' : ''}">${c.l}</td>`).join('')}
+      <td class="t">${r.c.P}</td><td class="t">${r.c.H}</td><td class="t">${r.c.A}</td><td class="t">${r.c.L}</td><td class="t">${fmtH(r.ot)}</td></tr>`).join('')}</tbody>
+  </table></div>
+  <div class="legend"><span><b class="P" style="background:#DCEFE3">P</b>Present</span><span><b style="background:#F8EACB">H</b>Half day</span>
+    <span><b style="background:#F7DEDC">A</b>Absent</span><span><b style="background:#DDE8F3">L</b>Leave</span><span><b style="background:#ECEEF0">O</b>Off day</span>
+    <span>Shaded columns are Fridays. Click any cell to edit that day.</span></div>`;
+
+  $('#attBody').querySelectorAll('td.d').forEach(td => td.onclick = () => { attState.mode = 'day'; attState.date = td.dataset.d; viewAttendance(); });
+  $('#exp').onclick = () => csvDownload(`attendance-${ym}.csv`, [
+    ['Code', 'Name', ...dates.map(d => +d.slice(8)), 'Present', 'Half day', 'Absent', 'Leave', 'OT hours'],
+    ...data.map(r => [r.e.emp_code, r.e.name, ...r.cells.map(c => c.l), r.c.P, r.c.H, r.c.A, r.c.L, fmtH(r.ot)])
+  ]);
+}
+
+/* ============ OVERTIME ============ */
+let otMonth = todayStr().slice(0, 7);
+async function viewOvertime() {
+  const {start, end} = monthRange(otMonth);
+  const rows = must(await sb.from('hr_attendance').select('employee_id,work_date,ot_hours,check_in,check_out')
+    .gte('work_date', start).lte('work_date', end).gt('ot_hours', 0).order('work_date'));
+  const by = {};
+  rows.forEach(r => (by[r.employee_id] = by[r.employee_id] || []).push(r));
+  const list = Object.keys(by).map(id => {
+    const e = empById(id) || {emp_code: '', name: '(deleted)'}, days = by[id];
+    const hrs = days.reduce((s, r) => s + Number(r.ot_hours), 0);
+    return {id, e, days, hrs, rate: rateOf(e), amt: hrs * rateOf(e)};
+  }).sort((a, b) => a.e.emp_code.localeCompare(b.e.emp_code));
+  const tH = list.reduce((s, r) => s + r.hrs, 0), tA = list.reduce((s, r) => s + r.amt, 0);
+
+  main.innerHTML = `
+    <div class="head"><div><h1>Overtime</h1><p>${monthName(otMonth)}. Click an employee to see the days.</p></div>
+      <div class="tools"><input type="month" id="otPick" value="${otMonth}">
+        <button class="btn" id="expSum">Export summary</button>
+        <button class="btn primary" id="expXl" title="Rows in the same order as the Data Entry sheet: Date, Employee, Category, OT Hours">Export for salary sheet</button></div></div>
+    <div class="wrap"><table>
+      <thead><tr><th>Code</th><th>Name</th><th class="r">OT days</th><th class="r">OT hours</th>${isAdmin() ? '<th class="r">Rate (SAR/h)</th><th class="r">Amount (SAR)</th>' : ''}</tr></thead>
+      <tbody>${list.map(r => `<tr class="click" data-id="${r.id}"><td class="muted">${esc(r.e.emp_code)}</td><td>${esc(r.e.name)}</td>
+        <td class="r">${r.days.length}</td><td class="r">${fmtH(r.hrs)}</td>${isAdmin() ? `<td class="r">${money(r.rate)}</td><td class="r">${money(r.amt)}</td>` : ''}</tr>
+        <tr class="det" data-for="${r.id}" hidden><td></td><td colspan="5" class="muted">${r.days.map(x => `${shortDate(x.work_date)}: ${fmtH(Number(x.ot_hours))} h (${timeOf(x.check_in)}–${timeOf(x.check_out)})`).join('<br>')}</td></tr>`).join('')
+        || '<tr><td colspan="6" class="empty">No overtime recorded in this month.</td></tr>'}</tbody>
+      ${list.length ? `<tfoot><tr><td></td><td>Total</td><td></td><td class="r">${fmtH(tH)}</td>${isAdmin() ? `<td></td><td class="r">${money(tA)}</td>` : ''}</tr></tfoot>` : ''}
+    </table></div>`;
+
+  $('#otPick').onchange = ev => { if (ev.target.value) { otMonth = ev.target.value; route(); } };
+  main.querySelectorAll('tr.click').forEach(tr => tr.onclick = () => { const d = main.querySelector(`tr.det[data-for="${tr.dataset.id}"]`); d.hidden = !d.hidden; });
+  $('#expSum').onclick = () => csvDownload(`overtime-${otMonth}.csv`, [
+    isAdmin() ? ['Code', 'Name', 'OT days', 'OT hours', 'Rate (SAR/h)', 'Amount (SAR)'] : ['Code', 'Name', 'OT days', 'OT hours'],
+    ...list.map(r => isAdmin() ? [r.e.emp_code, r.e.name, r.days.length, fmtH(r.hrs), r.rate, r.amt.toFixed(2)]
+                               : [r.e.emp_code, r.e.name, r.days.length, fmtH(r.hrs)])]);
+  $('#expXl').onclick = () => csvDownload(`overtime-for-salary-sheet-${otMonth}.csv`, [
+    isAdmin() ? ['Date', 'Employee Name', 'Category', 'OT Hours', 'Amount (SAR)'] : ['Date', 'Employee Name', 'Category', 'OT Hours'],
+    ...rows.map(r => { const e = empById(r.employee_id) || {};
+      const base = [r.work_date, e.name || '', 'Overtime', Number(r.ot_hours)];
+      return isAdmin() ? [...base, (Number(r.ot_hours) * rateOf(e)).toFixed(2)] : base; })]);
+}
+
+/* ============ TASKS ============ */
+const taskFilter = {emp: '', status: 'open', q: ''};
+async function viewTasks() {
+  const all = must(await sb.from('hr_tasks').select('*').order('created_at', {ascending: false}).limit(1000));
+  const d = todayStr();
+  main.innerHTML = `
+    <div class="head"><div><h1>Tasks</h1><p>Employees see their open tasks on the kiosk each time they check in or out.</p></div>
+      <div class="tools">${canEdit() ? '<button class="btn primary" id="newTask">Assign a task</button>' : ''}</div></div>
+    <div class="tools" style="margin-bottom:14px">
+      <select id="fEmp" aria-label="Employee">${empOpts(taskFilter.emp, 'All employees')}</select>
+      <select id="fSt" aria-label="Status"><option value="open">Open (pending + in progress)</option>${opts(TSTATUS, taskFilter.status)}<option value="all"${taskFilter.status === 'all' ? ' selected' : ''}>All</option></select>
+      <input id="fQ" type="search" placeholder="Search tasks" value="${esc(taskFilter.q)}">
+    </div>
+    <div class="wrap"><table>
+      <thead><tr><th>Task</th><th>Assigned to</th><th>Priority</th><th>Given on</th><th>Due</th><th>Status</th></tr></thead>
+      <tbody id="taskRows"></tbody></table></div>`;
+  if (taskFilter.status === 'open') $('#fSt').value = 'open';
+
+  const draw = () => {
+    const q = taskFilter.q.toLowerCase();
+    const list = all.filter(t =>
+      (!taskFilter.emp || t.employee_id === taskFilter.emp) &&
+      (taskFilter.status === 'all' || (taskFilter.status === 'open' ? ['pending', 'in_progress'].includes(t.status) : t.status === taskFilter.status)) &&
+      (!q || (t.title + ' ' + (t.details || '') + ' ' + (t.remarks || '')).toLowerCase().includes(q)));
+    $('#taskRows').innerHTML = list.map(t => {
+      const late = t.due_date && t.due_date < d && ['pending', 'in_progress'].includes(t.status);
+      return `<tr class="click" data-id="${t.id}">
+        <td class="wrapcell"><strong>${esc(t.title)}</strong>${t.details ? `<span class="sub">${esc(t.details.length > 110 ? t.details.slice(0, 110) + '…' : t.details)}</span>` : ''}</td>
+        <td>${esc(empById(t.employee_id)?.name || 'Unassigned')}</td>
+        <td>${chip(t.priority, PRIORITY[t.priority])}</td>
+        <td>${shortDate(t.assigned_on)}</td>
+        <td class="${late ? 'over' : ''}">${t.due_date ? shortDate(t.due_date) + (late ? ', overdue' : '') : '<span class="muted">No date</span>'}</td>
+        <td><select class="tst" aria-label="Task status"${canEdit() ? '' : ' disabled'}>${opts(TSTATUS, t.status)}</select></td></tr>`;
+    }).join('') || '<tr><td colspan="6" class="empty">No tasks match. Use "Assign a task" to add one.</td></tr>';
+  };
+  draw();
+
+  $('#fEmp').onchange = e => { taskFilter.emp = e.target.value; draw(); };
+  $('#fSt').onchange = e => { taskFilter.status = e.target.value; draw(); };
+  $('#fQ').oninput = e => { taskFilter.q = e.target.value; draw(); };
+  if ($('#newTask')) $('#newTask').onclick = () => openTask(null);
+  const tb = $('#taskRows');
+  tb.addEventListener('click', ev => {
+    if (ev.target.closest('select')) return;
+    const tr = ev.target.closest('tr[data-id]'); if (tr && canEdit()) openTask(all.find(t => t.id === tr.dataset.id));
+  });
+  tb.addEventListener('change', async ev => {
+    if (!ev.target.classList.contains('tst')) return;
+    const id = ev.target.closest('tr').dataset.id;
+    try {
+      const t = must(await sb.from('hr_tasks').update({status: ev.target.value}).eq('id', id).select().single());
+      Object.assign(all.find(x => x.id === id), t); toast('Status updated to ' + TSTATUS[t.status]); draw();
+    } catch (e) { toast(e.message, true); }
+  });
+}
+
+function openTask(t) {
+  const isNew = !t;
+  t = t || {priority: 'normal', status: 'pending', assigned_on: todayStr(), employee_id: taskFilter.emp || ''};
+  const f = openDialog({
+    title: isNew ? 'Assign a task' : 'Edit task',
+    submit: isNew ? 'Assign task' : 'Save changes',
+    left: isNew ? '' : '<button type="button" class="btn danger" id="delTask">Delete task</button>',
+    body: `
+      <label class="full">Task<input name="title" required maxlength="160" value="${esc(t.title)}" placeholder="e.g. Weld base frame for tank no. 12"></label>
+      <label>Assigned to<select name="employee_id" required>${empOpts(t.employee_id, 'Choose employee')}</select></label>
+      <label>Priority<select name="priority">${opts(PRIORITY, t.priority)}</select></label>
+      <label>Given on<input type="date" name="assigned_on" required value="${t.assigned_on || ''}"></label>
+      <label>Due date<input type="date" name="due_date" value="${t.due_date || ''}"></label>
+      <label class="full">Details<textarea name="details" rows="5" placeholder="What to do, where, materials, measurements, drawings to follow">${esc(t.details)}</textarea></label>
+      <label>Status<select name="status">${opts(TSTATUS, t.status)}</select></label>
+      <label>${t.completed_at ? 'Completed' : '&nbsp;'}<span class="muted" style="font-weight:400;padding-top:8px">${t.completed_at ? new Intl.DateTimeFormat('en-GB', {timeZone: TZ, dateStyle: 'medium', timeStyle: 'short'}).format(new Date(t.completed_at)) : ''}</span></label>
+      <label class="full">Remarks and progress<textarea name="remarks" rows="3" placeholder="Updates, problems, what is left">${esc(t.remarks)}</textarea></label>`,
+    onSubmit: async fd => {
+      const row = {title: fd.title.trim(), employee_id: fd.employee_id || null, priority: fd.priority, status: fd.status,
+                   assigned_on: fd.assigned_on, due_date: fd.due_date || null, details: fd.details.trim() || null, remarks: fd.remarks.trim() || null};
+      if (isNew) must(await sb.from('hr_tasks').insert(row));
+      else must(await sb.from('hr_tasks').update(row).eq('id', t.id));
+      toast(isNew ? 'Task assigned' : 'Task saved'); route();
+    }
+  });
+  const del = f.querySelector('#delTask');
+  if (del) del.onclick = async () => {
+    if (!confirm('Delete this task permanently?')) return;
+    try { must(await sb.from('hr_tasks').delete().eq('id', t.id)); dlg.close(); toast('Task deleted'); route(); }
+    catch (e) { toast(e.message, true); }
+  };
+}
+
+/* ============ EMPLOYEES ============ */
+let showInactive = false;
+async function viewEmployees() {
+  await loadBase();
+  const list = S.employees.filter(e => showInactive || e.active);
+  const noPin = S.employees.filter(e => e.active && !e.pin_set).length;
+  main.innerHTML = `
+    <div class="head"><div><h1>Employees</h1><p>${activeEmps().length} active.${noPin ? ` ${noPin} still need a kiosk PIN before they can check in.` : ''}</p></div>
+      <div class="tools"><label class="muted"><input type="checkbox" id="inact"${showInactive ? ' checked' : ''}> Show inactive</label>
+        ${isAdmin() ? '<button class="btn primary" id="addEmp">Add employee</button>' : ''}</div></div>
+    <div class="wrap"><table>
+      <thead><tr><th>Code</th><th>Name</th><th>Designation</th><th>Phone</th>${isAdmin() ? '<th class="r">Basic pay (SAR)</th><th class="r">OT rate</th>' : ''}<th>Kiosk PIN</th><th>Status</th></tr></thead>
+      <tbody>${list.map(e => `<tr class="click" data-id="${e.id}"><td class="muted">${esc(e.emp_code)}</td><td>${esc(e.name)}</td>
+        <td>${esc(e.designation)}</td><td>${esc(e.phone)}</td>${isAdmin() ? `<td class="r">${money(e.basic_pay)}</td>
+        <td class="r">${e.ot_rate != null ? money(e.ot_rate) : `<span class="muted">${money(S.settings.default_ot_rate)}</span>`}</td>` : ''}
+        <td>${e.pin_set ? chip('done', 'Set') : chip('absent', 'Not set')}</td>
+        <td>${e.active ? chip('present', 'Active') : chip('off', 'Inactive')}</td></tr>`).join('')
+        || '<tr><td colspan="8" class="empty">No employees yet. Use "Add employee".</td></tr>'}</tbody></table></div>`;
+  $('#inact').onchange = e => { showInactive = e.target.checked; viewEmployees(); };
+  if (isAdmin()) {
+    $('#addEmp').onclick = () => openEmployee(null);
+    main.querySelectorAll('tr.click').forEach(tr => tr.onclick = () => openEmployee(empById(tr.dataset.id)));
+  } else main.querySelectorAll('tr.click').forEach(tr => tr.classList.remove('click'));
+}
+
+function nextCode() {
+  const n = Math.max(0, ...S.employees.map(e => parseInt((e.emp_code.match(/(\d+)$/) || [0, 0])[1], 10)));
+  return 'EMP-' + String(n + 1).padStart(2, '0');
+}
+
+function openEmployee(e) {
+  const isNew = !e;
+  e = e || {emp_code: nextCode(), active: true, basic_pay: 0};
+  openDialog({
+    title: isNew ? 'Add employee' : 'Edit ' + esc(e.name),
+    submit: isNew ? 'Add employee' : 'Save changes',
+    body: `
+      <label>Employee code<input name="emp_code" required value="${esc(e.emp_code)}"></label>
+      <label>Name<input name="name" required value="${esc(e.name)}"></label>
+      <label>Designation<input name="designation" value="${esc(e.designation)}" placeholder="Welder, fitter, helper…"></label>
+      <label>Phone<input name="phone" inputmode="tel" value="${esc(e.phone)}"></label>
+      <label>Basic pay per month (SAR)<input name="basic_pay" type="number" min="0" step="0.01" value="${e.basic_pay ?? 0}"></label>
+      <label>Overtime rate (SAR per hour)<input name="ot_rate" type="number" min="0" step="0.01" value="${e.ot_rate ?? ''}" placeholder="Default: ${S.settings.default_ot_rate}"></label>
+      <label>Kiosk PIN <span class="hint">${e.pin_set ? 'Set. Type a new one to change it.' : '4 to 6 digits. Needed to check in.'}</span>
+        <input name="pin" inputmode="numeric" pattern="[0-9]{4,6}" maxlength="6" autocomplete="off" placeholder="${e.pin_set ? 'Leave blank to keep' : 'e.g. 4821'}"></label>
+      <label class="chk" style="align-self:end"><input type="checkbox" name="active"${e.active ? ' checked' : ''}> Active (shows on kiosk and lists)</label>`,
+    onSubmit: async fd => {
+      const pin = (fd.pin || '').trim();
+      if (pin && !/^\d{4,6}$/.test(pin)) throw new Error('PIN must be 4 to 6 digits.');
+      const row = {emp_code: fd.emp_code.trim(), name: fd.name.trim(), designation: fd.designation.trim() || null,
+                   phone: fd.phone.trim() || null, active: fd.active === 'on'};
+      let id = e.id;
+      if (isNew) id = must(await sb.from('hr_employees').insert(row).select('id').single()).id;
+      else must(await sb.from('hr_employees').update(row).eq('id', id));
+      must(await sb.from('hr_pay').upsert({employee_id: id, basic_pay: Number(fd.basic_pay || 0),
+                                            ot_rate: fd.ot_rate === '' ? null : Number(fd.ot_rate)}, {onConflict: 'employee_id'}));
+      if (pin) must(await sb.rpc('set_employee_pin', {p_employee: id, p_pin: pin}));
+      toast(isNew ? 'Employee added' : 'Changes saved'); await viewEmployees();
+    }
+  });
+}
+
+/* ============ SETTINGS ============ */
+async function viewSettings() {
+  const s = S.settings, kiosk = new URL(CFG.links.kiosk, location.href).href;
+  main.innerHTML = `
+    <div class="head"><div><h1>Settings</h1></div></div>
+    <form class="panel" id="setForm">
+      <label>Company name<input name="company_name" required value="${esc(s.company_name)}"></label>
+      <label>Shift hours per day <span class="hint">Time worked above this counts as overtime.</span><input name="shift_hours" type="number" min="1" max="24" step="0.25" required value="${s.shift_hours}"></label>
+      <label>Default overtime rate (SAR per hour) <span class="hint">Used for anyone without their own rate.</span><input name="default_ot_rate" type="number" min="0" step="0.01" required value="${s.default_ot_rate}"></label>
+      <button class="btn primary">Save settings</button>
+    </form>
+    <h2>Check-in kiosk</h2>
+    <div class="panel">Open this link on the tablet or phone kept at the gate, then add it to the home screen:
+      <code class="url">${esc(kiosk)}</code><a class="btn" href="kiosk.html" target="_blank" rel="noopener">Open kiosk</a></div>`;
+  $('#setForm').onsubmit = async ev => {
+    ev.preventDefault();
+    const fd = Object.fromEntries(new FormData(ev.target));
+    try {
+      S.settings = must(await sb.from('hr_settings').update({company_name: fd.company_name.trim(), shift_hours: Number(fd.shift_hours), default_ot_rate: Number(fd.default_ot_rate)}).eq('id', 1).select().single());
+      $('#brandName').textContent = S.settings.company_name; toast('Settings saved');
+    } catch (e) { toast(e.message, true); }
+  };
+}
+
+/* ============ start ============ */
+(async () => {
+  sb.auth.onAuthStateChange(ev => { if (ev === 'SIGNED_OUT') showLogin(); });
+  startApp();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1F2A33">
+<title>Check in</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕒</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Noto+Naskh+Arabic:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#1F2A33;--tile:#2B3844;--tile2:#34444F;--line:#3E4E5A;--text:#E8EDF1;--muted:#9AA8B3;
+  --yellow:#F2B705;--green:#3FA36A;--red:#E0574D;--ink:#1A242C}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--text);font:17px/1.4 Barlow,"Segoe UI",system-ui,sans-serif;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  -webkit-tap-highlight-color:transparent;user-select:none}
+[hidden]{display:none!important}
+.ur{font-family:"Noto Naskh Arabic","Segoe UI",serif;direction:rtl;display:block;color:var(--muted);font-size:.95em}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;padding:22px 28px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.clock{font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:clamp(64px,11vw,128px);line-height:.85;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.clock small{font-size:.38em;color:var(--yellow);margin-left:6px}
+.date{color:var(--muted);font-size:18px;margin-top:8px}
+.hello{text-align:right}
+.hello b{display:block;font-size:26px;font-family:"Barlow Condensed",sans-serif;font-weight:600}
+.stripe{height:8px;background:repeating-linear-gradient(135deg,var(--yellow) 0 14px,var(--bg) 14px 28px)}
+.bar{padding:16px 28px}
+.bar input{width:100%;font:inherit;font-size:20px;padding:14px 18px;border-radius:8px;border:1px solid var(--line);background:var(--tile);color:var(--text)}
+.bar input::placeholder{color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;padding:0 28px 40px}
+.tile{background:var(--tile);border:0;border-left:6px solid var(--line);border-radius:8px;padding:16px 16px 14px;text-align:left;color:var(--text);cursor:pointer;font:inherit;min-height:100px}
+.tile:hover,.tile:focus-visible{background:var(--tile2);outline:none}
+.tile b{display:block;font-size:21px;line-height:1.15;font-weight:600}
+.tile .c{color:var(--muted);font-size:14px}
+.tile .s{display:block;margin-top:10px;font-size:14px;font-weight:600;color:var(--muted)}
+.tile.in{border-left-color:var(--green)} .tile.in .s{color:var(--green)}
+.tile.done{opacity:.5;cursor:default}
+.msg{padding:40px 28px;color:var(--muted);font-size:20px}
+/* overlay */
+.ov{position:fixed;inset:0;background:rgba(12,18,23,.82);display:grid;place-items:center;padding:16px;z-index:10}
+.pad{background:#F4F6F7;color:var(--ink);border-radius:14px;width:min(400px,100%);padding:24px 24px 22px;border-top:8px solid var(--yellow)}
+.pad h2{margin:0;font-family:"Barlow Condensed",sans-serif;font-size:32px;font-weight:600;line-height:1.1}
+.pad .act{font-weight:600;margin:4px 0 0;color:#4A5B68}
+.dots{display:flex;gap:14px;justify-content:center;margin:22px 0 8px}
+.dots i{width:18px;height:18px;border-radius:50%;border:2px solid #4A5B68}
+.dots i.f{background:var(--ink);border-color:var(--ink)}
+.err{color:#B3261E;text-align:center;min-height:1.5em;font-weight:600;margin:0 0 10px}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.keys button{font:600 30px "Barlow Condensed",sans-serif;padding:14px 0;border-radius:10px;border:1px solid #CBD3D9;background:#fff;color:var(--ink);cursor:pointer}
+.keys button:active{background:#E3E8EC}
+.keys .go{background:var(--yellow);border-color:var(--yellow);font-size:22px}
+.keys .sm{font-size:18px}
+.cancel{display:block;margin:14px auto 0;background:none;border:0;font:inherit;color:#4A5B68;text-decoration:underline;cursor:pointer;padding:6px}
+.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-8px)}50%{transform:translateX(8px)}75%{transform:translateX(-4px)}}
+/* done */
+.done-card{background:#F4F6F7;color:var(--ink);border-radius:14px;width:min(520px,100%);overflow:hidden}
+.done-card .hd{padding:26px 26px 20px;color:#fff}
+.done-card .hd.in{background:#2D7A4C} .done-card .hd.out{background:#4A5B68}
+.done-card .t{font:600 64px/1 "Barlow Condensed",sans-serif}
+.done-card .n{font-size:22px;margin-top:6px}
+.done-card .bd{padding:18px 26px 22px;max-height:50vh;overflow:auto}
+.done-card h3{margin:0 0 8px;font-size:18px}
+.task{border-left:4px solid #CBD3D9;padding:6px 0 6px 12px;margin-bottom:10px}
+.task.urgent{border-left-color:#B3261E}.task.high{border-left-color:var(--yellow)}
+.task b{display:block}
+.task p{margin:2px 0 0;color:#4A5B68;font-size:15px;white-space:pre-wrap}
+.task small{color:#4A5B68}
+.ok{display:block;width:100%;margin-top:8px;padding:14px;font:600 20px Barlow,sans-serif;border:0;border-radius:10px;background:var(--ink);color:#fff;cursor:pointer}
+@media (prefers-reduced-motion:reduce){.shake{animation:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div><div class="clock" id="clock">--:--<small id="sec"></small></div><div class="date" id="date"></div></div>
+  <div class="hello"><b>Tap your name to check in or out</b><span class="ur" lang="ur">حاضری کے لیے اپنے نام پر ٹیپ کریں</span></div>
+</header>
+<div class="stripe"></div>
+<div class="bar"><input id="search" type="search" placeholder="Search your name" aria-label="Search your name" autocomplete="off"></div>
+<div class="grid" id="grid"><p class="msg">Loading…</p></div>
+
+<div class="ov" id="padOv" hidden>
+  <div class="pad" id="pad" role="dialog" aria-modal="true" aria-labelledby="padName">
+    <h2 id="padName"></h2>
+    <p class="act" id="padAct"></p>
+    <div class="dots" id="dots" aria-hidden="true"></div>
+    <p class="err" id="padErr" role="alert"></p>
+    <div class="keys" id="keys">
+      <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+      <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+      <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+      <button data-k="back" class="sm" aria-label="Delete">⌫</button><button data-k="0">0</button><button data-k="go" class="go" id="goBtn">OK</button>
+    </div>
+    <button class="cancel" id="cancelPad">Not me, go back</button>
+  </div>
+</div>
+
+<div class="ov" id="doneOv" hidden>
+  <div class="done-card" role="dialog" aria-modal="true">
+    <div class="hd" id="doneHd"><div class="t" id="doneTime"></div><div class="n" id="doneName"></div></div>
+    <div class="bd"><div id="doneTasks"></div><button class="ok" id="doneOk">Done</button></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/config.js"></script>
+<script>
+const CFG = window.PORTAL_CONFIG || {};
+const TZ = 'Asia/Riyadh';
+const $ = s => document.querySelector(s);
+const esc = s => (s ?? '').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const grid = $('#grid'), search = $('#search');
+const configured = !!CFG.SUPABASE_URL;
+const sb = configured ? supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {auth: {persistSession: false}}) : null;
+
+let list = [], cur = null, pin = '', busy = false, idleT, backT;
+
+/* clock */
+const fTime = new Intl.DateTimeFormat('en-GB', {timeZone: TZ, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false});
+const fDate = new Intl.DateTimeFormat('en-GB', {timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'});
+function tick() {
+  const [h, m, s] = fTime.format(new Date()).split(':');
+  $('#clock').firstChild.nodeValue = `${h}:${m}`; $('#sec').textContent = s;
+  $('#date').textContent = fDate.format(new Date());
+}
+tick(); setInterval(tick, 1000);
+
+/* employee list */
+async function load() {
+  if (!sb) { grid.innerHTML = '<p class="msg">Setup needed: add the Supabase URL and key to config.js.</p>'; return; }
+  const {data, error} = await sb.rpc('kiosk_employees');
+  if (error) { grid.innerHTML = '<p class="msg">Cannot reach the server. Check the internet connection; this page retries every minute.</p>'; return; }
+  list = data || []; render();
+}
+const STATE = {out: 'Tap to check in', in: 'On shift, tap to check out', done: 'Done for today'};
+function render() {
+  const q = search.value.trim().toLowerCase();
+  const items = list.filter(e => !q || e.name.toLowerCase().includes(q) || e.emp_code.toLowerCase().includes(q));
+  grid.innerHTML = items.map(e => `<button class="tile ${e.state}" data-id="${e.id}"${e.state === 'done' ? ' aria-disabled="true"' : ''}>
+      <b>${esc(e.name)}</b><span class="c">${esc(e.emp_code)}</span><span class="s">${STATE[e.state]}</span></button>`).join('')
+    || `<p class="msg">${list.length ? 'No one matches that name.' : 'No employees are ready yet. The admin needs to set a PIN for each employee.'}</p>`;
+}
+search.addEventListener('input', render);
+grid.addEventListener('click', ev => {
+  const t = ev.target.closest('.tile'); if (!t) return;
+  const e = list.find(x => x.id === t.dataset.id);
+  if (!e || e.state === 'done') return;
+  openPad(e);
+});
+
+/* PIN pad */
+function drawDots() { $('#dots').innerHTML = Array.from({length: Math.max(4, pin.length)}, (_, i) => `<i class="${i < pin.length ? 'f' : ''}"></i>`).join(''); }
+function resetIdle() { clearTimeout(idleT); idleT = setTimeout(closeAll, 30000); }
+function openPad(e) {
+  cur = e; pin = ''; $('#padErr').textContent = '';
+  $('#padName').textContent = e.name;
+  $('#padAct').innerHTML = e.state === 'in' ? 'Enter your PIN to check out<span class="ur" lang="ur">چھٹی کے لیے اپنا پن درج کریں</span>'
+                                             : 'Enter your PIN to check in<span class="ur" lang="ur">حاضری کے لیے اپنا پن درج کریں</span>';
+  drawDots(); $('#padOv').hidden = false; resetIdle();
+}
+function closeAll() {
+  clearTimeout(idleT); clearTimeout(backT);
+  $('#padOv').hidden = true; $('#doneOv').hidden = true;
+  cur = null; pin = ''; search.value = ''; render();
+}
+function press(k) {
+  if (busy || !cur) return; resetIdle(); $('#padErr').textContent = '';
+  if (k === 'back') pin = pin.slice(0, -1);
+  else if (k === 'go') { submit(); return; }
+  else if (pin.length < 6) pin += k;
+  drawDots();
+}
+$('#keys').addEventListener('click', ev => { const b = ev.target.closest('button'); if (b) press(b.dataset.k); });
+$('#cancelPad').onclick = closeAll;
+document.addEventListener('keydown', ev => {
+  if (!$('#doneOv').hidden && (ev.key === 'Enter' || ev.key === 'Escape')) { closeAll(); return; }
+  if ($('#padOv').hidden) return;
+  if (/^\d$/.test(ev.key)) press(ev.key);
+  else if (ev.key === 'Backspace') press('back');
+  else if (ev.key === 'Enter') press('go');
+  else if (ev.key === 'Escape') closeAll();
+});
+
+function fail(msg) {
+  $('#padErr').textContent = msg; pin = ''; drawDots();
+  const p = $('#pad'); p.classList.remove('shake'); void p.offsetWidth; p.classList.add('shake');
+}
+async function submit() {
+  if (pin.length < 4) { fail('PIN has at least 4 digits'); return; }
+  busy = true; $('#goBtn').textContent = '…';
+  const {data, error} = await sb.rpc('kiosk_punch', {p_employee: cur.id, p_pin: pin});
+  busy = false; $('#goBtn').textContent = 'OK';
+  if (error) { fail('Could not save. Check the internet and try again.'); return; }
+  if (!data || !data.ok) { fail(data && data.error ? data.error : 'Something went wrong'); load(); return; }
+  showDone(data);
+}
+
+const fHM = new Intl.DateTimeFormat('en-GB', {timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false});
+const fDue = d => new Intl.DateTimeFormat('en-GB', {day: 'numeric', month: 'short', timeZone: 'UTC'}).format(new Date(d + 'T00:00:00Z'));
+function showDone(r) {
+  clearTimeout(idleT); $('#padOv').hidden = true;
+  const isIn = r.action === 'in';
+  $('#doneHd').className = 'hd ' + (isIn ? 'in' : 'out');
+  $('#doneTime').textContent = fHM.format(new Date(r.time));
+  $('#doneName').innerHTML = `${isIn ? 'Checked in' : 'Checked out'}, ${esc(r.name)}<span class="ur" lang="ur" style="color:rgba(255,255,255,.8)">${isIn ? 'حاضری لگ گئی' : 'چھٹی درج ہو گئی'}</span>`;
+  const tasks = r.tasks || [];
+  $('#doneTasks').innerHTML = tasks.length
+    ? `<h3>Your open tasks <span class="ur" lang="ur" style="display:inline">آپ کے کام</span></h3>` + tasks.map(t => `<div class="task ${t.priority}"><b>${esc(t.title)}</b>
+        ${t.due ? `<small>Due ${fDue(t.due)}</small>` : ''}${t.details ? `<p>${esc(t.details)}</p>` : ''}</div>`).join('')
+    : '<h3>No open tasks assigned to you.</h3>';
+  $('#doneOv').hidden = false;
+  backT = setTimeout(closeAll, tasks.length ? 20000 : 6000);
+  load();
+}
+$('#doneOk').onclick = closeAll;
+
+load(); setInterval(() => { if ($('#padOv').hidden && $('#doneOv').hidden) load(); }, 60000);
+</script>
+</body>
+</html>

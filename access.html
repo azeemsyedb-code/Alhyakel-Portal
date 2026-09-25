@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Users &amp; Access | Al Hyakel Portal</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/portal.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/config.js"></script>
+<script src="assets/portal.js" data-module="admin"></script>
+</head>
+<body>
+<main>
+  <h1>Users &amp; Access</h1>
+  <p class="muted">Har user ke liye tay karein ke woh kaunsa hissa khol sakta hai aur andar kya kar sakta hai. "No access" = woh hissa us user ko nazar hi nahi aayega.</p>
+  <div id="flash" class="flash" hidden role="status"></div>
+
+  <details class="card" id="newBox" style="margin:14px 0 20px">
+    <summary style="font-weight:700;color:var(--teal)">+ Naya user banayein</summary>
+    <form id="newForm" style="margin-top:14px">
+      <div class="form-grid">
+        <div class="field"><label for="n_full">Poora naam</label><input id="n_full" required></div>
+        <div class="field"><label for="n_user">User ID (login)</label><input id="n_user" required pattern="[a-z0-9._\-]{3,30}" autocapitalize="none" placeholder="ahmed"></div>
+        <div class="field"><label for="n_pw">Password (kam az kam 8)</label><input id="n_pw" minlength="8" required autocomplete="off"></div>
+        <div class="field"><label for="n_docs">Documents</label><select id="n_docs"></select></div>
+        <div class="field"><label for="n_inv">Inventory</label><select id="n_inv"></select></div>
+        <div class="field"><label for="n_hr">Employees</label><select id="n_hr"></select></div>
+        <div class="field"><label><input type="checkbox" id="n_admin"> Portal admin (Users &amp; Access)</label></div>
+      </div>
+      <button class="btn" id="n_btn">User banayein</button>
+    </form>
+  </details>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>User</th><th>Documents</th><th>Inventory</th><th>Employees</th><th>Admin</th><th></th><th>Account</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="7" class="muted">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="card" style="margin-top:22px">
+    <h2>Roles ka matlab</h2>
+    <p><b>Documents:</b> manager = sab kuch + approve + company settings. staff = documents banana aur dekhna. viewer = sirf dekhna aur download.</p>
+    <p><b>Inventory:</b> admin = sab kuch + delete + stock count (adjust). storekeeper = products, suppliers, stock in / out. viewer = sirf dekhna.</p>
+    <p><b>Employees:</b> admin = sab kuch + salary + kiosk PIN + settings. supervisor = attendance, overtime ghante, tasks (salary nazar nahi aati). viewer = sirf dekhna (salary nahi).</p>
+  </div>
+</main>
+<script>
+const ROLES = {docs: ['manager', 'staff', 'viewer'], inv: ['admin', 'storekeeper', 'viewer'], hr: ['admin', 'supervisor', 'viewer']};
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+const $ = s => document.querySelector(s);
+const sel = (m, v, id) => `<select ${id ? `id="${id}"` : `data-m="${m}"`} aria-label="${m} role"><option value="">No access</option>${
+  ROLES[m].map(r => `<option value="${r}"${r === v ? ' selected' : ''}>${r}</option>`).join('')}</select>`;
+let ME, USERS = [];
+
+function flash(text, ok) { const f = $('#flash'); f.textContent = text; f.className = 'flash' + (ok ? ' ok' : ''); f.hidden = false; f.scrollIntoView({block: 'nearest'}); }
+
+async function call(body) {
+  const {data, error} = await portalSb.functions.invoke('admin-users', {body});
+  if (error) {
+    let m = error.message;
+    try { const j = await error.context.json(); m = j.error || m; } catch (e) {}
+    if (/Failed to send|fetch/i.test(m)) m = 'Edge Function "admin-users" nahi mila. README ka step 3 dekhein.';
+    throw new Error(m);
+  }
+  if (data && data.error) throw new Error(data.error);
+  return data;
+}
+
+async function load() {
+  const {data, error} = await portalSb.from('portal_users').select('*').order('is_admin', {ascending: false}).order('username');
+  if (error) { $('#rows').innerHTML = `<tr><td colspan="7">${esc(error.message)}</td></tr>`; return; }
+  USERS = data;
+  $('#rows').innerHTML = data.map(u => `<tr data-id="${u.id}" class="${u.active ? '' : 'off'}">
+    <td><b>${esc(u.full_name || u.username)}</b><br><span class="muted">${esc(u.username)}</span></td>
+    <td>${sel('docs', u.docs_role)}</td><td>${sel('inv', u.inv_role)}</td><td>${sel('hr', u.hr_role)}</td>
+    <td><input type="checkbox" class="adm" ${u.is_admin ? 'checked' : ''} aria-label="Portal admin"></td>
+    <td><button class="btn small save">Save</button></td>
+    <td><details><summary>${u.active ? 'Active' : 'Band hai'} ▾</summary><div class="acts">
+      <form class="pw"><input minlength="8" placeholder="Naya password" required autocomplete="off"><button class="btn sec small">Set</button></form>
+      ${u.id === ME.id ? '' : `<button class="btn sec small blk">${u.active ? 'Account band karein' : 'Account chalu karein'}</button>
+      <button class="btn danger small del">Delete</button>`}
+    </div></details></td></tr>`).join('');
+}
+
+(async () => {
+  ME = await window.PORTAL_READY;
+  $('#n_docs').outerHTML = sel('docs', '', 'n_docs'); $('#n_inv').outerHTML = sel('inv', '', 'n_inv'); $('#n_hr').outerHTML = sel('hr', '', 'n_hr');
+  await load();
+  if (USERS.length < 2) $('#newBox').open = true;
+
+  $('#newForm').addEventListener('submit', async ev => {
+    ev.preventDefault(); const b = $('#n_btn'); b.disabled = true;
+    try {
+      await call({action: 'create', username: $('#n_user').value.trim().toLowerCase(), full_name: $('#n_full').value.trim(),
+                  password: $('#n_pw').value, docs_role: $('#n_docs').value || null, inv_role: $('#n_inv').value || null,
+                  hr_role: $('#n_hr').value || null, is_admin: $('#n_admin').checked});
+      flash(`User '${$('#n_user').value.trim().toLowerCase()}' ban gaya. Woh isi User ID aur password se login karega.`, true);
+      ev.target.reset(); await load();
+    } catch (e) { flash('Nahi bana: ' + e.message); }
+    b.disabled = false;
+  });
+
+  $('#rows').addEventListener('click', async ev => {
+    const tr = ev.target.closest('tr[data-id]'); if (!tr) return;
+    const id = tr.dataset.id, u = USERS.find(x => x.id === id);
+    try {
+      if (ev.target.classList.contains('save')) {
+        const role = m => tr.querySelector(`select[data-m="${m}"]`).value || null;
+        await call({action: 'update', id, full_name: u.full_name, docs_role: role('docs'), inv_role: role('inv'),
+                    hr_role: role('hr'), is_admin: tr.querySelector('.adm').checked});
+        flash('Access save ho gaya.', true); await load();
+      } else if (ev.target.classList.contains('blk')) {
+        await call({action: 'block', id, block: u.active});
+        flash(u.active ? 'Account band kar diya.' : 'Account dobara chalu kar diya.', true); await load();
+      } else if (ev.target.classList.contains('del')) {
+        if (!confirm(`${u.username} ko hamesha ke liye delete karein?`)) return;
+        await call({action: 'delete', id}); flash('User delete ho gaya.', true); await load();
+      }
+    } catch (e) { flash('Nahi hua: ' + e.message); await load(); }   // show the real saved state again
+  });
+  $('#rows').addEventListener('submit', async ev => {
+    ev.preventDefault(); const tr = ev.target.closest('tr[data-id]'), inp = ev.target.querySelector('input');
+    try { await call({action: 'password', id: tr.dataset.id, password: inp.value}); inp.value = ''; flash('Naya password set ho gaya.', true); }
+    catch (e) { flash('Password nahi badla: ' + e.message); }
+  });
+})();
+</script>
+</body>
+</html>

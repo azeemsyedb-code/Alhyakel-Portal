@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login | Al Hyakel Portal</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/portal.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/config.js"></script>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-card">
+    <img src="assets/logo_mark.png" alt="Al Hyakel" class="login-logo">
+    <div class="login-brand"><b>Al Hyakel Metal Industries</b><span>شركة الهياكل للصناعات المعدنية</span></div>
+    <h2>Portal Login</h2>
+    <div id="msg" class="flash" hidden></div>
+    <form id="f">
+      <div class="field"><label for="u">User ID</label><input id="u" autocomplete="username" autocapitalize="none" required autofocus></div>
+      <div class="field"><label for="p">Password</label><input id="p" type="password" autocomplete="current-password" required></div>
+      <p id="err" class="err" role="alert"></p>
+      <button class="btn" id="b" style="width:100%">Login</button>
+    </form>
+  </div>
+</div>
+<script>
+(async () => {
+  const C = window.PORTAL_CONFIG, q = new URLSearchParams(location.search);
+  const msg = document.getElementById('msg'), err = document.getElementById('err'), btn = document.getElementById('b');
+  if (!C.SUPABASE_URL || /YOUR-PROJECT/.test(C.SUPABASE_URL)) { err.textContent = 'Setup needed: assets/config.js mein Supabase URL aur key daalein.'; btn.disabled = true; return; }
+  const sb = supabase.createClient(C.SUPABASE_URL, C.SUPABASE_ANON_KEY);
+  const show = t => { msg.textContent = t; msg.hidden = false; };
+  if (q.get('logout')) { await sb.auth.signOut(); show('Aap logout ho gaye.'); history.replaceState(null, '', 'login.html'); }
+  if (q.get('msg') === 'blocked') show('Aapka account band kar diya gaya hai. Admin se rabta karein.');
+  if (q.get('msg') === 'notadded') show('Yeh login portal mein add nahi hai. Admin se kahein ke Users & Access mein add kare.');
+  let next = q.get('next') || 'index.html';
+  if (!/^[\w.-]+\.html(#[\w-]*)?$/.test(next)) next = 'index.html';
+
+  // already logged in?
+  const {data: {session}} = await sb.auth.getSession();
+  if (session && !q.get('logout') && !q.get('msg')) { location.replace(next); return; }
+
+  document.getElementById('f').addEventListener('submit', async ev => {
+    ev.preventDefault(); err.textContent = ''; btn.disabled = true; btn.textContent = 'Checking…';
+    try {
+      const id = document.getElementById('u').value.trim().toLowerCase();
+      const email = id.includes('@') ? id : `${id}@${C.LOGIN_DOMAIN || 'alhyakel.local'}`;
+      const {data, error} = await sb.auth.signInWithPassword({email, password: document.getElementById('p').value});
+      if (error) throw new Error(/invalid/i.test(error.message) ? 'Ghalat User ID ya password.'
+                              : /banned/i.test(error.message) ? 'Aapka account band kar diya gaya hai.' : error.message);
+      const {data: me, error: e2} = await sb.from('portal_users').select('active').eq('id', data.user.id).maybeSingle();
+      if (e2) throw new Error('Database error: ' + e2.message);
+      if (!me || !me.active) { await sb.auth.signOut(); throw new Error(me ? 'Aapka account band hai.' : 'Yeh login portal mein add nahi hai.'); }
+      location.replace(next);
+    } catch (e) { err.textContent = e.message; btn.disabled = false; btn.textContent = 'Login'; }
+  });
+})();
+</script>
+</body>
+</html>
