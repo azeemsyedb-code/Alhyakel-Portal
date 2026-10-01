@@ -835,63 +835,154 @@ function pdfDoc(title, img, ref) {
 }
 
 /* ============ WORKING KIT ============ */
-const KIT_ITEMS = ['Safety helmet', 'Safety shoes', 'Coverall', 'Safety goggles', 'Welding mask', 'Welding gloves', 'Cotton gloves', 'Ear plugs', 'Dust mask', 'Safety harness', 'Reflective vest', 'Grinder', 'Drill machine', 'Measuring tape', 'Hammer', 'Spanner set'];
-const KIT_STATE = {with: 'With employee', good: 'Returned (good)', damaged: 'Returned damaged', lost: 'Lost'};
+// Kit is given in rounds (e.g. every 4 months): one standard kit to everyone at once. Single items can still be issued in between.
+const KIT_ITEMS = ['Coverall', 'Safety shoes', 'Safety helmet', 'Safety goggles', 'Welding mask', 'Welding gloves', 'Cotton gloves', 'Ear plugs', 'Dust mask', 'Safety harness', 'Reflective vest', 'Grinder', 'Drill machine', 'Measuring tape', 'Hammer', 'Spanner set'];
+const KIT_STATE = {with: 'With employee', good: 'Returned (good)', damaged: 'Returned damaged', lost: 'Lost', replaced: 'Replaced (new kit)'};
+const KIT_CHIP = {with: 'leave', good: 'done', damaged: 'half_day', lost: 'absent', replaced: 'off'};
 const kitState = k => !k.returned_on ? 'with' : k.return_condition || 'good';
-const kitFilter = {emp: '', status: 'with'};
+const kitFilter = {emp: '', status: 'with', batch: ''};
+const kitCycle = () => Number(S.settings.kit_cycle_months || 4);
+const kitTemplate = () => Array.isArray(S.settings.kit_template) && S.settings.kit_template.length ? S.settings.kit_template
+  : [{item: 'Coverall', qty: 2}, {item: 'Safety shoes', qty: 1}, {item: 'Safety helmet', qty: 1}, {item: 'Safety goggles', qty: 1}, {item: 'Welding gloves', qty: 2}, {item: 'Cotton gloves', qty: 6}, {item: 'Ear plugs', qty: 2}, {item: 'Dust mask', qty: 4}];
+function addMonths(d, n) { const [y, m, day] = d.split('-').map(Number); const x = new Date(Date.UTC(y, m - 1 + n, 1));
+  const last = new Date(Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + 1, 0)).getUTCDate(); x.setUTCDate(Math.min(day, last)); return x.toISOString().slice(0, 10); }
+const daysBetween = (a, b) => Math.round((new Date(b + 'T00:00:00Z') - new Date(a + 'T00:00:00Z')) / 864e5);
+// last kit round per employee -> next due date
+function kitSchedule(all) {
+  const today = todayStr(), anyRound = all.some(k => k.batch);
+  return S.employees.filter(e => e.active).map(e => {
+    const last = all.filter(k => k.employee_id === e.id && k.batch).reduce((a, k) => !a || k.issued_on > a.issued_on ? k : a, null);
+    const next = last ? addMonths(last.issued_on, kitCycle()) : null;
+    const left = next ? daysBetween(today, next) : null;
+    const st = !last ? (anyRound ? 'none' : 'start') : left <= 0 ? 'due' : left <= 14 ? 'soon' : 'ok';
+    return {e, last, next, left, st, due: st === 'due' || st === 'none'};
+  });
+}
 async function viewKit() {
-  const all = must(await sb.from('hr_kit').select('*').order('issued_on', {ascending: false}).limit(3000));
+  const all = must(await sb.from('hr_kit').select('*').order('issued_on', {ascending: false}).limit(5000));
+  const sched = kitSchedule(all), batches = [...new Set(all.map(k => k.batch).filter(Boolean))].sort().reverse();
+  if (kitFilter.batch && !batches.includes(kitFilter.batch)) kitFilter.batch = '';
+  const dueN = sched.filter(s => s.due).length;
   main.innerHTML = `
-    <div class="head"><div><h1>Working kit</h1><p>Har employee ko diya gaya saman, taake har cheez ka hisaab rahe aur kuch zaya na ho.</p></div>
-      <div class="tools">${canEdit() ? '<button class="btn primary" id="issue">Issue items</button>' : ''}<button class="btn" id="kitPdf">Kit form (PDF)</button></div></div>
+    <div class="head"><div><h1>Working kit</h1><p>Har ${kitCycle()} mahine baad sab ko standard kit. Har cheez ka hisaab, kis ke paas kya hai aur kab nayi kit deni hai.</p></div>
+      <div class="tools">${canEdit() ? '<button class="btn primary" id="round">Issue kit round</button><button class="btn" id="issue">Single items</button>' : ''}
+        ${isAdmin() ? '<button class="btn" id="tpl">Standard kit</button>' : ''}<button class="btn" id="kitPdf">Kit forms (PDF)</button></div></div>
+    <div class="figs" id="kfigs"></div>
+    <h2>Kit schedule <span class="muted" style="font-weight:400;font-size:14px">· har ${kitCycle()} mahine</span></h2>
+    <div class="wrap"><table><thead><tr><th>Code</th><th>Name</th><th>Last kit round</th><th>Next due</th><th>Status</th></tr></thead><tbody id="ksched"></tbody></table></div>
+    <h2>Items</h2>
     <div class="tools" style="margin-bottom:14px">
       <select id="kEmp" aria-label="Employee">${empOpts(kitFilter.emp, 'All employees')}</select>
-      <select id="kSt" aria-label="Status"><option value="with">With employee</option><option value="back">Returned / lost</option><option value="all">All</option></select>
+      <select id="kBatch" aria-label="Kit round"><option value="">All rounds &amp; single items</option>${batches.map(b => `<option${b === kitFilter.batch ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select>
+      <select id="kSt" aria-label="Status"><option value="with">With employee</option><option value="back">Returned / replaced / lost</option><option value="all">All</option></select>
     </div>
-    <div class="figs" id="kfigs"></div>
-    <div class="wrap"><table><thead><tr><th>Code</th><th>Name</th><th>Item</th><th class="r">Qty</th><th>Issued</th><th>Status</th><th class="r">Charge (SAR)</th><th></th></tr></thead><tbody id="krows"></tbody></table></div>`;
+    <div class="wrap"><table><thead><tr><th>Code</th><th>Name</th><th>Item</th><th class="r">Qty</th><th>Issued</th><th>Round</th><th>Status</th><th class="r">Charge (SAR)</th><th></th></tr></thead><tbody id="krows"></tbody></table></div>`;
   $('#kSt').value = kitFilter.status;
+  $('#ksched').innerHTML = sched.sort((a, b) => (a.next || '0') < (b.next || '0') ? -1 : 1).map(s => {
+    const c = {start: chip('off', 'No round yet'), none: chip('absent', 'No kit yet'), due: chip('absent', s.left === 0 ? 'Due today' : `Due (${-s.left} days late)`),
+      soon: chip('half_day', `In ${s.left} days`), ok: chip('done', 'OK')}[s.st];
+    return `<tr><td class="muted">${esc(s.e.emp_code)}</td><td>${esc(s.e.name)}</td><td>${s.last ? `${shortDate(s.last.issued_on)} ${s.last.issued_on.slice(0, 4)} <span class="muted">${esc(s.last.batch)}</span>` : '<span class="muted">-</span>'}</td>
+      <td>${s.next ? `${shortDate(s.next)} ${s.next.slice(0, 4)}` : '<span class="muted">-</span>'}</td><td>${c}</td></tr>`; }).join('')
+    || '<tr><td colspan="5" class="empty">Koi active employee nahi.</td></tr>';
   const draw = () => {
-    const list = all.filter(k => (!kitFilter.emp || k.employee_id === kitFilter.emp) &&
+    const list = all.filter(k => (!kitFilter.emp || k.employee_id === kitFilter.emp) && (!kitFilter.batch || k.batch === kitFilter.batch) &&
       (kitFilter.status === 'all' || (kitFilter.status === 'with' ? !k.returned_on : !!k.returned_on)));
     const mine = all.filter(k => !kitFilter.emp || k.employee_id === kitFilter.emp);
-    $('#kfigs').innerHTML = [[mine.filter(k => !k.returned_on).length, 'Items with employees'], [mine.filter(k => k.return_condition === 'damaged').length, 'Returned damaged'],
-      [mine.filter(k => k.return_condition === 'lost').length, 'Lost'], [money(mine.reduce((a, k) => a + Number(k.charge || 0), 0)), 'Charged (SAR)']]
-      .map(([n, l], i) => `<div class="fig${i && Number(String(n).replace(/,/g, '')) ? ' warn' : ''}"><div class="num">${n}</div><span>${l}</span></div>`).join('');
+    $('#kfigs').innerHTML = [[dueN, 'Kit due now', true], [mine.filter(k => !k.returned_on).length, 'Items with employees'], [mine.filter(k => k.return_condition === 'damaged').length, 'Returned damaged', true],
+      [mine.filter(k => k.return_condition === 'lost').length, 'Lost', true], [money(mine.reduce((a, k) => a + Number(k.charge || 0), 0)), 'Charged (SAR)']]
+      .map(([n, l, w]) => `<div class="fig${w && Number(String(n).replace(/,/g, '')) ? ' warn' : ''}"><div class="num">${n}</div><span>${l}</span></div>`).join('');
     $('#krows').innerHTML = list.map(k => { const e = empById(k.employee_id) || {}, st = kitState(k);
       return `<tr data-id="${k.id}"><td class="muted">${esc(e.emp_code)}</td><td>${esc(e.name)}</td><td><strong>${esc(k.item)}</strong>${k.size ? ` <span class="muted">(${esc(k.size)})</span>` : ''}${k.note ? `<span class="sub">${esc(k.note)}</span>` : ''}</td>
-        <td class="r">${fmtH(Number(k.qty))}</td><td>${shortDate(k.issued_on)}</td>
-        <td>${chip({with: 'leave', good: 'done', damaged: 'half_day', lost: 'absent'}[st], KIT_STATE[st])}${k.returned_on ? ` <span class="muted">${shortDate(k.returned_on)}</span>` : ''}</td>
+        <td class="r">${fmtH(Number(k.qty))}</td><td>${shortDate(k.issued_on)}</td><td class="muted">${esc(k.batch || 'single')}</td>
+        <td>${chip(KIT_CHIP[st], KIT_STATE[st])}${k.returned_on ? ` <span class="muted">${shortDate(k.returned_on)}</span>` : ''}</td>
         <td class="r">${Number(k.charge) ? money(k.charge) : ''}</td>
         <td>${canEdit() && !k.returned_on ? '<button class="btn" data-ret>Return</button>' : ''}</td></tr>`; }).join('')
-      || '<tr><td colspan="8" class="empty">Koi record nahi. "Issue items" se kit dein.</td></tr>';
+      || '<tr><td colspan="9" class="empty">Koi record nahi. "Issue kit round" se sab ko kit dein.</td></tr>';
   };
   draw();
   $('#kEmp').onchange = e => { kitFilter.emp = e.target.value; draw(); };
+  $('#kBatch').onchange = e => { kitFilter.batch = e.target.value; draw(); };
   $('#kSt').onchange = e => { kitFilter.status = e.target.value; draw(); };
   $('#issue')?.addEventListener('click', () => openIssue());
+  $('#round')?.addEventListener('click', () => openRound(all, sched));
+  $('#tpl')?.addEventListener('click', () => openTemplate());
   $('#krows').addEventListener('click', e => { if (!e.target.closest('[data-ret]')) return; openReturn(all.find(k => k.id === e.target.closest('tr').dataset.id)); });
   $('#kitPdf').onclick = async () => {
-    if (!kitFilter.emp) { toast('Pehle upar se employee chunein.', true); return; }
-    try { (await kitPdf(empById(kitFilter.emp), all.filter(k => k.employee_id === kitFilter.emp))).save(`Kit-${empById(kitFilter.emp).emp_code}.pdf`); }
+    let pages;
+    if (kitFilter.batch) pages = [...new Set(all.filter(k => k.batch === kitFilter.batch && (!kitFilter.emp || k.employee_id === kitFilter.emp)).map(k => k.employee_id))]
+      .map(id => empById(id)).filter(Boolean).sort((a, b) => a.emp_code.localeCompare(b.emp_code))
+      .map(e => ({e, items: all.filter(k => k.employee_id === e.id && k.batch === kitFilter.batch), batch: kitFilter.batch}));
+    else if (kitFilter.emp) pages = [{e: empById(kitFilter.emp), items: all.filter(k => k.employee_id === kitFilter.emp)}];
+    else { toast('Upar se kit round ya employee chunein.', true); return; }
+    if (!pages.length) { toast('Is round mein koi item nahi.', true); return; }
+    try { (await kitPdf(pages)).save(kitFilter.batch ? `Kit-forms-${kitFilter.batch}${kitFilter.emp ? '-' + empById(kitFilter.emp).emp_code : ''}.pdf` : `Kit-${pages[0].e.emp_code}.pdf`); }
     catch (err) { toast('PDF nahi bani: ' + (err.message || err), true); }
   };
 }
+const itemRows = (rows, n) => { const r = [...rows]; while (r.length < n) r.push({item: '', qty: 1}); return r; };
+function openRound(all, sched) {
+  const tpl = itemRows(kitTemplate(), kitTemplate().length + 2), d0 = todayStr(), anyDue = sched.some(s => s.due);
+  const f = openDialog({title: 'Issue kit round', submit: 'Issue kit', body: `
+    <label>Issued on<input type="date" name="issued_on" required value="${d0}"></label>
+    <label>Round name<input name="batch" required value="KIT-${d0.slice(0, 7)}"></label>
+    <div class="full" style="display:grid;gap:6px"><span class="muted" style="font-weight:600;font-size:13px">Kit items (har employee ko yehi milega · khaali row chhor dein)</span>
+      ${tpl.map((t, i) => `<div style="display:flex;gap:6px"><input name="item${i}" list="kitItems" value="${esc(t.item)}" placeholder="Item" aria-label="Item ${i + 1}" style="flex:1"><input name="qty${i}" type="number" min="0.5" step="0.5" value="${t.qty || 1}" aria-label="Qty ${i + 1}" style="max-width:80px"></div>`).join('')}
+      <datalist id="kitItems">${KIT_ITEMS.map(x => `<option value="${x}">`).join('')}</datalist></div>
+    <div class="full" style="display:grid;gap:6px"><span class="muted" style="font-weight:600;font-size:13px">Employees <button type="button" class="btn" data-sel="due" style="padding:2px 8px;font-size:12px">Due</button> <button type="button" class="btn" data-sel="all" style="padding:2px 8px;font-size:12px">All</button> <button type="button" class="btn" data-sel="none" style="padding:2px 8px;font-size:12px">None</button></span>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px">
+      ${sched.map(s => `<label class="chk" style="font-weight:400"><input type="checkbox" name="emp" value="${s.e.id}" data-due="${s.due ? 1 : 0}"${(anyDue ? s.due : true) ? ' checked' : ''}> ${esc(s.e.emp_code)} ${esc(s.e.name)}${s.due ? ' <span class="chip absent" style="font-size:11px">due</span>' : ''}</label>`).join('')}</div></div>
+    <label class="chk full"><input type="checkbox" name="replace" checked> Pichli kit wapis li gayi (purane items "Replaced" ho jayenge)</label>
+    <p class="full hint">Size (jaise shoes 42) har employee ke pichle record se khud aa jata hai. Save ke baad isi round ke kit forms PDF mein print karke sign karwayein.</p>`,
+    onSubmit: async (fd, form) => {
+      const ids = [...form.querySelectorAll('[name=emp]:checked')].map(x => x.value);
+      if (!ids.length) throw new Error('Kam az kam ek employee chunein.');
+      const items = tpl.map((_, i) => ({item: (fd['item' + i] || '').trim(), qty: Number(fd['qty' + i] || 1)})).filter(x => x.item);
+      if (!items.length) throw new Error('Kam az kam ek item likhein.');
+      const batch = fd.batch.trim();
+      if (all.some(k => k.batch === batch && ids.includes(k.employee_id)) && !confirm(`"${batch}" mein in mein se kuch employees ko pehle hi kit mil chuki hai. Phir bhi dobara deni hai?`)) return;
+      const sizeOf = (emp, item) => all.filter(k => k.employee_id === emp && k.item.toLowerCase() === item.toLowerCase() && k.size).sort((a, b) => a.issued_on < b.issued_on ? 1 : -1)[0]?.size || null;
+      if (fd.replace === 'on') {
+        const old = all.filter(k => ids.includes(k.employee_id) && !k.returned_on).map(k => k.id);
+        for (let i = 0; i < old.length; i += 200)
+          must(await sb.from('hr_kit').update({returned_on: fd.issued_on, return_condition: 'replaced', charge: 0}).in('id', old.slice(i, i + 200)));
+      }
+      const rows = ids.flatMap(id => items.map(x => ({employee_id: id, issued_on: fd.issued_on, item: x.item, qty: x.qty, size: sizeOf(id, x.item), batch})));
+      for (let i = 0; i < rows.length; i += 500) must(await sb.from('hr_kit').insert(rows.slice(i, i + 500)));
+      Object.assign(kitFilter, {batch, emp: '', status: 'with'});
+      toast(`${ids.length} employees ko kit di gayi (${batch}). Ab "Kit forms (PDF)" se forms print karein.`); route();
+    }});
+  f.querySelectorAll('[data-sel]').forEach(b => b.onclick = () => f.querySelectorAll('[name=emp]').forEach(c => c.checked = b.dataset.sel === 'all' || (b.dataset.sel === 'due' && c.dataset.due === '1')));
+}
+function openTemplate() {
+  const rows = itemRows(kitTemplate(), 12);
+  openDialog({title: 'Standard kit', submit: 'Save', body: `
+    <label>Nayi kit har<select name="cycle">${[2, 3, 4, 6, 12].map(n => `<option value="${n}"${n === kitCycle() ? ' selected' : ''}>${n} mahine</option>`).join('')}</select></label>
+    <div class="full" style="display:grid;gap:6px"><span class="muted" style="font-weight:600;font-size:13px">Har employee ki kit mein (khaali row chhor dein)</span>
+      ${rows.map((t, i) => `<div style="display:flex;gap:6px"><input name="item${i}" list="kitItems2" value="${esc(t.item)}" placeholder="Item" aria-label="Item ${i + 1}" style="flex:1"><input name="qty${i}" type="number" min="0.5" step="0.5" value="${t.qty || 1}" aria-label="Qty ${i + 1}" style="max-width:80px"></div>`).join('')}
+      <datalist id="kitItems2">${KIT_ITEMS.map(x => `<option value="${x}">`).join('')}</datalist></div>`,
+    onSubmit: async fd => {
+      const kit_template = rows.map((_, i) => ({item: (fd['item' + i] || '').trim(), qty: Number(fd['qty' + i] || 1)})).filter(x => x.item);
+      if (!kit_template.length) throw new Error('Kam az kam ek item likhein.');
+      S.settings = must(await sb.from('hr_settings').update({kit_template, kit_cycle_months: Number(fd.cycle)}).eq('id', 1).select().single());
+      toast('Standard kit save ho gayi'); route();
+    }});
+}
 function openIssue() {
   const rows = [0, 1, 2, 3, 4].map(i => `<input name="item${i}" list="kitItems" placeholder="Item" aria-label="Item ${i + 1}"><input name="size${i}" placeholder="Size" aria-label="Size ${i + 1}" style="max-width:90px"><input name="qty${i}" type="number" min="0.5" step="0.5" value="1" aria-label="Qty ${i + 1}" style="max-width:80px">`);
-  openDialog({title: 'Issue working kit', submit: 'Save', body: `
+  openDialog({title: 'Issue single items', submit: 'Save', body: `
     <label>Employee<select name="employee_id" required>${empOpts(kitFilter.emp, 'Choose employee')}</select></label>
     <label>Issued on<input type="date" name="issued_on" required value="${todayStr()}"></label>
     <div class="full" style="display:grid;gap:6px"><span class="muted" style="font-weight:600;font-size:13px">Items (khaali rows chhor dein)</span>
       ${rows.map(r => `<div style="display:flex;gap:6px">${r}</div>`).join('')}
       <datalist id="kitItems">${KIT_ITEMS.map(x => `<option value="${x}">`).join('')}</datalist></div>
-    <label class="full">Note<input name="note" placeholder="e.g. naya joining kit"></label>`,
+    <label class="full">Note<input name="note" placeholder="e.g. naye joiner ki kit, ya phati hui shoes ki jagah"></label>
+    <p class="full hint">Yeh kit round ka hissa nahi banta, is liye agli kit ki tareekh nahi badalti.</p>`,
     onSubmit: async fd => {
       const ins = [0, 1, 2, 3, 4].filter(i => (fd['item' + i] || '').trim()).map(i => ({employee_id: fd.employee_id, issued_on: fd.issued_on,
         item: fd['item' + i].trim(), size: (fd['size' + i] || '').trim() || null, qty: Number(fd['qty' + i] || 1), note: fd.note.trim() || null}));
       if (!ins.length) throw new Error('Kam az kam ek item likhein.');
       must(await sb.from('hr_kit').insert(ins));
-      kitFilter.emp = fd.employee_id; toast(`${ins.length} item record ho gaye`); route();
+      Object.assign(kitFilter, {emp: fd.employee_id, batch: ''}); toast(`${ins.length} item record ho gaye`); route();
     }});
 }
 function openReturn(k) {
@@ -913,21 +1004,30 @@ function openReturn(k) {
   const cond = f.querySelector('[name=return_condition]');
   cond.onchange = () => f.querySelectorAll('.cost').forEach(el => el.hidden = cond.value === 'good');
 }
-async function kitPdf(e, items) {
-  const d = pdfDoc('WORKING KIT ISSUE FORM', await letterhead(), `KIT-${e.emp_code}`);
-  d.kv([['Employee', e.name], ['Code', e.emp_code], ['Designation', e.designation || '-'], ['Printed on', longDate(todayStr())]]);
-  const withEmp = items.filter(k => !k.returned_on), back = items.filter(k => k.returned_on);
-  d.section('Items with the employee');
-  d.table([{label: '#', w: 9}, {label: 'Item'}, {label: 'Size', w: 26}, {label: 'Qty', w: 16, align: 'right'}, {label: 'Issued on', w: 30}, {label: 'Received (sign)', w: 36}],
-    withEmp.length ? withEmp.map((k, i) => [i + 1, k.item + (k.note ? ` - ${k.note}` : ''), k.size || '', fmtH(Number(k.qty)), shortDate(k.issued_on) + ' ' + k.issued_on.slice(0, 4), '']) : [['', 'No items', '', '', '', '']]);
-  if (back.length) {
-    d.section('Returned / lost items');
-    d.table([{label: '#', w: 9}, {label: 'Item'}, {label: 'Qty', w: 14, align: 'right'}, {label: 'Issued', w: 26}, {label: 'Returned', w: 26}, {label: 'Condition', w: 26}, {label: 'Charge', w: 22, align: 'right'}],
-      back.map((k, i) => [i + 1, k.item + (k.size ? ` (${k.size})` : ''), fmtH(Number(k.qty)), shortDate(k.issued_on), shortDate(k.returned_on), KIT_STATE[kitState(k)].replace('Returned ', '').replace('(good)', 'Good'), Number(k.charge) ? sar(k.charge) : '-']));
-  }
-  d.section('Declaration');
-  d.para('I confirm that I have received the items listed above in good condition. I am responsible for their safe keeping and proper use at work. I will return them when they are replaced or when I leave the company. Items that are lost or damaged through my negligence may be charged to me and deducted from my salary.');
-  d.signs(['Employee signature & date', 'Issued by (Store)', 'Supervisor']);
+// pages: [{e, items, batch?}] -> one form per employee
+async function kitPdf(pages) {
+  const img = await letterhead(); let d = null; const refs = {};
+  pages.forEach(({e, items, batch}) => {
+    if (!d) d = pdfDoc('WORKING KIT ISSUE FORM', img, p => refs[p]); else d.page();
+    const first = d.pdf.getNumberOfPages();
+    d.kv([['Employee', e.name], ['Code', e.emp_code], ['Designation', e.designation || '-'], batch ? ['Kit round', batch] : ['Printed on', longDate(todayStr())]]);
+    const withEmp = batch ? items : items.filter(k => !k.returned_on), back = batch ? [] : items.filter(k => k.returned_on);
+    if (batch) { const iss = items.map(k => k.issued_on).sort()[0];
+      d.para(`Issued on ${longDate(iss)}. Next kit due around ${longDate(addMonths(iss, kitCycle()))} (every ${kitCycle()} months).`, 8.8); }
+    d.section(batch ? 'Items issued in this round' : 'Items with the employee');
+    d.table([{label: '#', w: 9}, {label: 'Item'}, {label: 'Size', w: 26}, {label: 'Qty', w: 16, align: 'right'}, {label: 'Issued on', w: 30}, {label: 'Received (sign)', w: 36}],
+      withEmp.length ? withEmp.map((k, i) => [i + 1, k.item + (k.note ? ` - ${k.note}` : ''), k.size || '', fmtH(Number(k.qty)), shortDate(k.issued_on) + ' ' + k.issued_on.slice(0, 4), '']) : [['', 'No items', '', '', '', '']]);
+    if (back.length) {
+      d.section('Returned / replaced / lost items');
+      d.table([{label: '#', w: 9}, {label: 'Item'}, {label: 'Qty', w: 14, align: 'right'}, {label: 'Issued', w: 26}, {label: 'Returned', w: 26}, {label: 'Condition', w: 26}, {label: 'Charge', w: 22, align: 'right'}],
+        back.map((k, i) => [i + 1, k.item + (k.size ? ` (${k.size})` : ''), fmtH(Number(k.qty)), shortDate(k.issued_on), shortDate(k.returned_on),
+          ({good: 'Good', damaged: 'Damaged', lost: 'Lost', replaced: 'Replaced'})[kitState(k)], Number(k.charge) ? sar(k.charge) : '-']));
+    }
+    d.section('Declaration');
+    d.para('I confirm that I have received the items listed above in good condition. I am responsible for their safe keeping and proper use at work. I will return the old items when a new kit is issued, and all items when I leave the company. Items that are lost or damaged through my negligence may be charged to me and deducted from my salary.');
+    d.signs(['Employee signature & date', 'Issued by (Store)', 'Supervisor']);
+    for (let p = first; p <= d.pdf.getNumberOfPages(); p++) refs[p] = `KIT-${e.emp_code}${batch ? '-' + batch.replace(/^KIT-/, '') : ''}`;
+  });
   return d.finish();
 }
 

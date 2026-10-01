@@ -106,3 +106,18 @@ end $$;
 drop trigger if exists hr_task_pay_guard_trg on public.hr_tasks;
 create trigger hr_task_pay_guard_trg before insert or update on public.hr_tasks
   for each row execute function public.hr_task_pay_guard();
+
+-- ---------- kit rounds: a standard kit given to everyone every few months ----------
+-- batch = the kit round (e.g. KIT-2026-10); 'replaced' = old item taken back when the new kit was given
+alter table public.hr_kit add column if not exists batch text;
+create index if not exists hr_kit_batch_idx on public.hr_kit (batch);
+alter table public.hr_kit drop constraint if exists hr_kit_return_condition_check;
+alter table public.hr_kit add constraint hr_kit_return_condition_check
+  check (return_condition in ('good','damaged','lost','replaced'));
+
+-- how often a new kit is due (months) and what the standard kit contains
+alter table public.hr_settings add column if not exists kit_cycle_months int not null default 4;
+alter table public.hr_settings drop constraint if exists hr_settings_kit_cycle_check;
+alter table public.hr_settings add constraint hr_settings_kit_cycle_check check (kit_cycle_months between 1 and 12);
+alter table public.hr_settings add column if not exists kit_template jsonb not null default
+  '[{"item":"Coverall","qty":2},{"item":"Safety shoes","qty":1},{"item":"Safety helmet","qty":1},{"item":"Safety goggles","qty":1},{"item":"Welding gloves","qty":2},{"item":"Cotton gloves","qty":6},{"item":"Ear plugs","qty":2},{"item":"Dust mask","qty":4}]'::jsonb;

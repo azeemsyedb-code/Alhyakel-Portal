@@ -51,7 +51,7 @@ Isi tarah **SQL Editor → New query** mein `supabase_docs.sql` ka poora content
 
 ### Step 1c — Employees: kit aur payroll
 
-Phir `supabase_hr.sql` bhi isi tarah **Run** karein. Is se working kit, paid tasks, deductions / violations, advances aur payslips ki tables ban jati hain. Yeh bhi dobara chalana safe hai.
+Phir `supabase_hr.sql` bhi isi tarah **Run** karein. Is se working kit (rounds aur standard kit), paid tasks, deductions / violations, advances aur payslips ki tables ban jati hain. Yeh bhi dobara chalana safe hai.
 
 ## Step 2 — Supabase: login settings
 
@@ -134,7 +134,13 @@ window.PORTAL_CONFIG = {
 
 - **Price List (Documents → Price List):** har product category aur sub-category ke saath ek dafa likh dein (rate, unit, tafseel). Quotation / Invoice banate waqt upar **Category → Sub-category → Product** chunein, qty daalein aur **+ Add**; line rate aur 15% VAT ke saath khud bhar jati hai. Edit sirf manager / staff, delete sirf manager.
 - **Leak Test aur Tank certificate ka QR:** ab QR khud banta hai. Certificate **Save** karte hi uski PDF Supabase ke `certs` folder mein chali jati hai aur QR usi PDF ka link hota hai, koi third-party QR nahi. Scan karne par PDF seedha khulti hai (bina login). Certificate badal kar dobara Save karein to wahi QR nayi PDF dikhata hai. **Purane certificates** ko ek dafa khol kar **Save** dabayein, tab un ka QR banega.
-- **Working kit (Employees → Working kit):** **Issue items** se employee ko saman dein (helmet, shoes, gloves, tools…). Wapsi par **Return** dabayein: Good / Damaged / Lost. Damaged ya Lost par charge likh dein, HR admin "Salary se kaatein" rakhe to woh payslip mein katauti ban jati hai. Upar se employee chun kar **Kit form (PDF)** nikaalein, employee us par sign karta hai.
+- **Working kit (Employees → Working kit):** inventory se alag hai (store se saman aap bulk mein nikalte hain).
+  - **Standard kit** (sirf HR admin): kit mein kya kya hai (coverall, shoes, gloves…) aur nayi kit har kitne mahine (3 ya 4) baad.
+  - **Issue kit round:** ek click mein chune hue employees ko poori kit, maslan `KIT-2026-10`. Jin ki kit due hai woh pehle se tick hote hain. Pichli kit ke items khud "Replaced" ho jate hain. Shoes / coverall ka size pichle record se khud aa jata hai.
+  - **Kit schedule:** har employee ki pichli kit aur agli kit ki tareekh; due hone par ghanti (notifications) mein bhi aata hai.
+  - **Kit forms (PDF):** upar se round chunein → har employee ka ek page, sign karwa kar file kar lein.
+  - **Single items:** beech mein kuch dena ho (naya joiner, phati hui shoes) to; is se agli kit ki tareekh nahi badalti.
+  - **Return:** Good / Damaged / Lost. Damaged ya Lost par charge, HR admin "Salary se kaatein" rakhe to payslip mein katauti.
 - **Paid tasks:** task banate waqt HR admin **Paid task** tick karke raqam likhe. Task jis mahine "Done" ho, us mahine ki salary mein judta hai.
 - **Payroll (sirf HR admin):** mahina chunein. Har employee ki payslip: basic + overtime + paid tasks + bonus, minus absent (basic ÷ 30 har din, half day aadha), violations / deductions aur advance ki qist. **+ Deduction / violation / bonus** aur **+ Advance** se record karein (advance ki qist agle mahine se katni shuru hoti hai). **Save** se payslip mehfooz hoti hai aur advance ki wapsi hisaab mein aati hai; baad mein kuch badle to row par "Changed since" aata hai, **Re-save** karein. **Payslip** / **All payslips (PDF)** print karke employee se sign karwayein.
 
