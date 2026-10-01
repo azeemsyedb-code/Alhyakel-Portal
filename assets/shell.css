@@ -1,0 +1,86 @@
+/* Al Hyakel Portal — shared shell: design tokens, top bar, module tabs, page header.
+   Loaded on every page by assets/portal.js. Page content styles live in each page / portal.css. */
+:root{
+  --ah-font:'IBM Plex Sans','IBM Plex Sans Arabic','Segoe UI',system-ui,-apple-system,sans-serif;
+  --ah-ink:#1F2D35; --ah-muted:#73818A; --ah-line:#E6EBEE; --ah-bg:#F5F7F9; --ah-panel:#fff;
+  --ah-brand:#1D6E80; --ah-brand-d:#155462; --ah-brand-l:#E6F2F4; --ah-orange:#E07A2E;
+  --ah-green:#2E9E6A; --ah-red:#D9475B; --ah-blue:#3B82C4; --ah-purple:#8A5CC2; --ah-amber:#C27A1A;
+  --ah-shadow:0 2px 10px rgba(30,60,80,.06); --ah-shadow-lg:0 12px 36px rgba(30,60,80,.16);
+  --ah-radius:12px;
+}
+body{background:var(--ah-bg)}
+body.ah{font-family:var(--ah-font)}
+
+/* ---------- top bar ---------- */
+#ahbar{background:#fff;border-bottom:1px solid var(--ah-line);position:sticky;top:0;z-index:50;font:14px/1.4 var(--ah-font);color:var(--ah-ink);
+  padding-top:env(safe-area-inset-top,0px)}
+#ahbar *{box-sizing:border-box}
+#ahbar{display:block;gap:0;flex-wrap:nowrap;margin:0;padding:env(safe-area-inset-top,0px) 0 0;border-radius:0;box-shadow:none;max-width:none}
+#ahbar nav{background:none;border-radius:0;box-shadow:none;margin:0 auto}
+#ahbar .row2{flex-wrap:nowrap}
+#ahbar .row2 a{margin:0;border-radius:0;box-shadow:none;background:none}
+#ahbar .row1{display:flex;align-items:center;gap:18px;padding:10px 24px;max-width:1400px;margin:0 auto}
+#ahbar .logo{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;color:var(--ah-ink);text-decoration:none;white-space:nowrap}
+#ahbar .logo img{height:30px;width:auto}
+#ahbar .search{position:relative;flex:0 1 420px;margin-left:12px}
+#ahbar .search input{width:100%;border:1px solid transparent;background:var(--ah-bg);border-radius:9px;padding:9px 12px 9px 36px;font:inherit;color:inherit}
+#ahbar .search input:focus{outline:none;border-color:var(--ah-brand);background:#fff;box-shadow:0 0 0 3px var(--ah-brand-l)}
+#ahbar .search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--ah-muted);pointer-events:none}
+#ahbar .tools{margin-left:auto;display:flex;align-items:center;gap:8px}
+#ahbar .ibtn{position:relative;width:38px;height:38px;border-radius:50%;border:0;background:none;color:#7D8A92;display:grid;place-items:center;cursor:pointer}
+#ahbar .ibtn:hover,#ahbar .ibtn[aria-expanded=true]{background:var(--ah-bg);color:var(--ah-ink)}
+#ahbar .ibtn svg{width:21px;height:21px}
+#ahbar .badge{position:absolute;top:3px;right:2px;min-width:17px;height:17px;border-radius:99px;background:var(--ah-orange);color:#fff;font-size:10.5px;font-weight:600;
+  display:grid;place-items:center;padding:0 4px;border:2px solid #fff}
+#ahbar .badge[hidden]{display:none}
+#ahbar .avatar{width:36px;height:36px;border-radius:50%;border:0;background:var(--ah-brand);color:#fff;font:600 13px var(--ah-font);cursor:pointer}
+#ahbar .avatar:focus-visible,#ahbar .ibtn:focus-visible,#ahbar a:focus-visible{outline:2px solid var(--ah-brand);outline-offset:2px}
+#ahbar .row2{display:flex;gap:4px;padding:0 16px;max-width:1400px;margin:0 auto;overflow-x:auto;scrollbar-width:none}
+#ahbar .row2::-webkit-scrollbar{display:none}
+#ahbar .row2 a{display:flex;align-items:center;gap:8px;padding:12px 14px 11px;color:var(--ah-muted);text-decoration:none;font-weight:500;
+  border-bottom:2px solid transparent;white-space:nowrap}
+#ahbar .row2 a svg{width:18px;height:18px}
+#ahbar .row2 a:hover{color:var(--ah-ink)}
+#ahbar .row2 a.on{color:var(--ah-brand);border-bottom-color:var(--ah-brand)}
+#ahbar .hr{border-top:1px solid var(--ah-line)}
+
+/* dropdowns */
+.ahdrop{position:absolute;top:calc(100% + 8px);background:#fff;border:1px solid var(--ah-line);border-radius:12px;box-shadow:var(--ah-shadow-lg);
+  z-index:60;min-width:300px;max-height:min(70vh,520px);overflow:auto;padding:6px;font:14px/1.4 var(--ah-font);color:var(--ah-ink)}
+.ahdrop[hidden]{display:none}
+.ahdrop.right{right:0}
+.ahdrop h6{margin:8px 10px 4px;font-size:11.5px;font-weight:600;color:var(--ah-muted);letter-spacing:.02em}
+.ahdrop a,.ahdrop button.item{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:8px;color:inherit;text-decoration:none;
+  background:none;border:0;font:inherit;text-align:left;cursor:pointer}
+.ahdrop a:hover,.ahdrop a.act,.ahdrop button.item:hover{background:var(--ah-bg)}
+.ahdrop .dot{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff}
+.ahdrop .dot svg{width:15px;height:15px}
+.ahdrop a > svg{flex:none;width:18px;height:18px;color:var(--ah-muted)}
+.ahdrop .t{flex:1;min-width:0}
+.ahdrop .t b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ahdrop .t span{display:block;color:var(--ah-muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ahdrop .n{font-weight:600;color:var(--ah-muted)}
+.ahdrop .none{padding:16px 12px;color:var(--ah-muted);text-align:center}
+.ahdrop .me{padding:10px 10px 12px;border-bottom:1px solid var(--ah-line);margin-bottom:4px}
+.ahdrop .me b{display:block}.ahdrop .me span{color:var(--ah-muted);font-size:12.5px}
+
+/* ---------- page header (title + pill tabs), used by every module ---------- */
+.ahhead{max-width:1240px;margin:0 auto;padding:24px 28px 4px;font-family:var(--ah-font)}
+.ahhead h1{margin:0;font-size:22px;font-weight:600;color:var(--ah-ink);letter-spacing:0}
+.ahhead p{margin:2px 0 0;color:var(--ah-muted);font-size:14px}
+.ahpills{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 4px}
+.ahpills a,.ahpills button{padding:7px 15px;border-radius:99px;background:#fff;color:var(--ah-muted);font:500 13.5px var(--ah-font);text-decoration:none;
+  border:0;box-shadow:0 1px 4px rgba(30,60,80,.08);cursor:pointer;white-space:nowrap}
+.ahpills a:hover,.ahpills button:hover{color:var(--ah-ink)}
+.ahpills a.on,.ahpills button.on,.ahpills button.active{background:var(--ah-brand);color:#fff}
+
+@media (max-width:760px){
+  #ahbar .row1{padding:8px 14px;gap:10px}
+  #ahbar .logo span{display:none}
+  #ahbar .search{margin-left:0;flex:1}
+  #ahbar .row2{padding:0 6px}
+  #ahbar .row2 a{padding:10px 10px 9px}
+  .ahdrop{position:fixed;left:10px!important;right:10px!important;top:64px;min-width:0}
+  .ahhead{padding:18px 14px 2px}
+}
+@media print{#ahbar{display:none}}
