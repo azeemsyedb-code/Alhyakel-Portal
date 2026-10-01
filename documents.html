@@ -61,6 +61,20 @@ textarea:focus{outline:2px solid var(--teal);outline-offset:1px}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--teal-dark);color:#fff;padding:10px 18px;border-radius:6px;font-weight:600;z-index:60;box-shadow:0 6px 20px rgba(0,0,0,.2)}
 #toast.bad{background:var(--red)}
 .busy{opacity:.6;pointer-events:none}
+/* line items */
+.items{width:100%;border-collapse:collapse;min-width:640px}
+.items th{background:#e3efef;color:var(--teal-dark);font-size:13px;padding:7px 8px}
+.items td{padding:4px;border-bottom:1px solid var(--border);vertical-align:top}
+.items td input,.items td textarea{width:100%;padding:6px 7px;min-height:0}
+.items td textarea{resize:vertical;min-height:36px}
+.items td.n{width:34px;text-align:center;color:var(--muted);padding-top:12px}
+.items td.amt{text-align:right;font-variant-numeric:tabular-nums;padding:12px 8px 0;white-space:nowrap}
+.items input[type=number]{text-align:right}
+.items .rm{background:none;border:0;color:var(--red);cursor:pointer;font-size:18px;line-height:1;padding:8px 6px}
+.totals{margin:12px 0 0 auto;width:min(320px,100%);font-variant-numeric:tabular-nums}
+.totals div{display:flex;justify-content:space-between;padding:5px 2px;border-bottom:1px solid var(--border)}
+.totals div.grand{font-weight:700;color:var(--teal-dark);font-size:1.1rem;border-bottom:2px solid var(--teal)}
+td.money{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 @media (max-width:600px){main{padding:18px 14px 40px}.sheet{padding:4px 14px 14px}}
 </style>
 </head>
@@ -70,10 +84,10 @@ textarea:focus{outline:2px solid var(--teal);outline-offset:1px}
     <div><h1>Documents</h1><p class="muted" style="margin:4px 0 0">Certificates aur company documents banayein, save karein aur PDF download karein.</p></div>
     <span class="pill" id="myRole"></span>
   </div>
-  <nav class="doc-tabs" aria-label="Document types">
-    <a href="#leak" class="on">Leak Test Certificate</a>
-    <span title="Agle phase mein">Delivery Note <small>(jaldi)</small></span>
-    <span title="Agle phase mein">Quotation <small>(jaldi)</small></span>
+  <nav class="doc-tabs" id="tabs" aria-label="Document types">
+    <a href="#leak" data-t="leak">Leak Test Certificate</a>
+    <a href="#dn" data-t="dn">Delivery Note</a>
+    <a href="#quotation" data-t="quotation">Quotation</a>
     <span title="Agle phase mein">Purchase Order <small>(jaldi)</small></span>
     <span title="Agle phase mein">Tank Certificate <small>(jaldi)</small></span>
   </nav>
@@ -566,11 +580,427 @@ async function showForm(id, copyFrom) {
   }
 }
 
+/* ===================== DELIVERY NOTE & QUOTATION (documents with line items) ===================== */
+const VAT_NO = '311822823700003';
+const BANK = [['Bank Name', 'Al Rajhi Bank'], ['Account No', '453000010006080543686'], ['IBAN', 'SA1180000453608010543686']];
+const num = v => { const n = parseFloat(String(v ?? '').replace(/,/g, '')); return Number.isFinite(n) ? n : 0; };
+const money = n => (Number(n) || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const qtyTxt = v => String(v ?? '').trim() === '' ? '' : num(v).toLocaleString('en-US', {maximumFractionDigits: 3});
+const r2 = x => Math.round(x * 100) / 100;
+
+function words(n) {
+  const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen',
+             'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const t = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  const chunk = x => {
+    const out = [];
+    if (x >= 100) { out.push(a[Math.floor(x / 100)] + ' Hundred'); x %= 100; }
+    if (x >= 20) out.push(t[Math.floor(x / 10)] + (x % 10 ? '-' + a[x % 10] : ''));
+    else if (x) out.push(a[x]);
+    return out.join(' ');
+  };
+  if (!n) return 'Zero';
+  const out = [];
+  for (const [u, name] of [[1e9, 'Billion'], [1e6, 'Million'], [1e3, 'Thousand']]) if (n >= u) { out.push(chunk(Math.floor(n / u)) + ' ' + name); n %= u; }
+  if (n) out.push(chunk(n));
+  return out.join(' ');
+}
+const sarWords = total => { const h = Math.round(total * 100), r = Math.floor(h / 100), hal = h % 100;
+  return `Saudi Riyals ${words(r)}${hal ? ` and ${words(hal)} Halalas` : ''} Only`; };
+
+function quoteTotals(items) {
+  let sub = 0, vat = 0;
+  const rows = items.map(it => {
+    const line = num(it.qty) * num(it.rate);
+    const tp = String(it.tax_pct ?? '').trim() === '' ? 15 : num(it.tax_pct);
+    const v = line * tp / 100; sub += line; vat += v;
+    return {...it, tp, vat: v, amount: line + v};
+  });
+  return {rows, sub: r2(sub), vat: r2(vat), total: r2(sub + vat)};
+}
+const maxNo = (list, re) => Math.max(0, ...list.map(r => (String(r.doc_no).match(re) || [])[1]).filter(Boolean).map(Number));
+
+const IDOCS = {
+  dn: {
+    title: 'Delivery Note', plural: 'Delivery Notes', pdfTitle: 'DELIVERY NOTE',
+    nextNo: (list, date) => { const y = (date || today()).slice(0, 4); return `AH-${y}-${String(maxNo(list, new RegExp(`^AH-${y}-(\\d+)$`)) + 1).padStart(3, '0')}`; },
+    head: [['invoice_no', 'Invoice No.'], ['po_no', 'PO No.']],
+    party: [['customer_address', 'Address'], ['customer_id', 'Customer ID']],
+    items: [{k: 'description', label: 'Description', wide: true}, {k: 'qty', label: 'Qty', num: true},
+            {k: 'delivered', label: 'Qty Delivered', num: true}, {k: 'received', label: 'Qty Received', num: true}],
+    extra: [{title: 'Driver / Truck', fields: [['driver_name', 'Driver Name'], ['driver_iqama', 'Driver Iqama No.'], ['truck_no', 'Truck No.']]}],
+    notes: [['remarks', 'Customer Remarks']],
+    listCols: [['Customer', r => esc(r.party_name)], ['PO No.', r => esc(r.data?.po_no)], ['Items', r => (r.data?.items || []).length], ['Truck', r => esc(r.data?.truck_no)]],
+    search: r => [r.data?.po_no, r.data?.invoice_no, r.data?.truck_no, r.data?.driver_name]
+  },
+  quotation: {
+    title: 'Quotation', plural: 'Quotations', pdfTitle: 'QUOTATION', money: true,
+    nextNo: list => 'QT-AL' + String(maxNo(list, /^QT-AL(\d+)$/) + 1).padStart(6, '0'),
+    head: [],
+    party: [['customer_address', 'Address'], ['customer_trn', 'TRN / VAT No.']],
+    items: [{k: 'description', label: 'Description', wide: true}, {k: 'qty', label: 'Qty', num: true},
+            {k: 'rate', label: 'Rate (SAR)', num: true}, {k: 'tax_pct', label: 'Tax %', num: true, def: '15'}],
+    extra: [{title: 'Terms & Conditions', fields: [['completion_time', 'Completion Time'], ['payment_terms', 'Payment Terms'], ['validity', 'Validity']]}],
+    notes: [['notes', 'Notes']],
+    listCols: [['Customer', r => esc(r.party_name)], ['Total (SAR)', r => money(r.data?.grand_total), 'money']],
+    search: r => [r.data?.customer_trn]
+  }
+};
+
+const ILIST = {};
+async function loadIList(type, force) {
+  if (ILIST[type] && !force) return ILIST[type];
+  const {data, error} = await sb.from('docs_documents').select('id, doc_no, doc_date, party_name, data, created_at')
+    .eq('doc_type', type).order('created_at', {ascending: false}).limit(5000);
+  if (error) throw error;
+  return ILIST[type] = data;
+}
+
+/* ---------- PDF ---------- */
+function itemsPdf(type, r, img) {
+  const T = IDOCS[type], d = r.data || {};
+  const {jsPDF} = window.jspdf;
+  const pdf = new jsPDF({unit: 'mm', format: 'a4', compress: true});
+  const W = 210, H = 297, M = 12, CW = W - 2 * M;
+  const hdrH = CW * img.header.h / img.header.w, ftrH = CW * img.footer.h / img.footer.w;
+  const TOP = 5 + hdrH, BOTTOM = H - 5 - ftrH - 7;
+  let y;
+  const frame = () => {
+    pdf.addImage(img.header.dataUrl, 'JPEG', M, 5, CW, hdrH, 'hdr');
+    pdf.addImage(img.footer.dataUrl, 'JPEG', M, H - 5 - ftrH, CW, ftrH, 'ftr');
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); pdf.setTextColor(...C.slate);
+    pdf.text(`VAT NO: ${VAT_NO}`, W - M, TOP + 4, {align: 'right'});
+    pdf.setDrawColor(...C.slate); pdf.setLineWidth(0.5);
+    pdf.line(M, TOP + 7, W - M, TOP + 7); pdf.line(M, TOP + 17, W - M, TOP + 17);
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(13.5);
+    pdf.text(T.pdfTitle, W / 2, TOP + 12.2, {align: 'center', baseline: 'middle'});
+    y = TOP + 23;
+  };
+  const newPage = () => { pdf.addPage(); frame(); };
+  const need = h => { if (y + h > BOTTOM) { newPage(); return true; } return false; };
+  const section = (t, width = CW) => {
+    need(14);
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9.5); pdf.setTextColor(...C.slate);
+    pdf.text(t.toUpperCase(), M, y + 3.5);
+    pdf.setDrawColor(...C.orange); pdf.setLineWidth(0.5); pdf.line(M, y + 5.3, M + width, y + 5.3);
+    y += 8;
+  };
+  const kv = (pairs, cols = 2, width = CW) => {
+    const colW = width / cols, LW = cols === 1 ? 42 : 32;
+    for (let i = 0; i < pairs.length; i += cols) {
+      const row = pairs.slice(i, i + cols);
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+      const lines = row.map(([, v]) => pdf.splitTextToSize(String(v ?? '').trim() || '-', colW - LW - 3));
+      const h = Math.max(7, Math.max(...lines.map(l => l.length)) * 4.1 + 3);
+      need(h);
+      row.forEach(([l], j) => {
+        const x = M + j * colW;
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.5); pdf.setTextColor(...C.ink);
+        pdf.text(l, x, y + 4.6);
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
+        pdf.text(lines[j], x + LW, y + 4.6, {lineHeightFactor: 1.15});
+      });
+      pdf.setDrawColor(...C.line); pdf.setLineWidth(0.2); pdf.line(M, y + h, M + width, y + h);
+      y += h;
+    }
+    y += 3;
+  };
+  const table = (cols, rows) => {
+    const fixed = cols.reduce((s, c) => s + (c.w || 0), 0);
+    cols.forEach(c => { if (!c.w) c.w = CW - fixed; });
+    const head = () => {
+      let x = M;
+      cols.forEach(c => {
+        pdf.setFillColor(...C.shade); pdf.setDrawColor(...C.line); pdf.setLineWidth(0.2);   // text colour resets fill, so set it per cell
+        pdf.rect(x, y, c.w, 7.5, 'FD');
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.3); pdf.setTextColor(...C.slate);
+        pdf.text(c.label, c.align === 'right' ? x + c.w - 2 : x + 2, y + 4.8, {align: c.align === 'right' ? 'right' : 'left'});
+        x += c.w;
+      });
+      y += 7.5;
+    };
+    need(16); head();
+    rows.forEach(row => {
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.8);
+      const lines = row.map((v, i) => pdf.splitTextToSize(String(v ?? ''), cols[i].w - 4));
+      const h = Math.max(7, Math.max(...lines.map(l => l.length)) * 3.9 + 3.2);
+      if (need(h)) head();
+      let x = M;
+      cols.forEach((c, i) => {
+        pdf.setDrawColor(...C.line); pdf.setLineWidth(0.2); pdf.rect(x, y, c.w, h, 'S');
+        pdf.setTextColor(...C.ink); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.8);
+        pdf.text(lines[i], c.align === 'right' ? x + c.w - 2 : x + 2, y + 4.6, {align: c.align === 'right' ? 'right' : 'left', lineHeightFactor: 1.15});
+        x += c.w;
+      });
+      y += h;
+    });
+    y += 4;
+  };
+
+  frame();
+  const top = [[type === 'dn' ? 'Delivery Note #' : 'Quote No.', r.doc_no || '(on save)'], [type === 'dn' ? 'Date' : 'Quote Date', fmtDate(r.doc_date)],
+               ...T.head.map(([k, l]) => [l, d[k]])];
+  kv(top);
+  section('Customer');
+  kv([['Customer Name', r.party_name], ...T.party.map(([k, l]) => [l, d[k]])], 1);
+  const items = (d.items || []);
+  if (type === 'dn') {
+    table([{label: 'Sr.#', w: 12}, {label: 'Description'}, {label: 'Qty', w: 22, align: 'right'}, {label: 'Qty Delivered', w: 28, align: 'right'}, {label: 'Qty Received', w: 28, align: 'right'}],
+      items.map((it, i) => [i + 1, it.description, qtyTxt(it.qty), qtyTxt(it.delivered), qtyTxt(it.received)]));
+  } else {
+    const q = quoteTotals(items);
+    table([{label: '#', w: 9}, {label: 'Description'}, {label: 'Qty', w: 15, align: 'right'}, {label: 'Rate', w: 23, align: 'right'},
+           {label: 'Tax %', w: 14, align: 'right'}, {label: 'VAT', w: 22, align: 'right'}, {label: 'Amount', w: 26, align: 'right'}],
+      q.rows.map((it, i) => [i + 1, it.description, qtyTxt(it.qty), money(it.rate), it.tp + '%', money(it.vat), money(it.amount)]));
+    // totals (right)
+    need(27);
+    const bx = W - M - 82, bw = 82;
+    [['Sub Total', money(q.sub)], ['Standard Rate VAT (15%)', money(q.vat)]].forEach(([l, v]) => {
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9.5); pdf.setTextColor(...C.ink);
+      pdf.text(l, bx, y + 4); pdf.text(v, bx + bw, y + 4, {align: 'right'}); y += 6.5;
+    });
+    pdf.setDrawColor(...C.slate); pdf.setLineWidth(0.6); pdf.line(bx, y + 0.5, bx + bw, y + 0.5);
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11); pdf.setTextColor(...C.slate);
+    pdf.text('Total', bx, y + 6); pdf.text('SAR ' + money(q.total), bx + bw, y + 6, {align: 'right'});
+    y += 11;
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.8); pdf.setTextColor(...C.ink);
+    const wl = pdf.splitTextToSize('Total In Words: ' + sarWords(q.total), CW);
+    need(wl.length * 4 + 4); pdf.text(wl, M, y + 3); y += wl.length * 4 + 5;
+  }
+  T.extra.forEach(s => { section(s.title); kv(s.fields.map(([k, l]) => [l, d[k]]), 1); });
+  T.notes.forEach(([k, l]) => { if (String(d[k] || '').trim()) { section(l); kv([[l === 'Notes' ? 'Notes' : 'Remarks', d[k]]], 1); } });
+  if (type === 'quotation') {
+    // bank details on the left, stamp + signature on the right of the same band
+    need(40);
+    const y0 = y;
+    section('Bank Details', 112); kv(BANK, 1, 112);
+    const sw = 50, sk = Math.min(sw / img.stamp.w, 25 / img.stamp.h), x = W - M - 62;
+    const sy = Math.max(y, y0 + 36);
+    pdf.addImage(img.stamp.dataUrl, 'PNG', x + (62 - img.stamp.w * sk) / 2, sy - 4 - img.stamp.h * sk, img.stamp.w * sk, img.stamp.h * sk, 'stamp');
+    pdf.setDrawColor(...C.ink); pdf.setLineWidth(0.35); pdf.line(x, sy, x + 62, sy);
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.5); pdf.setTextColor(...C.slate);
+    pdf.text('Authorized Signature', x + 31, sy + 4.5, {align: 'center'});
+    y = sy + 8;
+  }
+
+  // delivery note: signature lines at the bottom of the last page
+  if (type === 'dn') {
+    if (y + 26 > BOTTOM) newPage();
+    const sy = BOTTOM - 8;
+    pdf.setDrawColor(...C.ink); pdf.setLineWidth(0.35);
+    const w = (CW - 20) / 3;
+    ['Prepared By', 'Delivered By (Driver)', 'Received By (Name / Sign / Date)'].forEach((t, i) => {
+      const x = M + i * (w + 10);
+      pdf.line(x, sy, x + w, sy);
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.5); pdf.setTextColor(...C.slate);
+      pdf.text(t, x, sy + 4.5);
+    });
+  }
+  const n = pdf.getNumberOfPages();
+  for (let i = 1; i <= n; i++) {
+    pdf.setPage(i); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); pdf.setTextColor(...C.muted);
+    pdf.text(`${r.doc_no || 'DRAFT'}   |   Page ${i} of ${n}`, W - M, BOTTOM + 4.5, {align: 'right'});
+  }
+  return pdf;
+}
+const iPdf = async (type, r) => itemsPdf(type, r, await assets());
+
+/* ---------- list ---------- */
+async function showIList(type) {
+  const T = IDOCS[type];
+  view.innerHTML = '<p class="muted">Load ho raha hai…</p>';
+  let list;
+  try { list = await loadIList(type, true); } catch (e) { view.innerHTML = `<p class="flash">Database error: ${esc(nice(e))}</p>`; return; }
+  view.innerHTML = `
+    <div class="tools">
+      <div class="field"><label for="q">Search</label><input id="q" type="search" placeholder="Number, customer, PO…"></div>
+      <span style="flex:1"></span>
+      ${CAN_EDIT ? `<a class="btn" href="#${type}/new">+ New ${esc(T.title)}</a>` : ''}
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>No.</th><th>Date</th>${T.listCols.map(c => `<th${c[2] ? ' style="text-align:right"' : ''}>${c[0]}</th>`).join('')}<th></th></tr></thead><tbody id="rows"></tbody></table></div>
+    <p class="muted" id="count" style="font-size:13px"></p>`;
+  const draw = () => {
+    const q = $('#q').value.trim().toLowerCase();
+    const rows = list.filter(r => !q || [r.doc_no, r.party_name, ...T.search(r)].join(' ').toLowerCase().includes(q));
+    $('#rows').innerHTML = rows.length ? rows.map(r => `<tr class="click" data-id="${r.id}"><td class="no">${esc(r.doc_no)}</td>
+        <td style="white-space:nowrap">${esc(fmtDate(r.doc_date))}</td>${T.listCols.map(c => `<td class="${c[2] || ''}">${c[1](r)}</td>`).join('')}
+        <td><button class="btn small sec" data-pdf="${r.id}">PDF</button></td></tr>`).join('')
+      : `<tr><td colspan="${T.listCols.length + 3}" class="empty">${list.length ? 'Is search se kuch nahi mila.' : `Abhi tak koi ${esc(T.title)} nahi bana.` + (CAN_EDIT ? ` <a href="#${type}/new">Pehla banayein</a>.` : '')}</td></tr>`;
+    $('#count').textContent = list.length ? `${rows.length} of ${list.length}` : '';
+  };
+  $('#q').addEventListener('input', draw);
+  $('#rows').addEventListener('click', async e => {
+    const b = e.target.closest('[data-pdf]');
+    if (b) {
+      e.stopPropagation(); b.disabled = true;
+      try { const r = list.find(x => x.id === b.dataset.pdf); (await iPdf(type, r)).save(r.doc_no + '.pdf'); }
+      catch (err) { toast('PDF nahi bani: ' + nice(err), true); }
+      b.disabled = false; return;
+    }
+    const tr = e.target.closest('tr[data-id]'); if (tr) location.hash = `#${type}/${tr.dataset.id}`;
+  });
+  draw();
+}
+
+/* ---------- form ---------- */
+async function showIForm(type, id, copyFrom) {
+  const T = IDOCS[type];
+  view.innerHTML = '<p class="muted">Load ho raha hai…</p>';
+  let list, others;
+  try { [list, others] = await Promise.all([loadIList(type, true), loadIList(type === 'dn' ? 'quotation' : 'dn')]); }
+  catch (e) { view.innerHTML = `<p class="flash">Database error: ${esc(nice(e))}</p>`; return; }
+  let rec = null, src = null;
+  if (id || copyFrom) {
+    const {data} = await sb.from('docs_documents').select('*').eq('id', id || copyFrom).eq('doc_type', type).maybeSingle();
+    if (!data) { view.innerHTML = `<p class="flash">Document nahi mila. <a href="#${type}">Wapas list par</a></p>`; return; }
+    src = data; if (id) rec = data;
+  }
+  const ro = !CAN_EDIT;
+  const dis = ro ? 'disabled' : '';
+  const d = {...(src?.data || {})};
+  const blankItem = () => Object.fromEntries(T.items.map(c => [c.k, c.def || '']));
+  let items = (d.items && d.items.length ? d.items : [blankItem()]).map(it => ({...it}));
+  const who = rec ? `Banaya: ${esc(await nameOf(rec.created_by))} · ${new Date(rec.created_at).toLocaleString('en-GB', {dateStyle: 'medium', timeStyle: 'short'})}` +
+    (rec.updated_at ? ` &nbsp;|&nbsp; Akhri tabdeeli: ${esc(await nameOf(rec.updated_by))} · ${new Date(rec.updated_at).toLocaleString('en-GB', {dateStyle: 'medium', timeStyle: 'short'})}` : '') : '';
+  const people = [...list, ...others];
+  const names = [...new Set(people.map(r => r.party_name).filter(Boolean))].sort();
+  const fld = ([k, l, t], val) => `<div class="field"><label for="f_${k}">${esc(l)}</label><input id="f_${k}" ${t ? `type="${t}"` : ''} value="${esc(val)}" ${dis}></div>`;
+  const dateNow = rec?.doc_date || today();
+
+  view.innerHTML = `
+    <p style="margin:0 0 10px"><a href="#${type}">&larr; ${esc(T.plural)}</a></p>
+    <h2>${rec ? `${esc(T.title)} <span class="mono" style="font-size:1.1rem">${esc(rec.doc_no)}</span>` : 'New ' + esc(T.title)}</h2>
+    ${who ? `<p class="meta">${who}</p>` : ''}
+    <form id="f" autocomplete="off">
+      <div class="sheet">
+        <h3>${esc(T.title)} details</h3>
+        <div class="grid">
+          <div class="field"><label for="f_no">${type === 'dn' ? 'Delivery Note #' : 'Quote No.'}</label>
+            ${rec ? `<div class="fixed">${esc(rec.doc_no)}</div>` : `<input id="f_no" placeholder="Auto: ${esc(T.nextNo(list, dateNow))}" ${dis}>`}</div>
+          <div class="field"><label for="f_date">Date</label><input id="f_date" type="date" required value="${esc(dateNow)}" ${dis}></div>
+          ${T.head.map(f => fld(f, d[f[0]])).join('')}
+        </div>
+        ${rec ? '' : '<p class="hint">Number khaali chhorein to agla number khud lag jayega.</p>'}
+        <h3>Customer</h3>
+        <div class="grid">
+          <div class="field"><label for="f_party">Customer Name</label><input id="f_party" list="names" required value="${esc(src?.party_name)}" ${dis}>
+            <datalist id="names">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
+          ${T.party.map(f => fld(f, d[f[0]])).join('')}
+        </div>
+        ${ro ? '' : '<p class="hint">Purana customer chunein to uska address waghera khud bhar jayega.</p>'}
+      </div>
+      <div class="sheet">
+        <h3>Items</h3>
+        <div class="table-wrap"><table class="items"><thead><tr><th>#</th>${T.items.map(c => `<th>${esc(c.label)}</th>`).join('')}${T.money ? '<th style="text-align:right">Amount</th>' : ''}<th></th></tr></thead>
+          <tbody id="items"></tbody></table></div>
+        ${ro ? '' : '<button type="button" class="btn sec small" id="addItem" style="margin-top:10px">+ Add item</button>'}
+        ${T.money ? '<div class="totals" id="totals"></div><p class="hint" id="inwords"></p>' : ''}
+      </div>
+      <div class="sheet">
+        ${T.extra.map(s => `<h3>${esc(s.title)}</h3><div class="grid">${s.fields.map(f => fld(f, d[f[0]])).join('')}</div>`).join('')}
+        ${T.notes.map(([k, l]) => `<div class="field" style="margin-top:12px"><label for="f_${k}">${esc(l)}</label><textarea id="f_${k}" rows="3" ${dis}>${esc(d[k])}</textarea></div>`).join('')}
+      </div>
+      <p class="err" id="err" role="alert"></p>
+      <div class="bar">
+        ${ro ? '' : '<button class="btn" id="save" type="submit">Save</button>'}
+        <button class="btn sec" type="button" id="dl">Download PDF</button>
+        <button class="btn sec" type="button" id="pv">Preview</button>
+        ${rec && CAN_EDIT ? `<a class="btn sec" href="#${type}/copy/${rec.id}">Copy as new</a>` : ''}
+        <span class="grow"></span>
+        ${rec && CAN_DELETE ? '<button class="btn danger" type="button" id="del">Delete</button>' : ''}
+      </div>
+    </form>`;
+
+  const form = $('#f');
+  const drawItems = () => {
+    const q = T.money ? quoteTotals(items) : null;
+    $('#items').innerHTML = items.map((it, i) => `<tr data-i="${i}"><td class="n">${i + 1}</td>
+      ${T.items.map(c => `<td${c.wide ? ' style="min-width:240px"' : ' style="width:110px"'}>${c.wide
+        ? `<textarea data-k="${c.k}" rows="1" aria-label="${esc(c.label)} ${i + 1}" ${dis}>${esc(it[c.k])}</textarea>`
+        : `<input data-k="${c.k}" type="number" step="any" inputmode="decimal" value="${esc(it[c.k])}" aria-label="${esc(c.label)} ${i + 1}" ${dis}>`}</td>`).join('')}
+      ${T.money ? `<td class="amt">${money(q.rows[i].amount)}</td>` : ''}
+      <td>${ro || items.length < 2 ? '' : `<button type="button" class="rm" data-rm="${i}" aria-label="Remove item ${i + 1}">&times;</button>`}</td></tr>`).join('');
+    $$('#items textarea').forEach(grow);
+    drawTotals();
+  };
+  const drawTotals = () => {
+    if (!T.money) return;
+    const q = quoteTotals(items);
+    $('#totals').innerHTML = `<div><span>Sub Total</span><span>${money(q.sub)}</span></div><div><span>VAT (15%)</span><span>${money(q.vat)}</span></div>
+      <div class="grand"><span>Total</span><span>SAR ${money(q.total)}</span></div>`;
+    $('#inwords').textContent = sarWords(q.total);
+    $$('#items tr').forEach((tr, i) => { const c = tr.querySelector('.amt'); if (c) c.textContent = money(q.rows[i].amount); });
+  };
+  drawItems();
+  function grow(t) { t.style.height = 'auto'; t.style.height = t.scrollHeight + 2 + 'px'; }
+  $('#items').addEventListener('input', e => {
+    const k = e.target.dataset.k; if (!k) return;
+    if (e.target.tagName === 'TEXTAREA') grow(e.target);
+    items[+e.target.closest('tr').dataset.i][k] = e.target.value; drawTotals();
+  });
+  $('#items').addEventListener('click', e => { const b = e.target.closest('[data-rm]'); if (!b) return; items.splice(+b.dataset.rm, 1); dirty = true; drawItems(); });
+  $('#addItem')?.addEventListener('click', () => { items.push(blankItem()); dirty = true; drawItems(); $('#items tr:last-child textarea')?.focus(); });
+  form.addEventListener('input', () => { dirty = true; });
+  // fill customer details from the latest document for that customer
+  $('#f_party').addEventListener('change', () => {
+    const n = $('#f_party').value.trim().toLowerCase(); if (!n) return;
+    const last = people.filter(r => (r.party_name || '').trim().toLowerCase() === n).sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+    if (!last) return;
+    ['customer_address', 'customer_id', 'customer_trn'].forEach(k => { const el = $('#f_' + k); if (el && !el.value.trim() && last.data?.[k]) el.value = last.data[k]; });
+  });
+
+  const collect = () => {
+    const data = {};
+    [...T.head, ...T.party, ...T.extra.flatMap(s => s.fields), ...T.notes].forEach(([k]) => data[k] = ($('#f_' + k)?.value || '').trim());
+    data.items = items.map(it => Object.fromEntries(T.items.map(c => [c.k, String(it[c.k] ?? '').trim()])))
+      .filter(it => T.items.some(c => !c.def && it[c.k] !== ''));
+    if (T.money) { const q = quoteTotals(data.items); Object.assign(data, {sub_total: q.sub, vat_total: q.vat, grand_total: q.total, total_in_words: sarWords(q.total)}); }
+    return {doc_date: $('#f_date').value, party_name: $('#f_party').value.trim(), data};
+  };
+  const run = async (btn, fn) => { const t = btn.textContent; btn.disabled = true; btn.textContent = 'Ruko…'; $('#err').textContent = '';
+    try { await fn(); } catch (e) { $('#err').textContent = nice(e); } btn.disabled = false; btn.textContent = t; };
+  const draft = () => ({...collect(), doc_no: rec?.doc_no || ($('#f_no')?.value.trim() || '')});
+  $('#dl').onclick = e => run(e.target, async () => (await iPdf(type, draft())).save((draft().doc_no || T.title.replace(/ /g, '-') + '-DRAFT') + '.pdf'));
+  $('#pv').onclick = e => run(e.target, async () => {
+    const w = window.open('', '_blank'); const url = (await iPdf(type, draft())).output('bloburl');
+    if (w) w.location = url; else location.href = url;
+  });
+  $('#del')?.addEventListener('click', e => run(e.target, async () => {
+    if (!confirm(`${rec.doc_no} ko hamesha ke liye delete karna hai?`)) return;
+    const {error} = await sb.from('docs_documents').delete().eq('id', rec.id);
+    if (error) throw error;
+    dirty = false; toast(rec.doc_no + ' delete ho gaya'); location.hash = '#' + type;
+  }));
+  form.addEventListener('submit', e => { e.preventDefault(); if (!ro) run($('#save'), async () => {
+    const v = collect();
+    if (!v.doc_date) throw new Error('Date daalein.');
+    if (!v.party_name) { $('#f_party').focus(); throw new Error('Customer name daalein.'); }
+    if (!v.data.items.length) throw new Error('Kam az kam ek item daalein.');
+    let res;
+    if (rec) res = await sb.from('docs_documents').update(v).eq('id', rec.id).select().single();
+    else {
+      const manual = $('#f_no').value.trim();
+      res = await sb.from('docs_documents').insert({doc_type: type, ...v, ...(manual ? {doc_no: manual} : {})}).select().single();
+    }
+    if (res.error) throw new Error(res.error.code === '23505' ? 'Yeh number pehle se maujood hai. Number khaali chhor dein ya doosra likhein.' : nice(res.error));
+    rec = res.data; dirty = false;
+    toast(`${rec.doc_no} save ho gaya`);
+    if (location.hash !== `#${type}/${rec.id}`) location.hash = `#${type}/${rec.id}`; else route();
+  }); });
+}
+
 /* ============================== routing ============================== */
 async function route() {
   const h = location.hash.replace(/^#/, '') || 'leak';
   const [type, a, b] = h.split('/');
-  if (type !== 'leak') { location.hash = '#leak'; return; }
+  if (!['leak', 'dn', 'quotation'].includes(type)) { location.hash = '#leak'; return; }
+  $$('#tabs a').forEach(x => x.classList.toggle('on', x.dataset.t === type));
+  if (type !== 'leak') {
+    if (!a) return showIList(type);
+    if (a === 'new') return CAN_EDIT ? showIForm(type) : (location.hash = '#' + type);
+    if (a === 'copy') return CAN_EDIT ? showIForm(type, null, b) : (location.hash = '#' + type);
+    return showIForm(type, a);
+  }
   if (!a) return showList();
   if (a === 'new') return CAN_EDIT ? showForm(null) : (location.hash = '#leak');
   if (a === 'copy') return CAN_EDIT ? showForm(null, b) : (location.hash = '#leak');

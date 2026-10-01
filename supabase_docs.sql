@@ -35,6 +35,8 @@ create index if not exists docs_documents_type_date_idx on public.docs_documents
 --    same moment never get the same number.
 --      leak : TS-001, TS-002, ...
 --      dn   : AH-2026-001, AH-2026-002, ... (restarts every year)
+--      quotation : QT-AL000001, QT-AL000002, ...
+--    A number typed in the form is used as-is (must be unique).
 -- ---------------------------------------------------------------------
 create or replace function public.docs_before_write()
 returns trigger language plpgsql security definer set search_path = public as $$
@@ -58,6 +60,10 @@ begin
         select coalesce(max((regexp_match(doc_no, '^AH-' || v_yr || '-(\d+)$'))[1]::int), 0) + 1 into v_n
           from public.docs_documents where doc_type = 'dn';
         new.doc_no := 'AH-' || v_yr || '-' || lpad(v_n::text, 3, '0');
+      elsif new.doc_type = 'quotation' then
+        select coalesce(max((regexp_match(doc_no, '^QT-AL(\d+)$'))[1]::int), 0) + 1 into v_n
+          from public.docs_documents where doc_type = 'quotation';
+        new.doc_no := 'QT-AL' || lpad(v_n::text, 6, '0');
       else
         select count(*) + 1 into v_n from public.docs_documents where doc_type = new.doc_type;
         new.doc_no := upper(new.doc_type) || '-' || lpad(v_n::text, 3, '0');

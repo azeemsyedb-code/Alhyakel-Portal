@@ -9,7 +9,7 @@ Server ki zaroorat nahi: website **GitHub Pages** par chalti hai, aur saara data
 | **Employees** | Attendance, overtime, tasks, salary | admin · supervisor · viewer |
 | **Gate kiosk** | Employees PIN se check-in / check-out karte hain (bina login) | — |
 | **Users & Access** | Users banana, password badalna, access dena / hatana | portal admin |
-| **Documents** | Leak Test Certificate (save, history, PDF). Delivery Note, Quotation, PO agle hisson mein | manager · staff · viewer |
+| **Documents** | Leak Test Certificate, Delivery Note (AH-2026-001), Quotation (QT-AL000001): save, history, PDF | manager · staff · viewer |
 
 ---
 
@@ -19,14 +19,14 @@ Server ki zaroorat nahi: website **GitHub Pages** par chalti hai, aur saara data
 index.html            portal home (login ke baad)
 login.html            login page
 access.html           Users & Access (sirf portal admin)
-documents.html        Documents (Leak Test Certificate, PDF browser mein banti hai)
+documents.html        Documents (Leak Test, Delivery Note, Quotation; PDF browser mein banti hai)
 inventory.html        Inventory
 employees.html        Employees (attendance, overtime, tasks)
 kiosk.html            gate tablet ke liye
 assets/config.js      <- yahan Supabase URL aur key daalni hai
 assets/portal.js      login check + portal ki upar wali patti
 assets/portal.css, logo_mark.png, favicon.png
-assets/docs/          PDF ke liye letterhead (header.jpg, footer.jpg) aur stamp.png
+assets/header.jpg, footer.jpg, stamp.png   PDF ke liye letterhead aur company stamp
 supabase_setup.sql    database (ek dafa chalana hai)
 supabase_docs.sql     Documents ka database + photos ki storage (phase 2, ek dafa chalana hai)
 supabase/functions/admin-users/index.ts   users banane wala Edge Function
@@ -43,7 +43,7 @@ supabase/functions/admin-users/index.ts   users banane wala Edge Function
 
 ### Step 1b — Documents (phase 2)
 
-Isi tarah **SQL Editor → New query** mein `supabase_docs.sql` ka poora content paste karke **Run** karein. Is se documents ki table, TS-001 wali numbering aur photos ke liye private storage (`docs` bucket) ban jati hai.
+Isi tarah **SQL Editor → New query** mein `supabase_docs.sql` ka poora content paste karke **Run** karein. Is se documents ki table, numbering (TS-001, AH-2026-001, QT-AL000001) aur photos ke liye private storage (`docs` bucket) ban jati hai. File dobara chalana safe hai; nayi numbering aaye to dobara chalayein.
 
 ## Step 2 — Supabase: login settings
 
@@ -128,7 +128,7 @@ window.PORTAL_CONFIG = {
 
 - **Purane GitHub Pages sites** (`alhyakel-inventory`, `emoplyees-tracker`): un repos mein **Settings → Pages → Unpublish site**.
 - **Purane Supabase projects**: sab test data tha, **pause** ya **delete** kar sakte hain.
-- **Render wala AHMI portal**: Leak Test Certificate ab yahin banta hai. Baaqi documents (Delivery Note, Quotation, PO, Tank Certificate) jab tak yahan na aa jayein, Render wala portal **chalta rehne dein**.
+- **Render wala AHMI portal**: Leak Test, Delivery Note aur Quotation ab yahin bante hain. PO, Tank Certificate, Invoice, Job Card aur Material Request jab tak yahan na aa jayein, Render wala portal **chalta rehne dein**.
 
 ---
 
