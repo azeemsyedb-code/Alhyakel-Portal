@@ -166,7 +166,7 @@ let ASSETS = null;
 async function assets() {
   if (ASSETS) return ASSETS;
   const get = async p => { const r = await fetch(p); if (!r.ok) throw new Error(p + ' nahi mili'); const d = await blobToDataUrl(await r.blob()); const i = await loadImg(d); return {dataUrl: d, w: i.naturalWidth, h: i.naturalHeight}; };
-  const [header, footer, stamp] = await Promise.all(['assets/docs/header.jpg', 'assets/docs/footer.jpg', 'assets/docs/stamp.png'].map(get));
+  const [header, footer, stamp] = await Promise.all(['assets/header.jpg', 'assets/footer.jpg', 'assets/stamp.png'].map(get));
   return ASSETS = {header, footer, stamp};
 }
 
