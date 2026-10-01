@@ -87,6 +87,12 @@ td.money{text-align:right;white-space:nowrap}
 .payform{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:12px}
 .payform .field{margin:0;flex:1 1 140px}
 .share{position:relative}
+.picker{display:flex;gap:10px;flex-wrap:wrap;align-items:end;background:#F7FAFB;border:1px dashed #CFE2E6;border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.picker .field{margin:0;flex:1 1 170px}
+.picker b{flex:1 1 100%;font-weight:600;font-size:13px;color:var(--teal-dark)}
+.cathead td{background:#F2F8F9;font-weight:600;color:var(--teal-dark)}
+.catsub td{background:#FAFBFC;color:var(--muted);font-weight:500;font-size:13px;padding-left:28px}
+tr.inactive td{opacity:.5}
 .sharemenu{position:absolute;bottom:calc(100% + 6px);left:0;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 30px rgba(30,60,80,.16);padding:6px;min-width:200px;z-index:20}
 .sharemenu button{display:block;width:100%;text-align:left;background:none;border:0;padding:9px 10px;border-radius:7px;font:inherit;cursor:pointer}
 .sharemenu button:hover{background:var(--bg)}
@@ -105,6 +111,7 @@ td.money{text-align:right;white-space:nowrap}
     <a href="#po" data-t="po">Purchase Order</a>
     <a href="#jobcard" data-t="jobcard">Job Card</a>
     <a href="#mr" data-t="mr">Material Request</a>
+    <a href="#catalog" data-t="catalog">Price List</a>
   </nav>
 </div>
 <main>
@@ -336,7 +343,11 @@ function leakPdf(r, img) {
   const by = BOTTOM - SIGN_H + 4;
   const QR = 42, qx = W - M - QR, qy = by + 2;
   pdf.setDrawColor(...C.line); pdf.setLineWidth(0.3); pdf.rect(qx, qy, QR, QR, 'S');
-  if (img.qr) { const k = Math.min((QR - 2) / img.qr.w, (QR - 2) / img.qr.h); pdf.addImage(img.qr.dataUrl, 'PNG', qx + (QR - img.qr.w * k) / 2, qy + (QR - img.qr.h * k) / 2, img.qr.w * k, img.qr.h * k, 'qr'); }
+  if (img.qrUrl) {
+    drawQr(pdf, img.qrUrl, qx + 1, qy + 1, QR - 2);
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6.5); pdf.setTextColor(...C.muted);
+    pdf.text('Scan to view this certificate', qx + QR / 2, qy + QR + 3, {align: 'center'});
+  }
   const SW = 50, SH = 25;           // real stamp size 50 x 25 mm
   const sk = Math.min(SW / img.stamp.w, SH / img.stamp.h);
   const sw = img.stamp.w * sk, sh = img.stamp.h * sk;
@@ -350,9 +361,19 @@ function leakPdf(r, img) {
   return pdf;
 }
 
-async function pdfFor(rec, photos, qr) {
+async function pdfFor(rec, photos, token) {
   await arabicReady();
-  return leakPdf(rec, {...await assets(), photos, qr});
+  return leakPdf(rec, {...await assets(), photos, qrUrl: token ? certUrl(token) : null});
+}
+
+/* ============================== certificate QR -> public PDF ============================== */
+const CERT_BUCKET = 'certs';
+const newToken = () => [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, '0')).join('');   // 128-bit, unguessable
+const certUrl = t => `${String(PORTAL_CONFIG.SUPABASE_URL).replace(/\/+$/, '')}/storage/v1/object/public/${CERT_BUCKET}/${t}.pdf`;
+async function uploadCert(token, pdf) {
+  const {error} = await sb.storage.from(CERT_BUCKET).upload(`${token}.pdf`, pdf.output('blob'), {contentType: 'application/pdf', upsert: true, cacheControl: '60'});
+  if (error) toast('Certificate save ho gaya, lekin QR wali PDF upload nahi hui: ' + nice(error) + '. Supabase mein naya supabase_docs.sql chalayein, phir dobara Save dabayein.', true);
+  return !error;
 }
 
 /* ============================== small helpers ============================== */
@@ -470,7 +491,7 @@ async function showList() {
     const b = e.target.closest('[data-pdf]');
     if (b) {
       e.stopPropagation(); b.disabled = true; b.textContent = '…';
-      try { const r = LIST.find(x => x.id === b.dataset.pdf); const f = await recordFiles(r); (await pdfFor(r, f.photos, f.qr)).save(r.doc_no + '.pdf'); }
+      try { const r = LIST.find(x => x.id === b.dataset.pdf); const f = await recordFiles(r); (await pdfFor(r, f.photos, r.files?.qr_token)).save(r.doc_no + '.pdf'); }
       catch (err) { toast('PDF nahi bani: ' + nice(err), true); }
       b.disabled = false; b.textContent = 'PDF'; return;
     }
@@ -511,7 +532,8 @@ async function showForm(id, copyFrom) {
   if (!d.statement) d.statement = LEAK.statement(d.result, d.test_method);
   let statementAuto = d.statement === LEAK.statement(d.result, d.test_method);
 
-  // files: 4 photos + qr. Each slot: {path, dataUrl, w, h, blob, changed}
+  // files: 4 photos. Each slot: {path, dataUrl, w, h, blob, changed}
+  const qrToken = rec?.files?.qr_token || newToken();
   const slots = [0, 1, 2, 3].map(() => null);
   let qr = null;
   if (rec) {
@@ -560,9 +582,7 @@ async function showForm(id, copyFrom) {
       <div class="sheet">
         <h3>Photos (page 2)</h3>
         <div class="photos" id="photos"></div>
-        <h3>QR code</h3>
-        <div id="qrslot"></div>
-        <p class="hint">Apna QR code PNG/JPG image upload karein. Yeh page 2 par stamp ke saath lagega.</p>
+        <p class="hint" style="margin-top:14px">QR code khud banta hai. Save karne ke baad usay scan karne se is certificate ki PDF khul jati hai.</p>
       </div>
       <p class="err" id="err" role="alert"></p>
       <div class="bar">
@@ -586,7 +606,6 @@ async function showForm(id, copyFrom) {
   const removed = new Set();     // storage paths to delete after save
   const drawSlots = () => {
     $('#photos').innerHTML = slots.map((s, i) => slotHtml(s, 'Photo ' + (i + 1), i)).join('');
-    $('#qrslot').innerHTML = slotHtml(qr, 'QR code', 'qr', 'qr');
   };
   drawSlots();
   form.addEventListener('change', async e => {
@@ -631,7 +650,7 @@ async function showForm(id, copyFrom) {
   });
   const makePdf = async () => {
     const v = collect();
-    return pdfFor({...v, doc_no: rec?.doc_no}, slots, qr);
+    return pdfFor({...v, doc_no: rec?.doc_no}, slots, qrToken);
   };
   const run = async (btn, fn) => { const t = btn.textContent; btn.disabled = true; btn.textContent = 'Ruko…'; $('#err').textContent = '';
     try { await fn(); } catch (e) { $('#err').textContent = nice(e); } btn.disabled = false; btn.textContent = t; };
@@ -650,6 +669,7 @@ async function showForm(id, copyFrom) {
     if (error) throw error;
     const paths = [...(rec.files?.photos || []), rec.files?.qr].filter(Boolean);
     if (paths.length) await sb.storage.from(BUCKET).remove(paths);
+    if (rec.files?.qr_token) await sb.storage.from(CERT_BUCKET).remove([rec.files.qr_token + '.pdf']);
     dirty = false; LIST = null; toast(rec.doc_no + ' delete ho gaya'); location.hash = '#leak';
   }));
 
@@ -681,10 +701,11 @@ async function showForm(id, copyFrom) {
     };
     const photos = [];
     for (let i = 0; i < 4; i++) photos.push(await up(slots[i], 'photo' + (i + 1), 'image/jpeg'));
-    const files = {photos, qr: await up(qr, 'qr', 'image/png')};
+    const files = {photos, qr_token: qrToken};
     const {data, error} = await sb.from('docs_documents').update({files}).eq('id', row.id).select().single();
     if (error) throw error;
     rec = data;
+    await uploadCert(qrToken, await pdfFor(rec, slots, qrToken));     // the PDF the QR code opens
     if (removed.size) { await sb.storage.from(BUCKET).remove([...removed]); removed.clear(); }
     dirty = false; LIST = null;
     toast(`${rec.doc_no} save ho gaya`);
@@ -819,7 +840,7 @@ const GROUP_TYPES = g => Object.keys(IDOCS).filter(k => IDOCS[k].group === g);
 const ILIST = {};
 async function loadIList(type, force) {
   if (ILIST[type] && !force) return ILIST[type];
-  const {data, error} = await sb.from('docs_documents').select('id, doc_no, doc_date, party_name, data, status, created_at')
+  const {data, error} = await sb.from('docs_documents').select('id, doc_no, doc_date, party_name, data, files, status, created_at')
     .eq('doc_type', type).order('created_at', {ascending: false}).limit(5000);
   if (error) throw error;
   if (type === 'invoice') { const m = await paymentsFor(data.map(r => r.id)); if (m) data.forEach(r => r.paid = m[r.id] || 0); }
@@ -1110,6 +1131,7 @@ async function showIForm(type, id, copyFrom, fromQuote) {
       </div>
       <div class="sheet">
         <h3>Items</h3>
+        ${!ro && CATALOG_TYPES.includes(type) ? '<div class="picker" id="picker"></div>' : ''}
         <div class="table-wrap"><table class="items"><thead><tr><th>#</th>${T.items.map(c => `<th>${esc(c.label)}</th>`).join('')}${T.money ? '<th style="text-align:right">Amount</th>' : ''}<th></th></tr></thead>
           <tbody id="items"></tbody></table></div>
         ${ro ? '' : '<button type="button" class="btn sec small" id="addItem" style="margin-top:10px">+ Add item</button>'}
@@ -1137,6 +1159,7 @@ async function showIForm(type, id, copyFrom, fromQuote) {
   if (type === 'invoice' && rec) drawPayments(rec);
 
   const form = $('#f');
+  if (!ro && CATALOG_TYPES.includes(type)) wirePicker(items, () => { dirty = true; drawItems(); });
   const drawItems = () => {
     const q = T.money ? quoteTotals(items) : null;
     $('#items').innerHTML = items.map((it, i) => `<tr data-i="${i}"><td class="n">${i + 1}</td>
@@ -1277,16 +1300,13 @@ function tankPdf(r, img) {
   pdf.addImage(img.footer.dataUrl, 'JPEG', M, H - 5 - ftrH, CW, ftrH, 'ftr');
   pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); pdf.setTextColor(...C.slate);
   pdf.text(`VAT NO: ${VAT_NO}`, W - M, TOP + 4, {align: 'right'});
-  pdf.setDrawColor(...C.slate); pdf.setLineWidth(0.5); pdf.line(M, TOP + 7, W - M, TOP + 7); pdf.line(M, TOP + 17, W - M, TOP + 17);
-  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(13.5);
-  pdf.text('TANK INSPECTION CERTIFICATE', W / 2, TOP + 12.2, {align: 'center', baseline: 'middle'});
   const ar = (t, x, y, pt, o = {}) => {             // x = right edge (or centre when o.center)
     const a = arImg(t, pt, o);
     const left = o.center ? x - a.w / 2 : x - a.w;
     pdf.addImage(a.dataUrl, 'PNG', left, y - a.h / 2, a.w, a.h);
     return a;
   };
-  let y = TOP + 26;
+  let y = TOP + 16;
   pdf.setFont('helvetica', 'bold'); pdf.setFontSize(13); pdf.setTextColor(...BLUE);
   pdf.text('Aramco Certificate for Tank Trailer Axles', W / 2, y, {align: 'center'});
   ar('شهادة أرامكو لمحاورالخزان', W / 2, y + 7, 13, {color: '#1F5AA6', center: true});
@@ -1347,8 +1367,11 @@ function tankPdf(r, img) {
   y += bh + 10;
 
   // QR (left) and company stamp (right)
-  const qrText = `Al Hyakel Metal Industries | Certificate ${r.doc_no || 'DRAFT'} | Tank ${d.tank_no || '-'} | Truck ${d.truck_plate || '-'} | Valid until ${d.valid_until || '-'}`;
+  const qrText = r.files?.qr_token ? certUrl(r.files.qr_token)
+    : `Al Hyakel Metal Industries | Certificate ${r.doc_no || 'DRAFT'} | Tank ${d.tank_no || '-'} | Truck ${d.truck_plate || '-'} | Valid until ${d.valid_until || '-'}`;
   drawQr(pdf, qrText, M + 2, y, 32);
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6.5); pdf.setTextColor(...C.muted);
+  pdf.text('Scan to view this certificate', M + 18, y + 35, {align: 'center'});
   const sk = Math.min(50 / img.stamp.w, 25 / img.stamp.h), sw = img.stamp.w * sk, sh = img.stamp.h * sk;
   pdf.addImage(img.stamp.dataUrl, 'PNG', W - M - 6 - sw, y + 32 - sh, sw, sh, 'stamp');
   pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); pdf.setTextColor(...C.muted);
@@ -1370,6 +1393,7 @@ async function showTankForm(id, copyFrom) {
     src = data; if (id) rec = data;
   }
   const ro = !CAN_EDIT || locked(rec), dis = ro ? 'disabled' : '';
+  const qrToken = rec?.files?.qr_token || newToken();
   const dateNow = rec?.doc_date || today();
   const stLine = await approvalLine(rec);
   const d = {valid_until: addMonths(dateNow, 6), ...(src?.data || {})};
@@ -1410,7 +1434,7 @@ async function showTankForm(id, copyFrom) {
           <div class="field"><label for="f_note_en">English</label><textarea id="f_note_en" rows="5" ${dis}>${esc(d.note_en)}</textarea></div>
           <div class="field"><label for="f_note_ar">Arabic</label><textarea id="f_note_ar" rows="5" dir="rtl" lang="ar" style="font-family:${esc(AR_FONT)};font-size:16px" ${dis}>${esc(d.note_ar)}</textarea></div>
         </div>
-        ${ro ? '' : '<p class="hint">English text "Valid Until" ki date ke saath khud badalta hai. QR code PDF mein khud banta hai.</p>'}
+        ${ro ? '' : '<p class="hint">English text "Valid Until" ki date ke saath khud badalta hai. QR code khud banta hai; save ke baad scan karne se is certificate ki PDF khulti hai.</p>'}
       </div>
       <p class="err" id="err" role="alert"></p>
       <div class="bar">
@@ -1439,7 +1463,7 @@ async function showTankForm(id, copyFrom) {
   });
   const collect = () => ({doc_date: $('#f_date').value, party_name: $('#f_party').value.trim(), data: Object.fromEntries(
     ['valid_until', 'serial_no', 'tank_no', 'truck_plate', 'tank_capacity', 'customer_address', 'note_en', 'note_ar'].map(k => [k, $('#f_' + k).value.trim()]))});
-  const draft = () => ({...collect(), doc_no: rec?.doc_no || ($('#f_no')?.value.trim() || '')});
+  const draft = () => ({...collect(), doc_no: rec?.doc_no || ($('#f_no')?.value.trim() || ''), files: {...(rec?.files || {}), qr_token: qrToken}});
   const run = async (btn, fn) => { const t = btn.textContent; btn.disabled = true; btn.textContent = 'Ruko…'; $('#err').textContent = '';
     try { await fn(); } catch (e) { $('#err').textContent = nice(e); } btn.disabled = false; btn.textContent = t; };
   $('#dl').onclick = e => run(e.target, async () => (await iPdf(type, draft())).save((draft().doc_no || 'Tank-Certificate-DRAFT') + '.pdf'));
@@ -1449,6 +1473,7 @@ async function showTankForm(id, copyFrom) {
   $('#del')?.addEventListener('click', e => run(e.target, async () => {
     if (!confirm(`${rec.doc_no} ko hamesha ke liye delete karna hai?`)) return;
     const {error} = await sb.from('docs_documents').delete().eq('id', rec.id); if (error) throw error;
+    if (rec.files?.qr_token) await sb.storage.from(CERT_BUCKET).remove([rec.files.qr_token + '.pdf']);
     dirty = false; toast(rec.doc_no + ' delete ho gaya'); location.hash = '#tank';
   }));
   form.addEventListener('submit', e => { e.preventDefault(); if (!ro) run($('#save'), async () => {
@@ -1456,10 +1481,11 @@ async function showTankForm(id, copyFrom) {
     if (!v.doc_date) throw new Error('Date daalein.');
     if (!v.party_name) { $('#f_party').focus(); throw new Error('Customer name daalein.'); }
     let res;
+    v.files = {...(rec?.files || {}), qr_token: qrToken};
     if (rec) res = await sb.from('docs_documents').update(v).eq('id', rec.id).select().single();
     else { const manual = $('#f_no').value.trim(); res = await sb.from('docs_documents').insert({doc_type: type, ...v, ...(manual ? {doc_no: manual} : {})}).select().single(); }
     if (res.error) throw new Error(res.error.code === '23505' ? 'Yeh number pehle se maujood hai. Number khaali chhor dein ya doosra likhein.' : nice(res.error));
-    rec = res.data; dirty = false; toast(`${rec.doc_no} save ho gaya`);
+    rec = res.data; dirty = false; await uploadCert(qrToken, await iPdf(type, rec)); toast(`${rec.doc_no} save ho gaya`);
     if (location.hash !== `#tank/${rec.id}`) location.hash = `#tank/${rec.id}`; else route();
   }); });
 }
@@ -1542,14 +1568,121 @@ async function showReceivables() {
   });
 }
 
+/* ============================== PRICE LIST (Category > Sub-category > Product) ============================== */
+const CATALOG_TYPES = ['quotation', 'invoice'];
+let CATALOG = null;
+async function loadCatalog(force) {
+  if (CATALOG && !force) return CATALOG;
+  const {data, error} = await sb.from('docs_catalog').select('*').order('category').order('subcategory').order('name');
+  if (error) throw error;
+  data.sort((a, b) => (a.category + '\u0000' + a.subcategory + '\u0000' + a.name).localeCompare(b.category + '\u0000' + b.subcategory + '\u0000' + b.name));
+  return CATALOG = data;
+}
+const uniq = a => [...new Set(a.filter(Boolean))];
+
+async function wirePicker(items, redraw) {
+  const box = $('#picker'); if (!box) return;
+  let list;
+  try { list = (await loadCatalog()).filter(c => c.active); } catch (e) { box.innerHTML = '<b>Price list nahi mili. Supabase mein naya supabase_docs.sql chalayein.</b>'; return; }
+  if (!list.length) { box.innerHTML = `<b>Price list khaali hai.</b><span class="muted" style="font-size:13px">Products add karne ke liye <a href="#catalog">Price List</a> kholein.</span>`; return; }
+  box.innerHTML = `<b>Price list se product chunein</b>
+    <div class="field"><label for="pk_cat">Category</label><select id="pk_cat"><option value="">Choose…</option>${uniq(list.map(c => c.category)).map(c => `<option>${esc(c)}</option>`).join('')}</select></div>
+    <div class="field"><label for="pk_sub">Sub-category</label><select id="pk_sub" disabled></select></div>
+    <div class="field"><label for="pk_prod">Product</label><select id="pk_prod" disabled></select></div>
+    <div class="field" style="flex:0 1 90px"><label for="pk_qty">Qty</label><input id="pk_qty" type="number" min="0" step="any" value="1"></div>
+    <button type="button" class="btn" id="pk_add" disabled>+ Add</button>`;
+  const cat = $('#pk_cat'), sub = $('#pk_sub'), prod = $('#pk_prod'), add = $('#pk_add');
+  const fillProd = () => {
+    const ps = list.filter(c => c.category === cat.value && c.subcategory === sub.value);
+    prod.innerHTML = ps.map(c => `<option value="${c.id}">${esc(c.name)} — SAR ${money(c.rate)}${c.unit ? ' / ' + esc(c.unit) : ''}</option>`).join('');
+    prod.disabled = !ps.length; add.disabled = !ps.length;
+  };
+  cat.onchange = () => {
+    const subs = uniq(list.filter(c => c.category === cat.value).map(c => c.subcategory));
+    const hasBlank = list.some(c => c.category === cat.value && !c.subcategory);
+    sub.innerHTML = (hasBlank ? '<option value="">(General)</option>' : '') + subs.map(x => `<option>${esc(x)}</option>`).join('');
+    sub.disabled = !cat.value; fillProd();
+  };
+  sub.onchange = fillProd;
+  add.onclick = () => {
+    const c = list.find(x => x.id === prod.value); if (!c) return;
+    const it = {description: c.name + (c.description ? '\n' + c.description : '') + (c.unit ? ` (per ${c.unit})` : ''), qty: $('#pk_qty').value || '1', rate: String(c.rate), tax_pct: '15'};
+    const blank = items.length === 1 && !items[0].description && !items[0].qty && !items[0].rate;
+    if (blank) items[0] = it; else items.push(it);
+    redraw(); toast(`${c.name} add ho gaya`);
+  };
+}
+
+async function showCatalog() {
+  const seq = ROUTE_SEQ;
+  view.innerHTML = '<p class="muted">Load ho raha hai…</p>';
+  let list; try { list = await loadCatalog(true); } catch (e) { view.innerHTML = `<p class="flash">Price list nahi mili: ${esc(nice(e))}. Supabase mein naya <b>supabase_docs.sql</b> chalayein.</p>`; return; }
+  if (seq !== ROUTE_SEQ) return;
+  view.innerHTML = `
+    <div class="tools">
+      <div class="field"><label for="q">Search</label><input id="q" type="search" placeholder="Product, category…"></div>
+      <div class="field"><label for="fc">Category</label><select id="fc"><option value="">All</option>${uniq(list.map(c => c.category)).map(c => `<option>${esc(c)}</option>`).join('')}</select></div>
+      <span style="flex:1"></span>${CAN_EDIT ? '<button class="btn" id="addc">+ Add product</button>' : ''}</div>
+    <div id="cform"></div>
+    <div class="table-wrap"><table><thead><tr><th>Product</th><th>Description</th><th>Unit</th><th style="text-align:right">Rate (SAR)</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
+    <p class="muted" style="font-size:13px">Yeh products Quotation aur Invoice ke "Items" mein Category, phir Sub-category, phir Product chun kar khud bhar jate hain.</p>`;
+  const draw = () => {
+    const q = $('#q').value.trim().toLowerCase(), fc = $('#fc').value;
+    const rows = list.filter(c => (!fc || c.category === fc) && (!q || [c.category, c.subcategory, c.name, c.description].join(' ').toLowerCase().includes(q)));
+    let lastC = null, lastS = null, html = '';
+    rows.forEach(c => {
+      if (c.category !== lastC) { html += `<tr class="cathead"><td colspan="5">${esc(c.category)}</td></tr>`; lastC = c.category; lastS = null; }
+      if (c.subcategory !== lastS) { if (c.subcategory) html += `<tr class="catsub"><td colspan="5">${esc(c.subcategory)}</td></tr>`; lastS = c.subcategory; }
+      html += `<tr class="${CAN_EDIT ? 'click' : ''} ${c.active ? '' : 'inactive'}" data-id="${c.id}"><td style="padding-left:${c.subcategory ? 40 : 28}px"><b>${esc(c.name)}</b>${c.active ? '' : ' <span class="res draft">Hidden</span>'}</td>
+        <td class="muted">${esc(c.description)}</td><td>${esc(c.unit)}</td><td class="money">${money(c.rate)}</td><td>${CAN_EDIT ? '<button class="btn small sec">Edit</button>' : ''}</td></tr>`;
+    });
+    $('#rows').innerHTML = html || `<tr><td colspan="5" class="empty">${list.length ? 'Kuch nahi mila.' : 'Price list khaali hai.' + (CAN_EDIT ? ' "+ Add product" se shuru karein.' : '')}</td></tr>`;
+  };
+  const form = c => {
+    const isNew = !c; c = c || {active: true, category: $('#fc').value};
+    $('#cform').innerHTML = `<div class="sheet"><h3>${isNew ? 'Add product' : 'Edit product'}</h3><div class="grid">
+      <div class="field"><label for="c_cat">Category</label><input id="c_cat" list="cats" required value="${esc(c.category)}" placeholder="e.g. Tanks"><datalist id="cats">${uniq(list.map(x => x.category)).map(x => `<option value="${esc(x)}">`).join('')}</datalist></div>
+      <div class="field"><label for="c_sub">Sub-category</label><input id="c_sub" list="subs" value="${esc(c.subcategory)}" placeholder="e.g. Diesel tanks"><datalist id="subs">${uniq(list.map(x => x.subcategory)).map(x => `<option value="${esc(x)}">`).join('')}</datalist></div>
+      <div class="field"><label for="c_name">Product</label><input id="c_name" required value="${esc(c.name)}" placeholder="e.g. Diesel tank 30,000 L"></div>
+      <div class="field"><label for="c_unit">Unit</label><input id="c_unit" value="${esc(c.unit)}" placeholder="pcs, set, job, m"></div>
+      <div class="field"><label for="c_rate">Rate (SAR, without VAT)</label><input id="c_rate" type="number" min="0" step="0.01" value="${esc(c.rate ?? '')}"></div>
+      <div class="field"><label><input type="checkbox" id="c_act"${c.active ? ' checked' : ''} style="width:auto"> Quotation mein dikhaye</label></div></div>
+      <div class="field"><label for="c_desc">Description (quotation mein product ke neeche aati hai)</label><textarea id="c_desc" rows="2">${esc(c.description)}</textarea></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" id="c_save">Save product</button><button class="btn sec" id="c_cancel">Cancel</button>
+        <span style="flex:1"></span>${!isNew && CAN_DELETE ? '<button class="btn danger" id="c_del">Delete</button>' : ''}</div><p class="err" id="c_err"></p></div>`;
+    $('#c_cat').focus();
+    $('#c_cancel').onclick = () => $('#cform').innerHTML = '';
+    $('#c_save').onclick = async e => {
+      const row = {category: $('#c_cat').value.trim(), subcategory: $('#c_sub').value.trim(), name: $('#c_name').value.trim(), unit: $('#c_unit').value.trim() || null,
+                   rate: Number($('#c_rate').value || 0), description: $('#c_desc').value.trim() || null, active: $('#c_act').checked};
+      if (!row.category || !row.name) { $('#c_err').textContent = 'Category aur product ka naam zaroori hai.'; return; }
+      e.target.disabled = true;
+      const res = isNew ? await sb.from('docs_catalog').insert(row) : await sb.from('docs_catalog').update({...row, updated_at: new Date().toISOString()}).eq('id', c.id);
+      if (res.error) { e.target.disabled = false; $('#c_err').textContent = nice(res.error); return; }
+      toast(isNew ? 'Product add ho gaya' : 'Product update ho gaya'); CATALOG = null; route();
+    };
+    $('#c_del')?.addEventListener('click', async () => {
+      if (!confirm(`${c.name} ko price list se delete karna hai? (Purani quotations par asar nahi hoga)`)) return;
+      const {error} = await sb.from('docs_catalog').delete().eq('id', c.id);
+      if (error) { $('#c_err').textContent = nice(error); return; }
+      toast('Product delete ho gaya'); CATALOG = null; route();
+    });
+  };
+  $('#q').addEventListener('input', draw); $('#fc').addEventListener('change', draw);
+  $('#addc')?.addEventListener('click', () => form(null));
+  $('#rows').addEventListener('click', e => { const tr = e.target.closest('tr[data-id]'); if (tr && CAN_EDIT) { form(list.find(c => c.id === tr.dataset.id)); $('#cform').scrollIntoView({behavior: 'smooth', block: 'start'}); } });
+  draw();
+}
+
 /* ============================== routing ============================== */
 let ROUTE_SEQ = 0;
 async function route() {
   ROUTE_SEQ++;
   const h = location.hash.replace(/^#/, '') || 'leak';
   const [type, a, b] = h.split('/');
-  if (!['leak', 'tank', 'quotation', 'invoice', 'dn', 'po', 'jobcard', 'mr'].includes(type)) { location.hash = '#leak'; return; }
+  if (!['leak', 'tank', 'quotation', 'invoice', 'dn', 'po', 'jobcard', 'mr', 'catalog'].includes(type)) { location.hash = '#leak'; return; }
   $$('#tabs a').forEach(x => x.classList.toggle('on', x.dataset.t === type));
+  if (type === 'catalog') return showCatalog();
   if (type !== 'leak') {
     const form = type === 'tank' ? (i, c) => showTankForm(i, c) : (i, c) => showIForm(type, i, c);
     if (!a) return showIList(type);

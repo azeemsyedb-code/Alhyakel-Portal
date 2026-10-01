@@ -213,3 +213,56 @@ create policy docs_payments_insert on public.docs_payments for insert to authent
 create policy docs_payments_delete on public.docs_payments for delete to authenticated using (public.my_role('docs') = 'manager');
 revoke all on public.docs_payments from anon;
 revoke update on public.docs_payments from authenticated;
+
+-- ---------------------------------------------------------------------
+-- 6. Price list for quotations / invoices: Category > Sub-category > Product
+--    manager + staff add and edit; only a manager deletes.
+-- ---------------------------------------------------------------------
+create table if not exists public.docs_catalog (
+  id          uuid primary key default gen_random_uuid(),
+  category    text not null,
+  subcategory text not null default '',
+  name        text not null,
+  description text,
+  unit        text,
+  rate        numeric(14,2) not null default 0,
+  active      boolean not null default true,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz
+);
+create index if not exists docs_catalog_cat_idx on public.docs_catalog (category, subcategory, name);
+alter table public.docs_catalog enable row level security;
+drop policy if exists docs_catalog_read   on public.docs_catalog;
+drop policy if exists docs_catalog_insert on public.docs_catalog;
+drop policy if exists docs_catalog_update on public.docs_catalog;
+drop policy if exists docs_catalog_delete on public.docs_catalog;
+create policy docs_catalog_read   on public.docs_catalog for select to authenticated using (public.my_role('docs') is not null);
+create policy docs_catalog_insert on public.docs_catalog for insert to authenticated with check (public.my_role('docs') in ('manager','staff'));
+create policy docs_catalog_update on public.docs_catalog for update to authenticated
+  using (public.my_role('docs') in ('manager','staff')) with check (public.my_role('docs') in ('manager','staff'));
+create policy docs_catalog_delete on public.docs_catalog for delete to authenticated using (public.my_role('docs') = 'manager');
+revoke all on public.docs_catalog from anon;
+
+-- ---------------------------------------------------------------------
+-- 7. Certificate PDFs that the QR code opens (Leak Test, Tank Certificate).
+--    Bucket "certs" is PUBLIC: anyone who scans the QR can open that one PDF.
+--    File names are long random codes, so PDFs cannot be guessed or listed.
+--    Only docs manager / staff can upload; only a manager deletes.
+-- ---------------------------------------------------------------------
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('certs', 'certs', true, 10485760, array['application/pdf'])
+on conflict (id) do update set public = true;
+
+drop policy if exists certs_read   on storage.objects;
+drop policy if exists certs_insert on storage.objects;
+drop policy if exists certs_update on storage.objects;
+drop policy if exists certs_delete on storage.objects;
+create policy certs_read on storage.objects for select to authenticated
+  using (bucket_id = 'certs' and public.my_role('docs') is not null);
+create policy certs_insert on storage.objects for insert to authenticated
+  with check (bucket_id = 'certs' and public.my_role('docs') in ('manager','staff'));
+create policy certs_update on storage.objects for update to authenticated
+  using (bucket_id = 'certs' and public.my_role('docs') in ('manager','staff'))
+  with check (bucket_id = 'certs' and public.my_role('docs') in ('manager','staff'));
+create policy certs_delete on storage.objects for delete to authenticated
+  using (bucket_id = 'certs' and public.my_role('docs') = 'manager');

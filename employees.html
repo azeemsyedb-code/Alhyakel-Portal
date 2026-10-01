@@ -191,6 +191,7 @@ dialog{border-radius:14px}
 @media (max-width:860px){.side{padding:18px 14px 2px} main{padding:14px 14px 48px}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="assets/config.js"></script>
 <script src="assets/portal.js" data-module="hr"></script>
 </head>
@@ -218,6 +219,8 @@ dialog{border-radius:14px}
       <a href="#overtime" data-v="overtime">Overtime</a>
       <a href="#tasks" data-v="tasks">Tasks</a>
       <a href="#employees" data-v="employees">Employees</a>
+      <a href="#kit" data-v="kit">Working kit</a>
+      <a href="#payroll" data-v="payroll" data-admin-only hidden>Payroll</a>
       <a href="#settings" data-v="settings" data-admin-only hidden>Settings</a>
     </nav>
     <div class="side-foot">
@@ -322,11 +325,11 @@ async function startApp() {
 }
 
 /* ============ router ============ */
-const VIEWS = {today: viewToday, attendance: viewAttendance, overtime: viewOvertime, tasks: viewTasks, employees: viewEmployees, settings: viewSettings};
+const VIEWS = {today: viewToday, attendance: viewAttendance, overtime: viewOvertime, tasks: viewTasks, employees: viewEmployees, kit: viewKit, payroll: viewPayroll, settings: viewSettings};
 async function route() {
   if (appEl.hidden) return;
   let v = VIEWS[location.hash.slice(1)] ? location.hash.slice(1) : 'today';
-  if (v === 'settings' && !isAdmin()) v = 'today';
+  if ((v === 'settings' || v === 'payroll') && !isAdmin()) v = 'today';
   document.querySelectorAll('#nav a').forEach(a => a.classList.toggle('on', a.dataset.v === v));
   main.innerHTML = '<div class="empty">Loading…</div>';
   try { await VIEWS[v](); }
@@ -623,7 +626,7 @@ async function viewTasks() {
     $('#taskRows').innerHTML = list.map(t => {
       const late = t.due_date && t.due_date < d && ['pending', 'in_progress'].includes(t.status);
       return `<tr class="click" data-id="${t.id}">
-        <td class="wrapcell"><strong>${esc(t.title)}</strong>${t.details ? `<span class="sub">${esc(t.details.length > 110 ? t.details.slice(0, 110) + '…' : t.details)}</span>` : ''}</td>
+        <td class="wrapcell"><strong>${esc(t.title)}</strong>${t.paid ? ` ${chip('done', 'SAR ' + money(t.amount))}` : ''}${t.details ? `<span class="sub">${esc(t.details.length > 110 ? t.details.slice(0, 110) + '…' : t.details)}</span>` : ''}</td>
         <td>${esc(empById(t.employee_id)?.name || 'Unassigned')}</td>
         <td>${chip(t.priority, PRIORITY[t.priority])}</td>
         <td>${shortDate(t.assigned_on)}</td>
@@ -666,12 +669,15 @@ function openTask(t) {
       <label>Given on<input type="date" name="assigned_on" required value="${t.assigned_on || ''}"></label>
       <label>Due date<input type="date" name="due_date" value="${t.due_date || ''}"></label>
       <label class="full">Details<textarea name="details" rows="5" placeholder="What to do, where, materials, measurements, drawings to follow">${esc(t.details)}</textarea></label>
+      ${isAdmin() ? `<label class="chk"><input type="checkbox" name="paid"${t.paid ? ' checked' : ''}> Paid task <span class="hint">(kaam "Done" hone par salary mein judta hai)</span></label>
+      <label>Task payment (SAR)<input name="amount" type="number" min="0" step="0.01" value="${t.amount ? t.amount : ''}" placeholder="0"></label>` : ''}
       <label>Status<select name="status">${opts(TSTATUS, t.status)}</select></label>
       <label>${t.completed_at ? 'Completed' : '&nbsp;'}<span class="muted" style="font-weight:400;padding-top:8px">${t.completed_at ? new Intl.DateTimeFormat('en-GB', {timeZone: TZ, dateStyle: 'medium', timeStyle: 'short'}).format(new Date(t.completed_at)) : ''}</span></label>
       <label class="full">Remarks and progress<textarea name="remarks" rows="3" placeholder="Updates, problems, what is left">${esc(t.remarks)}</textarea></label>`,
     onSubmit: async fd => {
       const row = {title: fd.title.trim(), employee_id: fd.employee_id || null, priority: fd.priority, status: fd.status,
                    assigned_on: fd.assigned_on, due_date: fd.due_date || null, details: fd.details.trim() || null, remarks: fd.remarks.trim() || null};
+      if (isAdmin()) { row.paid = fd.paid === 'on'; row.amount = row.paid ? Number(fd.amount || 0) : 0; if (row.paid && !(row.amount > 0)) throw new Error('Paid task ki raqam daalein.'); }
       if (isNew) must(await sb.from('hr_tasks').insert(row));
       else must(await sb.from('hr_tasks').update(row).eq('id', t.id));
       toast(isNew ? 'Task assigned' : 'Task saved'); route();
@@ -745,6 +751,337 @@ function openEmployee(e) {
       toast(isNew ? 'Employee added' : 'Changes saved'); await viewEmployees();
     }
   });
+}
+
+/* ============ PDF (letterhead) ============ */
+const PC = {slate: [46, 88, 104], orange: [221, 107, 42], ink: [28, 36, 40], muted: [110, 122, 128], line: [176, 190, 195], shade: [236, 242, 243], red: [179, 38, 30], green: [35, 121, 79]};
+let LH = null;
+async function letterhead() {
+  if (LH) return LH;
+  const load = async src => { const b = await (await fetch(src)).blob(); const url = await new Promise(r => { const f = new FileReader(); f.onload = () => r(f.result); f.readAsDataURL(b); });
+    const i = await new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = no; im.src = url; }); return {url, w: i.naturalWidth, h: i.naturalHeight}; };
+  const [header, footer] = await Promise.all([load('assets/header.jpg'), load('assets/footer.jpg')]);
+  return LH = {header, footer};
+}
+const sar = n => Number(n || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+function inWords(n) {
+  const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const t = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  const ch = x => { const o = []; if (x >= 100) { o.push(a[Math.floor(x / 100)] + ' Hundred'); x %= 100; } if (x >= 20) o.push(t[Math.floor(x / 10)] + (x % 10 ? '-' + a[x % 10] : '')); else if (x) o.push(a[x]); return o.join(' '); };
+  const w = v => { if (!v) return 'Zero'; const o = []; for (const [u, nm] of [[1e6, 'Million'], [1e3, 'Thousand']]) if (v >= u) { o.push(ch(Math.floor(v / u)) + ' ' + nm); v %= u; } if (v) o.push(ch(v)); return o.join(' '); };
+  const h = Math.round(Math.max(0, n) * 100), r = Math.floor(h / 100), hal = h % 100;
+  return `Saudi Riyals ${w(r)}${hal ? ` and ${w(hal)} Halalas` : ''} Only`;
+}
+/* small page builder: letterhead on every page, title, key/value rows, tables, signature lines */
+function pdfDoc(title, img, ref) {
+  const {jsPDF} = window.jspdf, pdf = new jsPDF({unit: 'mm', format: 'a4', compress: true});
+  const W = 210, H = 297, M = 12, CW = W - 2 * M;
+  const hh = CW * img.header.h / img.header.w, fh = CW * img.footer.h / img.footer.w, TOP = 5 + hh, BOTTOM = H - 5 - fh - 7;
+  const d = {pdf, W, M, CW, BOTTOM, y: 0};
+  d.frame = () => {
+    pdf.addImage(img.header.url, 'JPEG', M, 5, CW, hh, 'hdr'); pdf.addImage(img.footer.url, 'JPEG', M, H - 5 - fh, CW, fh, 'ftr');
+    pdf.setDrawColor(...PC.slate); pdf.setLineWidth(0.5); pdf.line(M, TOP + 6, W - M, TOP + 6); pdf.line(M, TOP + 16, W - M, TOP + 16);
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(13.5); pdf.setTextColor(...PC.slate);
+    pdf.text(title, W / 2, TOP + 11.2, {align: 'center', baseline: 'middle'});
+    d.y = TOP + 22;
+  };
+  d.page = () => { pdf.addPage(); d.frame(); };
+  d.need = h => { if (d.y + h > BOTTOM) { d.page(); return true; } return false; };
+  d.section = t => { d.need(14); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9.5); pdf.setTextColor(...PC.slate);
+    pdf.text(t.toUpperCase(), M, d.y + 3.5); pdf.setDrawColor(...PC.orange); pdf.setLineWidth(0.5); pdf.line(M, d.y + 5.3, W - M, d.y + 5.3); d.y += 8; };
+  d.kv = (pairs, cols = 2) => {
+    const cw = CW / cols, LW = 30;
+    for (let i = 0; i < pairs.length; i += cols) {
+      const row = pairs.slice(i, i + cols); d.need(8);
+      row.forEach(([l, v], j) => { const x = M + j * cw;
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.5); pdf.setTextColor(...PC.ink); pdf.text(l, x, d.y + 4.6);
+        pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.text(pdf.splitTextToSize(String(v ?? '') || '-', cw - LW - 3)[0], x + LW, d.y + 4.6); });
+      pdf.setDrawColor(...PC.line); pdf.setLineWidth(0.2); pdf.line(M, d.y + 7, W - M, d.y + 7); d.y += 7;
+    }
+    d.y += 3;
+  };
+  d.table = (cols, rows, opt = {}) => {
+    const x0 = opt.x ?? M, tw = opt.w ?? CW, fixed = cols.reduce((a, c) => a + (c.w || 0), 0);
+    cols.forEach(c => { if (!c.w) c.w = tw - fixed; });
+    const head = () => { let x = x0; cols.forEach(c => { pdf.setFillColor(...PC.shade); pdf.setDrawColor(...PC.line); pdf.setLineWidth(0.2); pdf.rect(x, d.y, c.w, 7, 'FD');
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.2); pdf.setTextColor(...PC.slate); pdf.text(c.label, c.align === 'right' ? x + c.w - 2 : x + 2, d.y + 4.6, {align: c.align === 'right' ? 'right' : 'left'}); x += c.w; }); d.y += 7; };
+    if (!opt.continueY) d.need(14); head();
+    rows.forEach(row => {
+      const r = Array.isArray(row) ? {cells: row} : row;
+      pdf.setFont('helvetica', r.bold ? 'bold' : 'normal'); pdf.setFontSize(8.8);
+      const cells = r.cells, lines = cells.map((v, i) => pdf.splitTextToSize(String(v ?? ''), cols[i].w - 4));
+      const h = Math.max(6.5, Math.max(...lines.map(l => l.length)) * 3.9 + 2.8);
+      if (d.need(h)) head();
+      let x = x0; cols.forEach((c, i) => { pdf.setDrawColor(...PC.line); pdf.setLineWidth(0.2);
+        if (r.fill) { pdf.setFillColor(...r.fill); pdf.rect(x, d.y, c.w, h, 'FD'); } else pdf.rect(x, d.y, c.w, h, 'S');
+        pdf.setTextColor(...(r.color || PC.ink)); pdf.setFont('helvetica', r.bold ? 'bold' : 'normal'); pdf.setFontSize(8.8);
+        pdf.text(lines[i], c.align === 'right' ? x + c.w - 2 : x + 2, d.y + 4.4, {align: c.align === 'right' ? 'right' : 'left'}); x += c.w; });
+      d.y += h;
+    });
+    d.y += 4;
+  };
+  d.para = (t, size = 8.8, style = 'normal') => { pdf.setFont('helvetica', style); pdf.setFontSize(size); pdf.setTextColor(...PC.ink);
+    pdf.splitTextToSize(t, CW).forEach(l => { d.need(4.6); pdf.text(l, M, d.y + 3.4); d.y += 4.3; }); d.y += 2; };
+  d.signs = labels => {
+    if (d.y + 26 > BOTTOM) d.page();
+    const sy = BOTTOM - 8, w = (CW - 10 * (labels.length - 1)) / labels.length;
+    labels.forEach((t, i) => { const x = M + i * (w + 10); pdf.setDrawColor(...PC.ink); pdf.setLineWidth(0.35); pdf.line(x, sy, x + w, sy);
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.5); pdf.setTextColor(...PC.slate); pdf.text(t, x, sy + 4.5); });
+  };
+  d.finish = () => { const n = pdf.getNumberOfPages(); for (let i = 1; i <= n; i++) { pdf.setPage(i); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); pdf.setTextColor(...PC.muted);
+    pdf.text(`${typeof ref === 'function' ? ref(i) : ref}   |   Page ${i} of ${n}`, W - M, BOTTOM + 4.5, {align: 'right'}); } return pdf; };
+  d.frame();
+  return d;
+}
+
+/* ============ WORKING KIT ============ */
+const KIT_ITEMS = ['Safety helmet', 'Safety shoes', 'Coverall', 'Safety goggles', 'Welding mask', 'Welding gloves', 'Cotton gloves', 'Ear plugs', 'Dust mask', 'Safety harness', 'Reflective vest', 'Grinder', 'Drill machine', 'Measuring tape', 'Hammer', 'Spanner set'];
+const KIT_STATE = {with: 'With employee', good: 'Returned (good)', damaged: 'Returned damaged', lost: 'Lost'};
+const kitState = k => !k.returned_on ? 'with' : k.return_condition || 'good';
+const kitFilter = {emp: '', status: 'with'};
+async function viewKit() {
+  const all = must(await sb.from('hr_kit').select('*').order('issued_on', {ascending: false}).limit(3000));
+  main.innerHTML = `
+    <div class="head"><div><h1>Working kit</h1><p>Har employee ko diya gaya saman, taake har cheez ka hisaab rahe aur kuch zaya na ho.</p></div>
+      <div class="tools">${canEdit() ? '<button class="btn primary" id="issue">Issue items</button>' : ''}<button class="btn" id="kitPdf">Kit form (PDF)</button></div></div>
+    <div class="tools" style="margin-bottom:14px">
+      <select id="kEmp" aria-label="Employee">${empOpts(kitFilter.emp, 'All employees')}</select>
+      <select id="kSt" aria-label="Status"><option value="with">With employee</option><option value="back">Returned / lost</option><option value="all">All</option></select>
+    </div>
+    <div class="figs" id="kfigs"></div>
+    <div class="wrap"><table><thead><tr><th>Code</th><th>Name</th><th>Item</th><th class="r">Qty</th><th>Issued</th><th>Status</th><th class="r">Charge (SAR)</th><th></th></tr></thead><tbody id="krows"></tbody></table></div>`;
+  $('#kSt').value = kitFilter.status;
+  const draw = () => {
+    const list = all.filter(k => (!kitFilter.emp || k.employee_id === kitFilter.emp) &&
+      (kitFilter.status === 'all' || (kitFilter.status === 'with' ? !k.returned_on : !!k.returned_on)));
+    const mine = all.filter(k => !kitFilter.emp || k.employee_id === kitFilter.emp);
+    $('#kfigs').innerHTML = [[mine.filter(k => !k.returned_on).length, 'Items with employees'], [mine.filter(k => k.return_condition === 'damaged').length, 'Returned damaged'],
+      [mine.filter(k => k.return_condition === 'lost').length, 'Lost'], [money(mine.reduce((a, k) => a + Number(k.charge || 0), 0)), 'Charged (SAR)']]
+      .map(([n, l], i) => `<div class="fig${i && Number(String(n).replace(/,/g, '')) ? ' warn' : ''}"><div class="num">${n}</div><span>${l}</span></div>`).join('');
+    $('#krows').innerHTML = list.map(k => { const e = empById(k.employee_id) || {}, st = kitState(k);
+      return `<tr data-id="${k.id}"><td class="muted">${esc(e.emp_code)}</td><td>${esc(e.name)}</td><td><strong>${esc(k.item)}</strong>${k.size ? ` <span class="muted">(${esc(k.size)})</span>` : ''}${k.note ? `<span class="sub">${esc(k.note)}</span>` : ''}</td>
+        <td class="r">${fmtH(Number(k.qty))}</td><td>${shortDate(k.issued_on)}</td>
+        <td>${chip({with: 'leave', good: 'done', damaged: 'half_day', lost: 'absent'}[st], KIT_STATE[st])}${k.returned_on ? ` <span class="muted">${shortDate(k.returned_on)}</span>` : ''}</td>
+        <td class="r">${Number(k.charge) ? money(k.charge) : ''}</td>
+        <td>${canEdit() && !k.returned_on ? '<button class="btn" data-ret>Return</button>' : ''}</td></tr>`; }).join('')
+      || '<tr><td colspan="8" class="empty">Koi record nahi. "Issue items" se kit dein.</td></tr>';
+  };
+  draw();
+  $('#kEmp').onchange = e => { kitFilter.emp = e.target.value; draw(); };
+  $('#kSt').onchange = e => { kitFilter.status = e.target.value; draw(); };
+  $('#issue')?.addEventListener('click', () => openIssue());
+  $('#krows').addEventListener('click', e => { if (!e.target.closest('[data-ret]')) return; openReturn(all.find(k => k.id === e.target.closest('tr').dataset.id)); });
+  $('#kitPdf').onclick = async () => {
+    if (!kitFilter.emp) { toast('Pehle upar se employee chunein.', true); return; }
+    try { (await kitPdf(empById(kitFilter.emp), all.filter(k => k.employee_id === kitFilter.emp))).save(`Kit-${empById(kitFilter.emp).emp_code}.pdf`); }
+    catch (err) { toast('PDF nahi bani: ' + (err.message || err), true); }
+  };
+}
+function openIssue() {
+  const rows = [0, 1, 2, 3, 4].map(i => `<input name="item${i}" list="kitItems" placeholder="Item" aria-label="Item ${i + 1}"><input name="size${i}" placeholder="Size" aria-label="Size ${i + 1}" style="max-width:90px"><input name="qty${i}" type="number" min="0.5" step="0.5" value="1" aria-label="Qty ${i + 1}" style="max-width:80px">`);
+  openDialog({title: 'Issue working kit', submit: 'Save', body: `
+    <label>Employee<select name="employee_id" required>${empOpts(kitFilter.emp, 'Choose employee')}</select></label>
+    <label>Issued on<input type="date" name="issued_on" required value="${todayStr()}"></label>
+    <div class="full" style="display:grid;gap:6px"><span class="muted" style="font-weight:600;font-size:13px">Items (khaali rows chhor dein)</span>
+      ${rows.map(r => `<div style="display:flex;gap:6px">${r}</div>`).join('')}
+      <datalist id="kitItems">${KIT_ITEMS.map(x => `<option value="${x}">`).join('')}</datalist></div>
+    <label class="full">Note<input name="note" placeholder="e.g. naya joining kit"></label>`,
+    onSubmit: async fd => {
+      const ins = [0, 1, 2, 3, 4].filter(i => (fd['item' + i] || '').trim()).map(i => ({employee_id: fd.employee_id, issued_on: fd.issued_on,
+        item: fd['item' + i].trim(), size: (fd['size' + i] || '').trim() || null, qty: Number(fd['qty' + i] || 1), note: fd.note.trim() || null}));
+      if (!ins.length) throw new Error('Kam az kam ek item likhein.');
+      must(await sb.from('hr_kit').insert(ins));
+      kitFilter.emp = fd.employee_id; toast(`${ins.length} item record ho gaye`); route();
+    }});
+}
+function openReturn(k) {
+  const e = empById(k.employee_id) || {};
+  const f = openDialog({title: `Return: ${esc(k.item)}`, submit: 'Save', body: `
+    <p class="full muted" style="margin:0">${esc(e.name)} · issued ${shortDate(k.issued_on)} · qty ${fmtH(Number(k.qty))}</p>
+    <label>Returned on<input type="date" name="returned_on" required value="${todayStr()}"></label>
+    <label>Condition<select name="return_condition"><option value="good">Good</option><option value="damaged">Damaged</option><option value="lost">Lost (not returned)</option></select></label>
+    <label class="cost" hidden>Charge to employee (SAR)<input name="charge" type="number" min="0" step="0.01" value="0"></label>
+    ${isAdmin() ? '<label class="chk cost" hidden><input type="checkbox" name="deduct" checked> Salary se kaatein (payslip mein aayega)</label>' : '<p class="full hint cost" hidden>Salary se katauti HR admin Payroll mein lagayega.</p>'}`,
+    onSubmit: async fd => {
+      const charge = fd.return_condition === 'good' ? 0 : Number(fd.charge || 0);
+      must(await sb.from('hr_kit').update({returned_on: fd.returned_on, return_condition: fd.return_condition, charge}).eq('id', k.id));
+      if (isAdmin() && charge > 0 && fd.deduct === 'on')
+        must(await sb.from('hr_adjustments').insert({employee_id: k.employee_id, adj_date: fd.returned_on, kind: 'deduction', amount: charge,
+          reason: `Kit ${fd.return_condition}: ${k.item}${k.size ? ' (' + k.size + ')' : ''}`, kit_id: k.id}));
+      toast('Return record ho gaya'); route();
+    }});
+  const cond = f.querySelector('[name=return_condition]');
+  cond.onchange = () => f.querySelectorAll('.cost').forEach(el => el.hidden = cond.value === 'good');
+}
+async function kitPdf(e, items) {
+  const d = pdfDoc('WORKING KIT ISSUE FORM', await letterhead(), `KIT-${e.emp_code}`);
+  d.kv([['Employee', e.name], ['Code', e.emp_code], ['Designation', e.designation || '-'], ['Printed on', longDate(todayStr())]]);
+  const withEmp = items.filter(k => !k.returned_on), back = items.filter(k => k.returned_on);
+  d.section('Items with the employee');
+  d.table([{label: '#', w: 9}, {label: 'Item'}, {label: 'Size', w: 26}, {label: 'Qty', w: 16, align: 'right'}, {label: 'Issued on', w: 30}, {label: 'Received (sign)', w: 36}],
+    withEmp.length ? withEmp.map((k, i) => [i + 1, k.item + (k.note ? ` - ${k.note}` : ''), k.size || '', fmtH(Number(k.qty)), shortDate(k.issued_on) + ' ' + k.issued_on.slice(0, 4), '']) : [['', 'No items', '', '', '', '']]);
+  if (back.length) {
+    d.section('Returned / lost items');
+    d.table([{label: '#', w: 9}, {label: 'Item'}, {label: 'Qty', w: 14, align: 'right'}, {label: 'Issued', w: 26}, {label: 'Returned', w: 26}, {label: 'Condition', w: 26}, {label: 'Charge', w: 22, align: 'right'}],
+      back.map((k, i) => [i + 1, k.item + (k.size ? ` (${k.size})` : ''), fmtH(Number(k.qty)), shortDate(k.issued_on), shortDate(k.returned_on), KIT_STATE[kitState(k)].replace('Returned ', '').replace('(good)', 'Good'), Number(k.charge) ? sar(k.charge) : '-']));
+  }
+  d.section('Declaration');
+  d.para('I confirm that I have received the items listed above in good condition. I am responsible for their safe keeping and proper use at work. I will return them when they are replaced or when I leave the company. Items that are lost or damaged through my negligence may be charged to me and deducted from my salary.');
+  d.signs(['Employee signature & date', 'Issued by (Store)', 'Supervisor']);
+  return d.finish();
+}
+
+/* ============ PAYROLL (payslips, deductions, advances) ============ */
+let payMonth = todayStr().slice(0, 7);
+const ADJ = {violation: 'Violation', deduction: 'Deduction', bonus: 'Bonus'};
+async function payrollData(ym) {
+  const {start, end} = monthRange(ym), next = addDays(end, 1);
+  const [att, tasks, adj, adv, slips] = await Promise.all([
+    sb.from('hr_attendance').select('employee_id,status,ot_hours').gte('work_date', start).lte('work_date', end),
+    sb.from('hr_tasks').select('id,employee_id,title,amount,completed_at').eq('status', 'done').eq('paid', true).gte('completed_at', `${start}T00:00:00+03:00`).lt('completed_at', `${next}T00:00:00+03:00`),
+    sb.from('hr_adjustments').select('*').gte('adj_date', start).lte('adj_date', end).order('adj_date'),
+    sb.from('hr_advances').select('*').order('given_on'),
+    sb.from('hr_payslips').select('id,employee_id,month,data,net,created_at')].map(q => q.then(must)));
+  return {att, tasks, adj, adv, slips};
+}
+function calcSlip(e, ym, D) {
+  const {days} = monthRange(ym), basic = Number(e.basic_pay || 0), daily = basic / 30;
+  const att = D.att.filter(a => a.employee_id === e.id);
+  const cnt = s => att.filter(a => a.status === s).length;
+  const dd = {present: cnt('present'), half: cnt('half_day'), absent: cnt('absent'), leave: cnt('leave'), off: cnt('off')};
+  dd.unrecorded = Math.max(0, days - att.length);
+  const otH = att.reduce((a, r) => a + Number(r.ot_hours || 0), 0), otRate = rateOf(e);
+  const r2 = x => Math.round(x * 100) / 100;
+  const earn = [{label: 'Basic salary', amount: basic}];
+  if (otH) earn.push({label: `Overtime (${fmtH(otH)} h x ${money(otRate)})`, amount: r2(otH * otRate)});
+  D.tasks.filter(t => t.employee_id === e.id).forEach(t => earn.push({label: `Task: ${t.title}`, amount: Number(t.amount)}));
+  D.adj.filter(a => a.employee_id === e.id && a.kind === 'bonus').forEach(a => earn.push({label: `Bonus: ${a.reason}`, amount: Number(a.amount)}));
+  const ded = [];
+  const absentDays = dd.absent + dd.half * 0.5;
+  if (absentDays) ded.push({label: `Absent (${fmtH(absentDays)} day${absentDays === 1 ? '' : 's'} x ${money(r2(daily))})`, amount: r2(absentDays * daily), kind: 'absent'});
+  D.adj.filter(a => a.employee_id === e.id && a.kind !== 'bonus').forEach(a => ded.push({label: `${ADJ[a.kind]}: ${a.reason}`, amount: Number(a.amount), kind: a.kind, date: a.adj_date}));
+  const advances = [];
+  D.adv.filter(a => a.employee_id === e.id && a.given_on.slice(0, 7) < ym).forEach(a => {   // recovery starts the month after the advance
+    const before = D.slips.filter(s => s.employee_id === e.id && s.month < ym).reduce((x, s) => x + Number((s.data.advances || []).find(v => v.id === a.id)?.amount || 0), 0);
+    const left = r2(Number(a.amount) - before);
+    if (left <= 0.005) return;
+    const take = r2(Math.min(Number(a.installment), left));
+    advances.push({id: a.id, amount: take, remaining: r2(left - take), total: Number(a.amount)});
+    ded.push({label: `Advance recovery (given ${shortDate(a.given_on)} ${a.given_on.slice(0, 4)}, SAR ${money(a.amount)}; left after this: ${money(r2(left - take))})`, amount: take, kind: 'advance'});
+  });
+  const gross = r2(earn.reduce((a, x) => a + x.amount, 0)), totalDed = r2(ded.reduce((a, x) => a + x.amount, 0));
+  return {emp: {id: e.id, code: e.emp_code, name: e.name, designation: e.designation || ''}, month: ym, basic, days: dd, otHours: otH,
+          earn, ded, advances, gross, totalDed, net: r2(gross - totalDed)};
+}
+async function payslipPdf(slips) {
+  if (!slips.length) throw new Error('Koi payslip nahi.');
+  const img = await letterhead();
+  let d = null; const codes = {};
+  slips.forEach((s, i) => {
+    if (!d) d = pdfDoc('PAY SLIP', img, p => `PAY-${codes[p]?.month}-${codes[p]?.code}`); else d.page();
+    const first = d.pdf.getNumberOfPages();
+    const mark = () => { for (let p = first; p <= d.pdf.getNumberOfPages(); p++) codes[p] = {month: s.month, code: s.emp.code}; };
+    d.kv([['Employee', s.emp.name], ['Month', monthName(s.month)], ['Code', s.emp.code], ['Designation', s.emp.designation || '-']]);
+    d.section('Attendance');
+    d.table([{label: 'Present'}, {label: 'Half day'}, {label: 'Absent'}, {label: 'Leave'}, {label: 'Off day'}, {label: 'Not recorded'}, {label: 'Overtime hours'}].map(c => ({...c, w: d.CW / 7})),
+      [[s.days.present, s.days.half, s.days.absent, s.days.leave, s.days.off, s.days.unrecorded, fmtH(s.otHours) || '0']]);
+    d.section('Earnings');
+    d.table([{label: 'Description'}, {label: 'Amount (SAR)', w: 40, align: 'right'}],
+      [...s.earn.map(x => [x.label, sar(x.amount)]), {cells: ['Total earnings', sar(s.gross)], bold: true, fill: PC.shade}]);
+    d.section('Deductions');
+    d.table([{label: 'Description'}, {label: 'Amount (SAR)', w: 40, align: 'right'}],
+      [...(s.ded.length ? s.ded.map(x => [x.label, sar(x.amount)]) : [['No deductions', '-']]), {cells: ['Total deductions', sar(s.totalDed)], bold: true, fill: PC.shade}]);
+    d.need(20);
+    const {pdf, M, CW} = d;
+    pdf.setFillColor(...PC.slate); pdf.rect(M, d.y, CW, 11, 'F');
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12); pdf.setTextColor(255, 255, 255);
+    pdf.text('NET PAY', M + 4, d.y + 7.3); pdf.text('SAR ' + sar(s.net), M + CW - 4, d.y + 7.3, {align: 'right'});
+    d.y += 14;
+    d.para(inWords(s.net), 8.8, 'italic');
+    d.para('I confirm that I have received the net pay shown above for the month, and that the deductions listed were explained to me.', 8.5);
+    d.signs(['Employee signature & date', 'Prepared by (HR)', 'Approved by']);
+    mark();
+  });
+  return d.finish();
+}
+
+async function viewPayroll() {
+  if (!isAdmin()) { location.hash = '#today'; return; }
+  await loadBase();
+  const ym = payMonth, D = await payrollData(ym);
+  const emps = S.employees.filter(e => e.active || D.slips.some(s => s.employee_id === e.id && s.month === ym));
+  const rows = emps.map(e => { const saved = D.slips.find(s => s.employee_id === e.id && s.month === ym); return {e, calc: calcSlip(e, ym, D), saved}; });
+  const shown = r => r.saved ? r.saved.data : r.calc;
+  const sumBy = (s, f) => s.ded.filter(f).reduce((a, x) => a + x.amount, 0);
+  const tot = rows.reduce((a, r) => a + Number(shown(r).net), 0);
+  main.innerHTML = `
+    <div class="head"><div><h1>Payroll</h1><p>${monthName(ym)}. Payslip = basic + overtime + paid tasks + bonus, minus absent days, violations / deductions aur advance ki qist.</p></div>
+      <div class="tools"><input type="month" id="pm" value="${ym}" aria-label="Month">
+        <button class="btn" id="addAdj">+ Deduction / violation / bonus</button><button class="btn" id="addAdv">+ Advance</button></div></div>
+    <div class="tools" style="margin-bottom:12px"><button class="btn primary" id="saveAll">Save all payslips</button><button class="btn" id="pdfAll">All payslips (PDF)</button>
+      <span class="muted">Net total: <b>SAR ${money(tot)}</b></span></div>
+    <div class="wrap"><table><thead><tr><th>Code</th><th>Name</th><th class="r">Basic</th><th class="r">Overtime</th><th class="r">Tasks + bonus</th><th class="r">Absent</th><th class="r">Other ded.</th><th class="r">Advance</th><th class="r">Net (SAR)</th><th>Status</th><th></th></tr></thead>
+    <tbody>${rows.map(r => { const s = shown(r), ot = s.earn.find(x => x.label.startsWith('Overtime'))?.amount || 0, extra = s.gross - s.basic - ot;
+      const changed = r.saved && Math.abs(Number(r.saved.net) - r.calc.net) > 0.005;
+      return `<tr data-id="${r.e.id}"><td class="muted">${esc(r.e.emp_code)}</td><td>${esc(r.e.name)}</td><td class="r">${money(s.basic)}</td><td class="r">${money(ot)}</td><td class="r">${money(extra)}</td>
+        <td class="r">${money(sumBy(s, x => x.kind === 'absent'))}</td><td class="r">${money(sumBy(s, x => x.kind === 'violation' || x.kind === 'deduction'))}</td><td class="r">${money(sumBy(s, x => x.kind === 'advance'))}</td>
+        <td class="r"><b>${money(s.net)}</b></td>
+        <td>${r.saved ? chip('done', 'Saved') + (changed ? ` ${chip('half_day', 'Changed since')}` : '') : chip('off', 'Not saved')}</td>
+        <td style="white-space:nowrap"><button class="btn" data-pdf>Payslip</button> <button class="btn" data-save>${r.saved ? 'Re-save' : 'Save'}</button></td></tr>`; }).join('')
+      || '<tr><td colspan="11" class="empty">Koi active employee nahi.</td></tr>'}</tbody></table></div>
+    <p class="muted" style="font-size:13px">Absent ki katauti: basic ÷ 30 har absent din (half day = aadha). Advance ki qist agle mahine se katni shuru hoti hai. Save karne se payslip mehfooz ho jati hai aur advance ki wapsi record hoti hai.</p>
+    <h2>Deductions, violations &amp; bonuses: ${monthName(ym)}</h2>
+    <div class="wrap"><table><thead><tr><th>Date</th><th>Employee</th><th>Type</th><th>Reason</th><th class="r">Amount (SAR)</th><th></th></tr></thead>
+    <tbody>${D.adj.map(a => `<tr><td>${shortDate(a.adj_date)}</td><td>${esc(empById(a.employee_id)?.name)}</td><td>${chip({violation: 'absent', deduction: 'half_day', bonus: 'done'}[a.kind], ADJ[a.kind])}</td>
+      <td class="wrapcell">${esc(a.reason)}</td><td class="r">${money(a.amount)}</td><td><button class="btn danger" data-deladj="${a.id}">Delete</button></td></tr>`).join('')
+      || '<tr><td colspan="6" class="empty">Is mahine koi record nahi.</td></tr>'}</tbody></table></div>
+    <h2>Advances / loans</h2>
+    <div class="wrap"><table><thead><tr><th>Employee</th><th>Given on</th><th class="r">Amount</th><th class="r">Monthly qist</th><th class="r">Recovered (saved)</th><th class="r">Remaining</th><th>Note</th><th></th></tr></thead>
+    <tbody>${D.adv.map(a => { const rec = D.slips.filter(s => s.employee_id === a.employee_id).reduce((x, s) => x + Number((s.data.advances || []).find(v => v.id === a.id)?.amount || 0), 0), left = Number(a.amount) - rec;
+      if (left <= 0.005 && a.given_on.slice(0, 7) < addDays(monthRange(ym).start, -200).slice(0, 7)) return '';
+      return `<tr><td>${esc(empById(a.employee_id)?.name)}</td><td>${shortDate(a.given_on)} ${a.given_on.slice(0, 4)}</td><td class="r">${money(a.amount)}</td><td class="r">${money(a.installment)}</td>
+        <td class="r">${money(rec)}</td><td class="r">${left > 0.005 ? `<b>${money(left)}</b>` : chip('done', 'Paid back')}</td><td>${esc(a.note)}</td>
+        <td>${rec ? '' : `<button class="btn danger" data-deladv="${a.id}">Delete</button>`}</td></tr>`; }).join('')
+      || '<tr><td colspan="8" class="empty">Koi advance nahi diya gaya.</td></tr>'}</tbody></table></div>`;
+
+  $('#pm').onchange = e => { if (e.target.value) { payMonth = e.target.value; route(); } };
+  const pick = id => rows.find(r => r.e.id === id);
+  const save = async r => must(await sb.from('hr_payslips').upsert({employee_id: r.e.id, month: ym, data: r.calc, net: r.calc.net}, {onConflict: 'employee_id,month'}));
+  main.querySelectorAll('[data-pdf]').forEach(b => b.onclick = async () => { const r = pick(b.closest('tr').dataset.id);
+    try { (await payslipPdf([shown(r)])).save(`Payslip-${r.e.emp_code}-${ym}.pdf`); } catch (err) { toast('PDF nahi bani: ' + (err.message || err), true); } });
+  main.querySelectorAll('[data-save]').forEach(b => b.onclick = async () => { const r = pick(b.closest('tr').dataset.id);
+    if (r.saved && !confirm(`${r.e.name} ki ${monthName(ym)} ki payslip dobara calculate karke save karni hai?`)) return;
+    try { await save(r); toast('Payslip save ho gayi'); route(); } catch (err) { toast(err.message, true); } });
+  $('#saveAll').onclick = async () => {
+    const todo = rows.filter(r => !r.saved);
+    if (!todo.length) { toast('Sab payslips pehle se saved hain. Kisi ko badalna ho to uski row mein "Re-save" dabayein.'); return; }
+    if (!confirm(`${todo.length} payslips save karni hain? (Pehle se saved payslips nahi badlengi)`)) return;
+    try { for (const r of todo) await save(r); toast(`${todo.length} payslips save ho gayi`); route(); } catch (err) { toast(err.message, true); } };
+  $('#pdfAll').onclick = async () => { if (!rows.length) return;
+    try { (await payslipPdf(rows.map(shown))).save(`Payslips-${ym}.pdf`); } catch (err) { toast('PDF nahi bani: ' + (err.message || err), true); } };
+  $('#addAdj').onclick = () => openDialog({title: 'Deduction / violation / bonus', submit: 'Save', body: `
+      <label>Employee<select name="employee_id" required>${empOpts('', 'Choose employee')}</select></label>
+      <label>Type<select name="kind">${opts(ADJ, 'violation')}</select></label>
+      <label>Date<input type="date" name="adj_date" required value="${ym === todayStr().slice(0, 7) ? todayStr() : monthRange(ym).end}"></label>
+      <label>Amount (SAR)<input type="number" name="amount" min="0" step="0.01" required></label>
+      <label class="full">Reason<input name="reason" required placeholder="e.g. Safety helmet nahi pehna, warning ke baad"></label>
+      <p class="full hint">Violation / deduction payslip mein katauti banti hai. Bonus kamai mein judta hai. Violation ki raqam 0 bhi ho sakti hai, sirf record ke liye.</p>`,
+    onSubmit: async fd => { must(await sb.from('hr_adjustments').insert({employee_id: fd.employee_id, kind: fd.kind, adj_date: fd.adj_date, amount: Number(fd.amount || 0), reason: fd.reason.trim()}));
+      if (fd.adj_date.slice(0, 7) !== ym) payMonth = fd.adj_date.slice(0, 7); toast('Record ho gaya'); route(); }});
+  $('#addAdv').onclick = () => openDialog({title: 'Give an advance / loan', submit: 'Save', body: `
+      <label>Employee<select name="employee_id" required>${empOpts('', 'Choose employee')}</select></label>
+      <label>Given on<input type="date" name="given_on" required value="${todayStr()}"></label>
+      <label>Amount (SAR)<input type="number" name="amount" min="1" step="0.01" required></label>
+      <label>Monthly qist (SAR)<input type="number" name="installment" min="1" step="0.01" required></label>
+      <label class="full">Note<input name="note" placeholder="e.g. ghar bhejne ke liye"></label>
+      <p class="full hint">Qist agle mahine ki payslip se katni shuru hogi, jab tak poora advance wapis na ho jaye.</p>`,
+    onSubmit: async fd => { if (Number(fd.installment) > Number(fd.amount)) throw new Error('Qist advance se zyada nahi ho sakti.');
+      must(await sb.from('hr_advances').insert({employee_id: fd.employee_id, given_on: fd.given_on, amount: Number(fd.amount), installment: Number(fd.installment), note: fd.note.trim() || null}));
+      toast('Advance record ho gaya'); route(); }});
+  main.querySelectorAll('[data-deladj]').forEach(b => b.onclick = async () => { if (!confirm('Yeh record delete karna hai?')) return;
+    try { must(await sb.from('hr_adjustments').delete().eq('id', b.dataset.deladj)); toast('Delete ho gaya'); route(); } catch (err) { toast(err.message, true); } });
+  main.querySelectorAll('[data-deladv]').forEach(b => b.onclick = async () => { if (!confirm('Yeh advance delete karna hai?')) return;
+    try { must(await sb.from('hr_advances').delete().eq('id', b.dataset.deladv)); toast('Delete ho gaya'); route(); } catch (err) { toast(err.message, true); } });
 }
 
 /* ============ SETTINGS ============ */
