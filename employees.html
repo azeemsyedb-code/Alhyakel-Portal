@@ -608,8 +608,8 @@ async function viewTasks() {
     <div class="head"><div><h1>Tasks</h1><p>Employees see their open tasks on the kiosk each time they check in or out.</p></div>
       <div class="tools">${canEdit() ? '<button class="btn primary" id="newTask">Assign a task</button>' : ''}</div></div>
     <div class="tools" style="margin-bottom:14px">
-      <select id="fEmp" aria-label="Employee">${empOpts(taskFilter.emp, 'All employees')}</select>
-      <select id="fSt" aria-label="Status"><option value="open">Open (pending + in progress)</option>${opts(TSTATUS, taskFilter.status)}<option value="all"${taskFilter.status === 'all' ? ' selected' : ''}>All</option></select>
+      <select id="fEmp" data-remember="hr.tasks.emp" aria-label="Employee">${empOpts(taskFilter.emp, 'All employees')}</select>
+      <select id="fSt" data-remember="hr.tasks.status" aria-label="Status"><option value="open">Open (pending + in progress)</option>${opts(TSTATUS, taskFilter.status)}<option value="all"${taskFilter.status === 'all' ? ' selected' : ''}>All</option></select>
       <input id="fQ" type="search" placeholder="Search tasks" value="${esc(taskFilter.q)}">
     </div>
     <div class="wrap"><table>
@@ -669,7 +669,7 @@ function openTask(t) {
       <label>Given on<input type="date" name="assigned_on" required value="${t.assigned_on || ''}"></label>
       <label>Due date<input type="date" name="due_date" value="${t.due_date || ''}"></label>
       <label class="full">Details<textarea name="details" rows="5" placeholder="What to do, where, materials, measurements, drawings to follow">${esc(t.details)}</textarea></label>
-      ${isAdmin() ? `<label class="chk"><input type="checkbox" name="paid"${t.paid ? ' checked' : ''}> Paid task <span class="hint">(kaam "Done" hone par salary mein judta hai)</span></label>
+      ${isAdmin() ? `<label class="chk"><input type="checkbox" name="paid"${t.paid ? ' checked' : ''}> Paid task <span class="hint">(added to salary when the task is marked "Done")</span></label>
       <label>Task payment (SAR)<input name="amount" type="number" min="0" step="0.01" value="${t.amount ? t.amount : ''}" placeholder="0"></label>` : ''}
       <label>Status<select name="status">${opts(TSTATUS, t.status)}</select></label>
       <label>${t.completed_at ? 'Completed' : '&nbsp;'}<span class="muted" style="font-weight:400;padding-top:8px">${t.completed_at ? new Intl.DateTimeFormat('en-GB', {timeZone: TZ, dateStyle: 'medium', timeStyle: 'short'}).format(new Date(t.completed_at)) : ''}</span></label>
@@ -677,7 +677,7 @@ function openTask(t) {
     onSubmit: async fd => {
       const row = {title: fd.title.trim(), employee_id: fd.employee_id || null, priority: fd.priority, status: fd.status,
                    assigned_on: fd.assigned_on, due_date: fd.due_date || null, details: fd.details.trim() || null, remarks: fd.remarks.trim() || null};
-      if (isAdmin()) { row.paid = fd.paid === 'on'; row.amount = row.paid ? Number(fd.amount || 0) : 0; if (row.paid && !(row.amount > 0)) throw new Error('Paid task ki raqam daalein.'); }
+      if (isAdmin()) { row.paid = fd.paid === 'on'; row.amount = row.paid ? Number(fd.amount || 0) : 0; if (row.paid && !(row.amount > 0)) throw new Error('Enter the amount for the paid task.'); }
       if (isNew) must(await sb.from('hr_tasks').insert(row));
       else must(await sb.from('hr_tasks').update(row).eq('id', t.id));
       toast(isNew ? 'Task assigned' : 'Task saved'); route();
@@ -699,7 +699,7 @@ async function viewEmployees() {
   const noPin = S.employees.filter(e => e.active && !e.pin_set).length;
   main.innerHTML = `
     <div class="head"><div><h1>Employees</h1><p>${activeEmps().length} active.${noPin ? ` ${noPin} still need a kiosk PIN before they can check in.` : ''}</p></div>
-      <div class="tools"><label class="muted"><input type="checkbox" id="inact"${showInactive ? ' checked' : ''}> Show inactive</label>
+      <div class="tools"><label class="muted"><input type="checkbox" id="inact" data-remember="hr.emp.inactive"${showInactive ? ' checked' : ''}> Show inactive</label>
         ${isAdmin() ? '<button class="btn primary" id="addEmp">Add employee</button>' : ''}</div></div>
     <div class="wrap"><table>
       <thead><tr><th>Code</th><th>Name</th><th>Designation</th><th>Phone</th>${isAdmin() ? '<th class="r">Basic pay (SAR)</th><th class="r">OT rate</th>' : ''}<th>Kiosk PIN</th><th>Status</th></tr></thead>
@@ -864,17 +864,17 @@ async function viewKit() {
   if (kitFilter.batch && !batches.includes(kitFilter.batch)) kitFilter.batch = '';
   const dueN = sched.filter(s => s.due).length;
   main.innerHTML = `
-    <div class="head"><div><h1>Working kit</h1><p>Har ${kitCycle()} mahine baad sab ko standard kit. Har cheez ka hisaab, kis ke paas kya hai aur kab nayi kit deni hai.</p></div>
+    <div class="head"><div><h1>Working kit</h1><p>Standard kit for everyone every ${kitCycle()} months. Track every item: who has what, and when the next kit is due.</p></div>
       <div class="tools">${canEdit() ? '<button class="btn primary" id="round">Issue kit round</button><button class="btn" id="issue">Single items</button>' : ''}
         ${isAdmin() ? '<button class="btn" id="tpl">Standard kit</button>' : ''}<button class="btn" id="kitPdf">Kit forms (PDF)</button></div></div>
     <div class="figs" id="kfigs"></div>
-    <h2>Kit schedule <span class="muted" style="font-weight:400;font-size:14px">· har ${kitCycle()} mahine</span></h2>
+    <h2>Kit schedule <span class="muted" style="font-weight:400;font-size:14px">· every ${kitCycle()} months</span></h2>
     <div class="wrap"><table><thead><tr><th>Code</th><th>Name</th><th>Last kit round</th><th>Next due</th><th>Status</th></tr></thead><tbody id="ksched"></tbody></table></div>
     <h2>Items</h2>
     <div class="tools" style="margin-bottom:14px">
-      <select id="kEmp" aria-label="Employee">${empOpts(kitFilter.emp, 'All employees')}</select>
-      <select id="kBatch" aria-label="Kit round"><option value="">All rounds &amp; single items</option>${batches.map(b => `<option${b === kitFilter.batch ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select>
-      <select id="kSt" aria-label="Status"><option value="with">With employee</option><option value="back">Returned / replaced / lost</option><option value="all">All</option></select>
+      <select id="kEmp" data-remember="hr.kit.emp" aria-label="Employee">${empOpts(kitFilter.emp, 'All employees')}</select>
+      <select id="kBatch" data-remember="hr.kit.round" aria-label="Kit round"><option value="">All rounds &amp; single items</option>${batches.map(b => `<option${b === kitFilter.batch ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select>
+      <select id="kSt" data-remember="hr.kit.status" aria-label="Status"><option value="with">With employee</option><option value="back">Returned / replaced / lost</option><option value="all">All</option></select>
     </div>
     <div class="wrap"><table><thead><tr><th>Code</th><th>Name</th><th>Item</th><th class="r">Qty</th><th>Issued</th><th>Round</th><th>Status</th><th class="r">Charge (SAR)</th><th></th></tr></thead><tbody id="krows"></tbody></table></div>`;
   $('#kSt').value = kitFilter.status;
@@ -883,7 +883,7 @@ async function viewKit() {
       soon: chip('half_day', `In ${s.left} days`), ok: chip('done', 'OK')}[s.st];
     return `<tr><td class="muted">${esc(s.e.emp_code)}</td><td>${esc(s.e.name)}</td><td>${s.last ? `${shortDate(s.last.issued_on)} ${s.last.issued_on.slice(0, 4)} <span class="muted">${esc(s.last.batch)}</span>` : '<span class="muted">-</span>'}</td>
       <td>${s.next ? `${shortDate(s.next)} ${s.next.slice(0, 4)}` : '<span class="muted">-</span>'}</td><td>${c}</td></tr>`; }).join('')
-    || '<tr><td colspan="5" class="empty">Koi active employee nahi.</td></tr>';
+    || '<tr><td colspan="5" class="empty">No active employees.</td></tr>';
   const draw = () => {
     const list = all.filter(k => (!kitFilter.emp || k.employee_id === kitFilter.emp) && (!kitFilter.batch || k.batch === kitFilter.batch) &&
       (kitFilter.status === 'all' || (kitFilter.status === 'with' ? !k.returned_on : !!k.returned_on)));
@@ -897,7 +897,7 @@ async function viewKit() {
         <td>${chip(KIT_CHIP[st], KIT_STATE[st])}${k.returned_on ? ` <span class="muted">${shortDate(k.returned_on)}</span>` : ''}</td>
         <td class="r">${Number(k.charge) ? money(k.charge) : ''}</td>
         <td>${canEdit() && !k.returned_on ? '<button class="btn" data-ret>Return</button>' : ''}</td></tr>`; }).join('')
-      || '<tr><td colspan="9" class="empty">Koi record nahi. "Issue kit round" se sab ko kit dein.</td></tr>';
+      || '<tr><td colspan="9" class="empty">No records. Use "Issue kit round" to give kits to everyone.</td></tr>';
   };
   draw();
   $('#kEmp').onchange = e => { kitFilter.emp = e.target.value; draw(); };
@@ -913,10 +913,10 @@ async function viewKit() {
       .map(id => empById(id)).filter(Boolean).sort((a, b) => a.emp_code.localeCompare(b.emp_code))
       .map(e => ({e, items: all.filter(k => k.employee_id === e.id && k.batch === kitFilter.batch), batch: kitFilter.batch}));
     else if (kitFilter.emp) pages = [{e: empById(kitFilter.emp), items: all.filter(k => k.employee_id === kitFilter.emp)}];
-    else { toast('Upar se kit round ya employee chunein.', true); return; }
-    if (!pages.length) { toast('Is round mein koi item nahi.', true); return; }
+    else { toast('Select a kit round or an employee above.', true); return; }
+    if (!pages.length) { toast('No items in this round.', true); return; }
     try { (await kitPdf(pages)).save(kitFilter.batch ? `Kit-forms-${kitFilter.batch}${kitFilter.emp ? '-' + empById(kitFilter.emp).emp_code : ''}.pdf` : `Kit-${pages[0].e.emp_code}.pdf`); }
-    catch (err) { toast('PDF nahi bani: ' + (err.message || err), true); }
+    catch (err) { toast('Could not create PDF: ' + (err.message || err), true); }
   };
 }
 const itemRows = (rows, n) => { const r = [...rows]; while (r.length < n) r.push({item: '', qty: 1}); return r; };
@@ -925,21 +925,21 @@ function openRound(all, sched) {
   const f = openDialog({title: 'Issue kit round', submit: 'Issue kit', body: `
     <label>Issued on<input type="date" name="issued_on" required value="${d0}"></label>
     <label>Round name<input name="batch" required value="KIT-${d0.slice(0, 7)}"></label>
-    <div class="full" style="display:grid;gap:6px"><span class="muted" style="font-weight:600;font-size:13px">Kit items (har employee ko yehi milega · khaali row chhor dein)</span>
+    <div class="full" style="display:grid;gap:6px"><span class="muted" style="font-weight:600;font-size:13px">Kit items (every employee gets these · leave unused rows empty)</span>
       ${tpl.map((t, i) => `<div style="display:flex;gap:6px"><input name="item${i}" list="kitItems" value="${esc(t.item)}" placeholder="Item" aria-label="Item ${i + 1}" style="flex:1"><input name="qty${i}" type="number" min="0.5" step="0.5" value="${t.qty || 1}" aria-label="Qty ${i + 1}" style="max-width:80px"></div>`).join('')}
       <datalist id="kitItems">${KIT_ITEMS.map(x => `<option value="${x}">`).join('')}</datalist></div>
     <div class="full" style="display:grid;gap:6px"><span class="muted" style="font-weight:600;font-size:13px">Employees <button type="button" class="btn" data-sel="due" style="padding:2px 8px;font-size:12px">Due</button> <button type="button" class="btn" data-sel="all" style="padding:2px 8px;font-size:12px">All</button> <button type="button" class="btn" data-sel="none" style="padding:2px 8px;font-size:12px">None</button></span>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:8px">
       ${sched.map(s => `<label class="chk" style="font-weight:400"><input type="checkbox" name="emp" value="${s.e.id}" data-due="${s.due ? 1 : 0}"${(anyDue ? s.due : true) ? ' checked' : ''}> ${esc(s.e.emp_code)} ${esc(s.e.name)}${s.due ? ' <span class="chip absent" style="font-size:11px">due</span>' : ''}</label>`).join('')}</div></div>
-    <label class="chk full"><input type="checkbox" name="replace" checked> Pichli kit wapis li gayi (purane items "Replaced" ho jayenge)</label>
-    <p class="full hint">Size (jaise shoes 42) har employee ke pichle record se khud aa jata hai. Save ke baad isi round ke kit forms PDF mein print karke sign karwayein.</p>`,
+    <label class="chk full"><input type="checkbox" name="replace" checked> Previous kit returned (old items will be marked "Replaced")</label>
+    <p class="full hint">Sizes (e.g. shoes 42) are filled in automatically from each employee's last record. After saving, print this round's kit forms (PDF) and get them signed.</p>`,
     onSubmit: async (fd, form) => {
       const ids = [...form.querySelectorAll('[name=emp]:checked')].map(x => x.value);
-      if (!ids.length) throw new Error('Kam az kam ek employee chunein.');
+      if (!ids.length) throw new Error('Select at least one employee.');
       const items = tpl.map((_, i) => ({item: (fd['item' + i] || '').trim(), qty: Number(fd['qty' + i] || 1)})).filter(x => x.item);
-      if (!items.length) throw new Error('Kam az kam ek item likhein.');
+      if (!items.length) throw new Error('Enter at least one item.');
       const batch = fd.batch.trim();
-      if (all.some(k => k.batch === batch && ids.includes(k.employee_id)) && !confirm(`"${batch}" mein in mein se kuch employees ko pehle hi kit mil chuki hai. Phir bhi dobara deni hai?`)) return;
+      if (all.some(k => k.batch === batch && ids.includes(k.employee_id)) && !confirm(`Some of these employees already received a kit in "${batch}". Issue it again anyway?`)) return;
       const sizeOf = (emp, item) => all.filter(k => k.employee_id === emp && k.item.toLowerCase() === item.toLowerCase() && k.size).sort((a, b) => a.issued_on < b.issued_on ? 1 : -1)[0]?.size || null;
       if (fd.replace === 'on') {
         const old = all.filter(k => ids.includes(k.employee_id) && !k.returned_on).map(k => k.id);
@@ -949,22 +949,22 @@ function openRound(all, sched) {
       const rows = ids.flatMap(id => items.map(x => ({employee_id: id, issued_on: fd.issued_on, item: x.item, qty: x.qty, size: sizeOf(id, x.item), batch})));
       for (let i = 0; i < rows.length; i += 500) must(await sb.from('hr_kit').insert(rows.slice(i, i + 500)));
       Object.assign(kitFilter, {batch, emp: '', status: 'with'});
-      toast(`${ids.length} employees ko kit di gayi (${batch}). Ab "Kit forms (PDF)" se forms print karein.`); route();
+      toast(`Kit issued to ${ids.length} employee(s) (${batch}). Now print the forms from "Kit forms (PDF)".`); route();
     }});
   f.querySelectorAll('[data-sel]').forEach(b => b.onclick = () => f.querySelectorAll('[name=emp]').forEach(c => c.checked = b.dataset.sel === 'all' || (b.dataset.sel === 'due' && c.dataset.due === '1')));
 }
 function openTemplate() {
   const rows = itemRows(kitTemplate(), 12);
   openDialog({title: 'Standard kit', submit: 'Save', body: `
-    <label>Nayi kit har<select name="cycle">${[2, 3, 4, 6, 12].map(n => `<option value="${n}"${n === kitCycle() ? ' selected' : ''}>${n} mahine</option>`).join('')}</select></label>
-    <div class="full" style="display:grid;gap:6px"><span class="muted" style="font-weight:600;font-size:13px">Har employee ki kit mein (khaali row chhor dein)</span>
+    <label>New kit every<select name="cycle">${[2, 3, 4, 6, 12].map(n => `<option value="${n}"${n === kitCycle() ? ' selected' : ''}>${n} months</option>`).join('')}</select></label>
+    <div class="full" style="display:grid;gap:6px"><span class="muted" style="font-weight:600;font-size:13px">Each employee's kit includes (leave unused rows empty)</span>
       ${rows.map((t, i) => `<div style="display:flex;gap:6px"><input name="item${i}" list="kitItems2" value="${esc(t.item)}" placeholder="Item" aria-label="Item ${i + 1}" style="flex:1"><input name="qty${i}" type="number" min="0.5" step="0.5" value="${t.qty || 1}" aria-label="Qty ${i + 1}" style="max-width:80px"></div>`).join('')}
       <datalist id="kitItems2">${KIT_ITEMS.map(x => `<option value="${x}">`).join('')}</datalist></div>`,
     onSubmit: async fd => {
       const kit_template = rows.map((_, i) => ({item: (fd['item' + i] || '').trim(), qty: Number(fd['qty' + i] || 1)})).filter(x => x.item);
-      if (!kit_template.length) throw new Error('Kam az kam ek item likhein.');
+      if (!kit_template.length) throw new Error('Enter at least one item.');
       S.settings = must(await sb.from('hr_settings').update({kit_template, kit_cycle_months: Number(fd.cycle)}).eq('id', 1).select().single());
-      toast('Standard kit save ho gayi'); route();
+      toast('Standard kit saved'); route();
     }});
 }
 function openIssue() {
@@ -972,17 +972,17 @@ function openIssue() {
   openDialog({title: 'Issue single items', submit: 'Save', body: `
     <label>Employee<select name="employee_id" required>${empOpts(kitFilter.emp, 'Choose employee')}</select></label>
     <label>Issued on<input type="date" name="issued_on" required value="${todayStr()}"></label>
-    <div class="full" style="display:grid;gap:6px"><span class="muted" style="font-weight:600;font-size:13px">Items (khaali rows chhor dein)</span>
+    <div class="full" style="display:grid;gap:6px"><span class="muted" style="font-weight:600;font-size:13px">Items (leave unused rows empty)</span>
       ${rows.map(r => `<div style="display:flex;gap:6px">${r}</div>`).join('')}
       <datalist id="kitItems">${KIT_ITEMS.map(x => `<option value="${x}">`).join('')}</datalist></div>
-    <label class="full">Note<input name="note" placeholder="e.g. naye joiner ki kit, ya phati hui shoes ki jagah"></label>
-    <p class="full hint">Yeh kit round ka hissa nahi banta, is liye agli kit ki tareekh nahi badalti.</p>`,
+    <label class="full">Note<input name="note" placeholder="e.g. kit for a new joiner, or to replace torn shoes"></label>
+    <p class="full hint">This is not part of a kit round, so the next kit date does not change.</p>`,
     onSubmit: async fd => {
       const ins = [0, 1, 2, 3, 4].filter(i => (fd['item' + i] || '').trim()).map(i => ({employee_id: fd.employee_id, issued_on: fd.issued_on,
         item: fd['item' + i].trim(), size: (fd['size' + i] || '').trim() || null, qty: Number(fd['qty' + i] || 1), note: fd.note.trim() || null}));
-      if (!ins.length) throw new Error('Kam az kam ek item likhein.');
+      if (!ins.length) throw new Error('Enter at least one item.');
       must(await sb.from('hr_kit').insert(ins));
-      Object.assign(kitFilter, {emp: fd.employee_id, batch: ''}); toast(`${ins.length} item record ho gaye`); route();
+      Object.assign(kitFilter, {emp: fd.employee_id, batch: ''}); toast(`${ins.length} item(s) recorded`); route();
     }});
 }
 function openReturn(k) {
@@ -992,14 +992,14 @@ function openReturn(k) {
     <label>Returned on<input type="date" name="returned_on" required value="${todayStr()}"></label>
     <label>Condition<select name="return_condition"><option value="good">Good</option><option value="damaged">Damaged</option><option value="lost">Lost (not returned)</option></select></label>
     <label class="cost" hidden>Charge to employee (SAR)<input name="charge" type="number" min="0" step="0.01" value="0"></label>
-    ${isAdmin() ? '<label class="chk cost" hidden><input type="checkbox" name="deduct" checked> Salary se kaatein (payslip mein aayega)</label>' : '<p class="full hint cost" hidden>Salary se katauti HR admin Payroll mein lagayega.</p>'}`,
+    ${isAdmin() ? '<label class="chk cost" hidden><input type="checkbox" name="deduct" checked> Deduct from salary (will appear on the payslip)</label>' : '<p class="full hint cost" hidden>The HR admin will apply the salary deduction in Payroll.</p>'}`,
     onSubmit: async fd => {
       const charge = fd.return_condition === 'good' ? 0 : Number(fd.charge || 0);
       must(await sb.from('hr_kit').update({returned_on: fd.returned_on, return_condition: fd.return_condition, charge}).eq('id', k.id));
       if (isAdmin() && charge > 0 && fd.deduct === 'on')
         must(await sb.from('hr_adjustments').insert({employee_id: k.employee_id, adj_date: fd.returned_on, kind: 'deduction', amount: charge,
           reason: `Kit ${fd.return_condition}: ${k.item}${k.size ? ' (' + k.size + ')' : ''}`, kit_id: k.id}));
-      toast('Return record ho gaya'); route();
+      toast('Return recorded'); route();
     }});
   const cond = f.querySelector('[name=return_condition]');
   cond.onchange = () => f.querySelectorAll('.cost').forEach(el => el.hidden = cond.value === 'good');
@@ -1074,7 +1074,7 @@ function calcSlip(e, ym, D) {
           earn, ded, advances, gross, totalDed, net: r2(gross - totalDed)};
 }
 async function payslipPdf(slips) {
-  if (!slips.length) throw new Error('Koi payslip nahi.');
+  if (!slips.length) throw new Error('No payslips.');
   const img = await letterhead();
   let d = null; const codes = {};
   slips.forEach((s, i) => {
@@ -1115,7 +1115,7 @@ async function viewPayroll() {
   const sumBy = (s, f) => s.ded.filter(f).reduce((a, x) => a + x.amount, 0);
   const tot = rows.reduce((a, r) => a + Number(shown(r).net), 0);
   main.innerHTML = `
-    <div class="head"><div><h1>Payroll</h1><p>${monthName(ym)}. Payslip = basic + overtime + paid tasks + bonus, minus absent days, violations / deductions aur advance ki qist.</p></div>
+    <div class="head"><div><h1>Payroll</h1><p>${monthName(ym)}. Payslip = basic + overtime + paid tasks + bonus, minus absent days, violations / deductions and advance installments.</p></div>
       <div class="tools"><input type="month" id="pm" value="${ym}" aria-label="Month">
         <button class="btn" id="addAdj">+ Deduction / violation / bonus</button><button class="btn" id="addAdv">+ Advance</button></div></div>
     <div class="tools" style="margin-bottom:12px"><button class="btn primary" id="saveAll">Save all payslips</button><button class="btn" id="pdfAll">All payslips (PDF)</button>
@@ -1128,60 +1128,60 @@ async function viewPayroll() {
         <td class="r"><b>${money(s.net)}</b></td>
         <td>${r.saved ? chip('done', 'Saved') + (changed ? ` ${chip('half_day', 'Changed since')}` : '') : chip('off', 'Not saved')}</td>
         <td style="white-space:nowrap"><button class="btn" data-pdf>Payslip</button> <button class="btn" data-save>${r.saved ? 'Re-save' : 'Save'}</button></td></tr>`; }).join('')
-      || '<tr><td colspan="11" class="empty">Koi active employee nahi.</td></tr>'}</tbody></table></div>
-    <p class="muted" style="font-size:13px">Absent ki katauti: basic ÷ 30 har absent din (half day = aadha). Advance ki qist agle mahine se katni shuru hoti hai. Save karne se payslip mehfooz ho jati hai aur advance ki wapsi record hoti hai.</p>
+      || '<tr><td colspan="11" class="empty">No active employees.</td></tr>'}</tbody></table></div>
+    <p class="muted" style="font-size:13px">Absence deduction: basic ÷ 30 per absent day (half day = half). Advance installments start from the following month. Saving locks in the payslip and records the advance recovery.</p>
     <h2>Deductions, violations &amp; bonuses: ${monthName(ym)}</h2>
     <div class="wrap"><table><thead><tr><th>Date</th><th>Employee</th><th>Type</th><th>Reason</th><th class="r">Amount (SAR)</th><th></th></tr></thead>
     <tbody>${D.adj.map(a => `<tr><td>${shortDate(a.adj_date)}</td><td>${esc(empById(a.employee_id)?.name)}</td><td>${chip({violation: 'absent', deduction: 'half_day', bonus: 'done'}[a.kind], ADJ[a.kind])}</td>
       <td class="wrapcell">${esc(a.reason)}</td><td class="r">${money(a.amount)}</td><td><button class="btn danger" data-deladj="${a.id}">Delete</button></td></tr>`).join('')
-      || '<tr><td colspan="6" class="empty">Is mahine koi record nahi.</td></tr>'}</tbody></table></div>
+      || '<tr><td colspan="6" class="empty">No records this month.</td></tr>'}</tbody></table></div>
     <h2>Advances / loans</h2>
-    <div class="wrap"><table><thead><tr><th>Employee</th><th>Given on</th><th class="r">Amount</th><th class="r">Monthly qist</th><th class="r">Recovered (saved)</th><th class="r">Remaining</th><th>Note</th><th></th></tr></thead>
+    <div class="wrap"><table><thead><tr><th>Employee</th><th>Given on</th><th class="r">Amount</th><th class="r">Monthly installment</th><th class="r">Recovered (saved)</th><th class="r">Remaining</th><th>Note</th><th></th></tr></thead>
     <tbody>${D.adv.map(a => { const rec = D.slips.filter(s => s.employee_id === a.employee_id).reduce((x, s) => x + Number((s.data.advances || []).find(v => v.id === a.id)?.amount || 0), 0), left = Number(a.amount) - rec;
       if (left <= 0.005 && a.given_on.slice(0, 7) < addDays(monthRange(ym).start, -200).slice(0, 7)) return '';
       return `<tr><td>${esc(empById(a.employee_id)?.name)}</td><td>${shortDate(a.given_on)} ${a.given_on.slice(0, 4)}</td><td class="r">${money(a.amount)}</td><td class="r">${money(a.installment)}</td>
         <td class="r">${money(rec)}</td><td class="r">${left > 0.005 ? `<b>${money(left)}</b>` : chip('done', 'Paid back')}</td><td>${esc(a.note)}</td>
         <td>${rec ? '' : `<button class="btn danger" data-deladv="${a.id}">Delete</button>`}</td></tr>`; }).join('')
-      || '<tr><td colspan="8" class="empty">Koi advance nahi diya gaya.</td></tr>'}</tbody></table></div>`;
+      || '<tr><td colspan="8" class="empty">No advances given.</td></tr>'}</tbody></table></div>`;
 
   $('#pm').onchange = e => { if (e.target.value) { payMonth = e.target.value; route(); } };
   const pick = id => rows.find(r => r.e.id === id);
   const save = async r => must(await sb.from('hr_payslips').upsert({employee_id: r.e.id, month: ym, data: r.calc, net: r.calc.net}, {onConflict: 'employee_id,month'}));
   main.querySelectorAll('[data-pdf]').forEach(b => b.onclick = async () => { const r = pick(b.closest('tr').dataset.id);
-    try { (await payslipPdf([shown(r)])).save(`Payslip-${r.e.emp_code}-${ym}.pdf`); } catch (err) { toast('PDF nahi bani: ' + (err.message || err), true); } });
+    try { (await payslipPdf([shown(r)])).save(`Payslip-${r.e.emp_code}-${ym}.pdf`); } catch (err) { toast('Could not create PDF: ' + (err.message || err), true); } });
   main.querySelectorAll('[data-save]').forEach(b => b.onclick = async () => { const r = pick(b.closest('tr').dataset.id);
-    if (r.saved && !confirm(`${r.e.name} ki ${monthName(ym)} ki payslip dobara calculate karke save karni hai?`)) return;
-    try { await save(r); toast('Payslip save ho gayi'); route(); } catch (err) { toast(err.message, true); } });
+    if (r.saved && !confirm(`Recalculate and save ${r.e.name}'s payslip for ${monthName(ym)}?`)) return;
+    try { await save(r); toast('Payslip saved'); route(); } catch (err) { toast(err.message, true); } });
   $('#saveAll').onclick = async () => {
     const todo = rows.filter(r => !r.saved);
-    if (!todo.length) { toast('Sab payslips pehle se saved hain. Kisi ko badalna ho to uski row mein "Re-save" dabayein.'); return; }
-    if (!confirm(`${todo.length} payslips save karni hain? (Pehle se saved payslips nahi badlengi)`)) return;
-    try { for (const r of todo) await save(r); toast(`${todo.length} payslips save ho gayi`); route(); } catch (err) { toast(err.message, true); } };
+    if (!todo.length) { toast('All payslips are already saved. To change one, click "Re-save" in its row.'); return; }
+    if (!confirm(`Save ${todo.length} payslip(s)? (Already saved payslips will not change)`)) return;
+    try { for (const r of todo) await save(r); toast(`${todo.length} payslip(s) saved`); route(); } catch (err) { toast(err.message, true); } };
   $('#pdfAll').onclick = async () => { if (!rows.length) return;
-    try { (await payslipPdf(rows.map(shown))).save(`Payslips-${ym}.pdf`); } catch (err) { toast('PDF nahi bani: ' + (err.message || err), true); } };
+    try { (await payslipPdf(rows.map(shown))).save(`Payslips-${ym}.pdf`); } catch (err) { toast('Could not create PDF: ' + (err.message || err), true); } };
   $('#addAdj').onclick = () => openDialog({title: 'Deduction / violation / bonus', submit: 'Save', body: `
       <label>Employee<select name="employee_id" required>${empOpts('', 'Choose employee')}</select></label>
       <label>Type<select name="kind">${opts(ADJ, 'violation')}</select></label>
       <label>Date<input type="date" name="adj_date" required value="${ym === todayStr().slice(0, 7) ? todayStr() : monthRange(ym).end}"></label>
       <label>Amount (SAR)<input type="number" name="amount" min="0" step="0.01" required></label>
-      <label class="full">Reason<input name="reason" required placeholder="e.g. Safety helmet nahi pehna, warning ke baad"></label>
-      <p class="full hint">Violation / deduction payslip mein katauti banti hai. Bonus kamai mein judta hai. Violation ki raqam 0 bhi ho sakti hai, sirf record ke liye.</p>`,
+      <label class="full">Reason<input name="reason" required placeholder="e.g. Not wearing safety helmet after a warning"></label>
+      <p class="full hint">Violations / deductions are subtracted on the payslip. Bonuses are added to earnings. A violation amount can be 0 (for the record only).</p>`,
     onSubmit: async fd => { must(await sb.from('hr_adjustments').insert({employee_id: fd.employee_id, kind: fd.kind, adj_date: fd.adj_date, amount: Number(fd.amount || 0), reason: fd.reason.trim()}));
-      if (fd.adj_date.slice(0, 7) !== ym) payMonth = fd.adj_date.slice(0, 7); toast('Record ho gaya'); route(); }});
+      if (fd.adj_date.slice(0, 7) !== ym) payMonth = fd.adj_date.slice(0, 7); toast('Recorded'); route(); }});
   $('#addAdv').onclick = () => openDialog({title: 'Give an advance / loan', submit: 'Save', body: `
       <label>Employee<select name="employee_id" required>${empOpts('', 'Choose employee')}</select></label>
       <label>Given on<input type="date" name="given_on" required value="${todayStr()}"></label>
       <label>Amount (SAR)<input type="number" name="amount" min="1" step="0.01" required></label>
-      <label>Monthly qist (SAR)<input type="number" name="installment" min="1" step="0.01" required></label>
-      <label class="full">Note<input name="note" placeholder="e.g. ghar bhejne ke liye"></label>
-      <p class="full hint">Qist agle mahine ki payslip se katni shuru hogi, jab tak poora advance wapis na ho jaye.</p>`,
-    onSubmit: async fd => { if (Number(fd.installment) > Number(fd.amount)) throw new Error('Qist advance se zyada nahi ho sakti.');
+      <label>Monthly installment (SAR)<input type="number" name="installment" min="1" step="0.01" required></label>
+      <label class="full">Note<input name="note" placeholder="e.g. to send home"></label>
+      <p class="full hint">Installments are deducted starting from next month's payslip until the full advance is recovered.</p>`,
+    onSubmit: async fd => { if (Number(fd.installment) > Number(fd.amount)) throw new Error('Installment cannot be more than the advance.');
       must(await sb.from('hr_advances').insert({employee_id: fd.employee_id, given_on: fd.given_on, amount: Number(fd.amount), installment: Number(fd.installment), note: fd.note.trim() || null}));
-      toast('Advance record ho gaya'); route(); }});
-  main.querySelectorAll('[data-deladj]').forEach(b => b.onclick = async () => { if (!confirm('Yeh record delete karna hai?')) return;
-    try { must(await sb.from('hr_adjustments').delete().eq('id', b.dataset.deladj)); toast('Delete ho gaya'); route(); } catch (err) { toast(err.message, true); } });
-  main.querySelectorAll('[data-deladv]').forEach(b => b.onclick = async () => { if (!confirm('Yeh advance delete karna hai?')) return;
-    try { must(await sb.from('hr_advances').delete().eq('id', b.dataset.deladv)); toast('Delete ho gaya'); route(); } catch (err) { toast(err.message, true); } });
+      toast('Advance recorded'); route(); }});
+  main.querySelectorAll('[data-deladj]').forEach(b => b.onclick = async () => { if (!confirm('Delete this record?')) return;
+    try { must(await sb.from('hr_adjustments').delete().eq('id', b.dataset.deladj)); toast('Deleted'); route(); } catch (err) { toast(err.message, true); } });
+  main.querySelectorAll('[data-deladv]').forEach(b => b.onclick = async () => { if (!confirm('Delete this advance?')) return;
+    try { must(await sb.from('hr_advances').delete().eq('id', b.dataset.deladv)); toast('Deleted'); route(); } catch (err) { toast(err.message, true); } });
 }
 
 /* ============ SETTINGS ============ */

@@ -34,12 +34,12 @@
 (async () => {
   const C = window.PORTAL_CONFIG, q = new URLSearchParams(location.search);
   const msg = document.getElementById('msg'), err = document.getElementById('err'), btn = document.getElementById('b');
-  if (!C.SUPABASE_URL || /YOUR-PROJECT/.test(C.SUPABASE_URL)) { err.textContent = 'Setup needed: assets/config.js mein Supabase URL aur key daalein.'; btn.disabled = true; return; }
+  if (!C.SUPABASE_URL || /YOUR-PROJECT/.test(C.SUPABASE_URL)) { err.textContent = 'Setup needed: add the Supabase URL and key to assets/config.js.'; btn.disabled = true; return; }
   const sb = supabase.createClient(C.SUPABASE_URL, C.SUPABASE_ANON_KEY);
   const show = t => { msg.textContent = t; msg.hidden = false; };
-  if (q.get('logout')) { await sb.auth.signOut(); show('Aap logout ho gaye.'); history.replaceState(null, '', 'login.html'); }
-  if (q.get('msg') === 'blocked') show('Aapka account band kar diya gaya hai. Admin se rabta karein.');
-  if (q.get('msg') === 'notadded') show('Yeh login portal mein add nahi hai. Admin se kahein ke Users & Access mein add kare.');
+  if (q.get('logout')) { await sb.auth.signOut(); show('You have been logged out.'); history.replaceState(null, '', 'login.html'); }
+  if (q.get('msg') === 'blocked') show('Your account has been blocked. Please contact your admin.');
+  if (q.get('msg') === 'notadded') show('This login has not been added to the portal. Ask your admin to add it in Users & Access.');
   let next = q.get('next') || 'index.html';
   if (!/^[\w.-]+\.html(#[\w-]*)?$/.test(next)) next = 'index.html';
 
@@ -53,11 +53,11 @@
       const id = document.getElementById('u').value.trim().toLowerCase();
       const email = id.includes('@') ? id : `${id}@${C.LOGIN_DOMAIN || 'alhyakel.local'}`;
       const {data, error} = await sb.auth.signInWithPassword({email, password: document.getElementById('p').value});
-      if (error) throw new Error(/invalid/i.test(error.message) ? 'Ghalat User ID ya password.'
-                              : /banned/i.test(error.message) ? 'Aapka account band kar diya gaya hai.' : error.message);
+      if (error) throw new Error(/invalid/i.test(error.message) ? 'Incorrect User ID or password.'
+                              : /banned/i.test(error.message) ? 'Your account has been blocked.' : error.message);
       const {data: me, error: e2} = await sb.from('portal_users').select('active').eq('id', data.user.id).maybeSingle();
       if (e2) throw new Error('Database error: ' + e2.message);
-      if (!me || !me.active) { await sb.auth.signOut(); throw new Error(me ? 'Aapka account band hai.' : 'Yeh login portal mein add nahi hai.'); }
+      if (!me || !me.active) { await sb.auth.signOut(); throw new Error(me ? 'Your account is blocked.' : 'This login has not been added to the portal.'); }
       location.replace(next);
     } catch (e) { err.textContent = e.message; btn.disabled = false; btn.textContent = 'Login'; }
   });

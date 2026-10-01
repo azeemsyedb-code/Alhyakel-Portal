@@ -14,14 +14,14 @@
 <body>
 <main>
   <div id="denied" class="flash" hidden></div>
-  <div class="hello"><div><h1 id="hello">Assalam-o-Alaikum</h1><p id="today"></p></div><div id="newbtn"></div></div>
+  <div class="hello"><div><h1 id="hello">Welcome</h1><p id="today"></p></div><div id="newbtn"></div></div>
   <div class="kpis" id="kpis"></div>
   <div class="module-grid" id="grid"></div>
   <div class="home-cols">
     <div class="card list-card" style="padding:0"><h3>Needs attention</h3><div id="attn"><div class="none">Loading…</div></div></div>
     <div class="card list-card" style="padding:0"><h3>Quick actions</h3><div id="quick"></div></div>
   </div>
-  <div class="install" id="install" hidden><button class="btn sec" id="installBtn">Install on this phone / computer</button><span class="muted">Portal ko app ki tarah home screen pe rakhein.</span></div>
+  <div class="install" id="install" hidden><button class="btn sec" id="installBtn">Install on this phone / computer</button><span class="muted">Add the portal to your home screen like an app.</span></div>
 </main>
 <script>
 (async () => {
@@ -29,10 +29,10 @@
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
   const $ = id => document.getElementById(id);
   const sar = n => (Number(n) || 0).toLocaleString('en-US', {maximumFractionDigits: 0});
-  $('hello').textContent = `Assalam-o-Alaikum, ${U.full_name.split(' ')[0]}`;
+  $('hello').textContent = `Welcome, ${U.full_name.split(' ')[0]}`;
   $('today').textContent = new Date().toLocaleDateString('en-GB', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Riyadh'});
   const d = new URLSearchParams(location.search).get('denied');
-  if (d) { const el = $('denied'); el.textContent = `Aapko ${({docs: 'Documents', inv: 'Inventory', hr: 'Employees', admin: 'Users & Access'})[d] || d} ka access nahi hai.`; el.hidden = false; }
+  if (d) { const el = $('denied'); el.textContent = `You don't have access to ${({docs: 'Documents', inv: 'Inventory', hr: 'Employees', admin: 'Users & Access'})[d] || d}.`; el.hidden = false; }
   if (U.docs_role === 'manager' || U.docs_role === 'staff') $('newbtn').innerHTML = `<a class="btn" href="documents.html#quotation/new">+ New Quotation</a>`;
 
   // module cards
@@ -46,7 +46,7 @@
     U.hr_role && card(L.employees, COL.green, 'team', 'Staff', 'Employees', 'Attendance, overtime, tasks, working kit and monthly payslips.', 'Your role', U.hr_role),
     U.is_admin && card(L.access, COL.purple, 'key', 'Logins', 'Users &amp; Access', 'Create logins, reset passwords and decide who opens what.', 'Your role', 'Portal admin'),
     U.hr_role === 'admin' && card(L.kiosk, COL.blue, 'gate', 'Gate tablet', 'Check-in kiosk', 'Employees check in and out with their PIN at the gate.', 'Open on tablet', 'kiosk.html', ' target="_blank" rel="noopener"')
-  ].filter(Boolean).join('') || '<div class="card">Aapko abhi kisi hisse ka access nahi diya gaya. Admin se rabta karein.</div>';
+  ].filter(Boolean).join('') || '<div class="card">You have not been given access to any section yet. Please contact your admin.</div>';
 
   // quick actions
   const qa = [];
@@ -56,7 +56,7 @@
   if (U.hr_role) qa.push(['employees.html#today', COL.green, 'clock', "Today's attendance", 'Employees']);
   if (U.is_admin) qa.push([L.access, COL.purple, 'key', 'Add a user', 'Users & Access']);
   $('quick').innerHTML = qa.map(([h, c, i, t, s]) => `<a class="row" href="${h}"><span class="dot" style="background:${c}">${ic(i)}</span><span><b>${esc(t)}</b><span>${esc(s)}</span></span></a>`).join('')
-    || '<div class="none">Koi quick action nahi.</div>';
+    || '<div class="none">No quick actions available.</div>';
 
   // dashboard numbers + needs attention
   const a = await window.portalAlerts(), s = a.stats, k = [];
@@ -71,7 +71,7 @@
   if (s.employees != null && $('c_team')) $('c_team').textContent = `${s.employees} employees`;
   const rows = a.groups.flatMap(g => g.items.slice(0, 4).map(i => ({...i, g})));
   $('attn').innerHTML = rows.length ? rows.map(r => `<a class="row" href="${r.href}"><span class="dot" style="background:${r.g.color}">${ic(r.g.icon)}</span><span><b>${esc(r.label)}</b><span>${esc(r.g.title)} · ${esc(r.sub)}</span></span></a>`).join('')
-    : '<div class="none">Sab theek hai. Abhi kisi cheez par tawajjo ki zaroorat nahi.</div>';
+    : '<div class="none">All clear. Nothing needs your attention right now.</div>';
 
   // install as an app
   let deferred = null;

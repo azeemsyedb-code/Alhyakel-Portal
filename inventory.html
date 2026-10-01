@@ -506,8 +506,8 @@ function products(){
     </div>
     <div class="row" style="margin-bottom:12px">
       <div><label for="fq">Search</label><input id="fq" placeholder="SKU, name, size, location"></div>
-      <div><label for="fc">Category</label><select id="fc"><option value="">All</option>${Object.keys(CATEGORIES).map(c=>`<option>${c}</option>`).join("")}</select></div>
-      <div style="flex:0 0 auto"><label><input type="checkbox" id="fl" style="width:auto"> Low stock only</label></div>
+      <div><label for="fc">Category</label><select id="fc" data-remember="inv.products.cat"><option value="">All</option>${Object.keys(CATEGORIES).map(c=>`<option>${c}</option>`).join("")}</select></div>
+      <div style="flex:0 0 auto"><label><input type="checkbox" id="fl" data-remember="inv.products.low" style="width:auto"> Low stock only</label></div>
     </div>
     <div id="plist"></div>`;
   const draw = () => {
@@ -621,7 +621,7 @@ function movements(){
     <div class="page-head"><h2>Movements</h2><button class="btn" id="csvM">Export CSV</button></div>
     <div class="row" style="margin-bottom:12px">
       <div><label for="mq2">Search</label><input id="mq2" placeholder="SKU, product, PO or job no."></div>
-      <div><label for="mt">Type</label><select id="mt"><option value="">All</option><option>IN</option><option>OUT</option><option>ADJUST</option></select></div>
+      <div><label for="mt">Type</label><select id="mt" data-remember="inv.moves.type"><option value="">All</option><option>IN</option><option>OUT</option><option>ADJUST</option></select></div>
       <div><label for="md1">From</label><input id="md1" type="date"></div>
       <div><label for="md2">To</label><input id="md2" type="date"></div>
     </div><div id="mlist"></div>`;

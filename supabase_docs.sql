@@ -105,11 +105,11 @@ begin
   else
     -- approved documents: only a docs manager may change them (SQL editor / service key is not limited)
     if auth.uid() is not null and old.status = 'approved' and coalesce(v_role, '') <> 'manager' then
-      raise exception 'Yeh document approve ho chuka hai. Sirf manager isay badal sakta hai.';
+      raise exception 'This document is approved. Only a manager can change it.';
     end if;
     if new.status is distinct from old.status then
       if auth.uid() is not null and coalesce(v_role, '') <> 'manager' then
-        raise exception 'Sirf manager approve ya reopen kar sakta hai.';
+        raise exception 'Only a manager can approve or reopen a document.';
       end if;
       new.approved_by := case when new.status = 'approved' then auth.uid() end;
       new.approved_at := case when new.status = 'approved' then now() end;
@@ -194,7 +194,7 @@ create or replace function public.docs_payment_check()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
   if not exists (select 1 from public.docs_documents where id = new.document_id and doc_type = 'invoice') then
-    raise exception 'Payments sirf invoice par darj ho sakti hain.';
+    raise exception 'Payments can only be recorded on invoices.';
   end if;
   new.created_by := auth.uid();
   new.created_at := now();

@@ -14,24 +14,24 @@
 <body>
 <div class="ahhead">
   <h1>Users &amp; Access</h1>
-  <p>Har user ke liye tay karein ke woh kaunsa hissa khol sakta hai aur andar kya kar sakta hai. "No access" = woh hissa us user ko nazar hi nahi aayega.</p>
+  <p>Decide which sections each user can open and what they can do inside them. "No access" = the section is hidden from that user.</p>
 </div>
 <main>
   <div id="flash" class="flash" hidden role="status"></div>
 
   <details class="card" id="newBox" style="margin:14px 0 20px">
-    <summary style="font-weight:600;color:var(--teal)">+ Naya user banayein</summary>
+    <summary style="font-weight:600;color:var(--teal)">+ Add a new user</summary>
     <form id="newForm" style="margin-top:14px">
       <div class="form-grid">
-        <div class="field"><label for="n_full">Poora naam</label><input id="n_full" required></div>
+        <div class="field"><label for="n_full">Full name</label><input id="n_full" required></div>
         <div class="field"><label for="n_user">User ID (login)</label><input id="n_user" required pattern="[a-z0-9._\-]{3,30}" autocapitalize="none" placeholder="ahmed"></div>
-        <div class="field"><label for="n_pw">Password (kam az kam 8)</label><input id="n_pw" minlength="8" required autocomplete="off"></div>
+        <div class="field"><label for="n_pw">Password (at least 8 characters)</label><input id="n_pw" minlength="8" required autocomplete="off"></div>
         <div class="field"><label for="n_docs">Documents</label><select id="n_docs"></select></div>
         <div class="field"><label for="n_inv">Inventory</label><select id="n_inv"></select></div>
         <div class="field"><label for="n_hr">Employees</label><select id="n_hr"></select></div>
         <div class="field"><label><input type="checkbox" id="n_admin"> Portal admin (Users &amp; Access)</label></div>
       </div>
-      <button class="btn" id="n_btn">User banayein</button>
+      <button class="btn" id="n_btn">Create user</button>
     </form>
   </details>
 
@@ -43,10 +43,10 @@
   </div>
 
   <div class="card" style="margin-top:22px">
-    <h2>Roles ka matlab</h2>
-    <p><b>Documents:</b> manager = sab kuch + approve / reopen + delete. staff = documents banana, draft edit karna, payments darj karna. viewer = sirf dekhna aur download.</p>
-    <p><b>Inventory:</b> admin = sab kuch + delete + stock count (adjust). storekeeper = products, suppliers, stock in / out. viewer = sirf dekhna.</p>
-    <p><b>Employees:</b> admin = sab kuch + salary + kiosk PIN + settings. supervisor = attendance, overtime ghante, tasks (salary nazar nahi aati). viewer = sirf dekhna (salary nahi).</p>
+    <h2>What the roles mean</h2>
+    <p><b>Documents:</b> manager = everything + approve / reopen + delete. staff = create documents, edit drafts, record payments. viewer = view and download only.</p>
+    <p><b>Inventory:</b> admin = everything + delete + stock count (adjust). storekeeper = products, suppliers, stock in / out. viewer = view only.</p>
+    <p><b>Employees:</b> admin = everything + salary + kiosk PIN + settings. supervisor = attendance, overtime hours, tasks (salary is hidden). viewer = view only (no salary).</p>
   </div>
 </main>
 <script>
@@ -64,7 +64,7 @@ async function call(body) {
   if (error) {
     let m = error.message;
     try { const j = await error.context.json(); m = j.error || m; } catch (e) {}
-    if (/Failed to send|fetch/i.test(m)) m = 'Edge Function "admin-users" se rabta nahi ho saka. Supabase > Edge Functions > admin-users > Logs mein asli wajah dekhein (README step 3).';
+    if (/Failed to send|fetch/i.test(m)) m = 'Could not reach the Edge Function "admin-users". Check Supabase > Edge Functions > admin-users > Logs for the actual cause (README step 3).';
     throw new Error(m);
   }
   if (data && data.error) throw new Error(data.error);
@@ -80,9 +80,9 @@ async function load() {
     <td>${sel('docs', u.docs_role)}</td><td>${sel('inv', u.inv_role)}</td><td>${sel('hr', u.hr_role)}</td>
     <td><input type="checkbox" class="adm" ${u.is_admin ? 'checked' : ''} aria-label="Portal admin"></td>
     <td><button class="btn small save">Save</button></td>
-    <td><details><summary>${u.active ? 'Active' : 'Band hai'} ▾</summary><div class="acts">
-      <form class="pw"><input minlength="8" placeholder="Naya password" required autocomplete="off"><button class="btn sec small">Set</button></form>
-      ${u.id === ME.id ? '' : `<button class="btn sec small blk">${u.active ? 'Account band karein' : 'Account chalu karein'}</button>
+    <td><details><summary>${u.active ? 'Active' : 'Blocked'} ▾</summary><div class="acts">
+      <form class="pw"><input minlength="8" placeholder="New password" required autocomplete="off"><button class="btn sec small">Set</button></form>
+      ${u.id === ME.id ? '' : `<button class="btn sec small blk">${u.active ? 'Block account' : 'Unblock account'}</button>
       <button class="btn danger small del">Delete</button>`}
     </div></details></td></tr>`).join('');
 }
@@ -99,9 +99,9 @@ async function load() {
       await call({action: 'create', username: $('#n_user').value.trim().toLowerCase(), full_name: $('#n_full').value.trim(),
                   password: $('#n_pw').value, docs_role: $('#n_docs').value || null, inv_role: $('#n_inv').value || null,
                   hr_role: $('#n_hr').value || null, is_admin: $('#n_admin').checked});
-      flash(`User '${$('#n_user').value.trim().toLowerCase()}' ban gaya. Woh isi User ID aur password se login karega.`, true);
+      flash(`User '${$('#n_user').value.trim().toLowerCase()}' created. They can now log in with this User ID and password.`, true);
       ev.target.reset(); await load();
-    } catch (e) { flash('Nahi bana: ' + e.message); }
+    } catch (e) { flash('Could not create user: ' + e.message); }
     b.disabled = false;
   });
 
@@ -113,20 +113,20 @@ async function load() {
         const role = m => tr.querySelector(`select[data-m="${m}"]`).value || null;
         await call({action: 'update', id, full_name: u.full_name, docs_role: role('docs'), inv_role: role('inv'),
                     hr_role: role('hr'), is_admin: tr.querySelector('.adm').checked});
-        flash('Access save ho gaya.', true); await load();
+        flash('Access saved.', true); await load();
       } else if (ev.target.classList.contains('blk')) {
         await call({action: 'block', id, block: u.active});
-        flash(u.active ? 'Account band kar diya.' : 'Account dobara chalu kar diya.', true); await load();
+        flash(u.active ? 'Account blocked.' : 'Account unblocked.', true); await load();
       } else if (ev.target.classList.contains('del')) {
-        if (!confirm(`${u.username} ko hamesha ke liye delete karein?`)) return;
-        await call({action: 'delete', id}); flash('User delete ho gaya.', true); await load();
+        if (!confirm(`Permanently delete ${u.username}?`)) return;
+        await call({action: 'delete', id}); flash('User deleted.', true); await load();
       }
-    } catch (e) { flash('Nahi hua: ' + e.message); await load(); }   // show the real saved state again
+    } catch (e) { flash('Action failed: ' + e.message); await load(); }   // show the real saved state again
   });
   $('#rows').addEventListener('submit', async ev => {
     ev.preventDefault(); const tr = ev.target.closest('tr[data-id]'), inp = ev.target.querySelector('input');
-    try { await call({action: 'password', id: tr.dataset.id, password: inp.value}); inp.value = ''; flash('Naya password set ho gaya.', true); }
-    catch (e) { flash('Password nahi badla: ' + e.message); }
+    try { await call({action: 'password', id: tr.dataset.id, password: inp.value}); inp.value = ''; flash('New password set.', true); }
+    catch (e) { flash('Password not changed: ' + e.message); }
   });
 })();
 </script>

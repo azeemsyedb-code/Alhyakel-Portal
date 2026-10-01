@@ -1,14 +1,14 @@
 # Al Hyakel Portal — Supabase + GitHub Pages
 
-Ek link, ek login. Har user ko sirf wahi hisse nazar aate hain jin ka use access diya gaya hai.
-Server ki zaroorat nahi: website **GitHub Pages** par chalti hai, aur saara data aur login **Supabase** mein hai (bilkul inventory portal jaisa).
+One link, one login. Each user sees only the sections they have been given access to.
+No server needed: the website runs on **GitHub Pages**, and all data and logins live in **Supabase** (just like the inventory portal).
 
-| Hissa | Kya hai | Roles |
+| Section | What it is | Roles |
 |---|---|---|
-| **Inventory** | Stock in / out, barcode scan, products, suppliers, kam stock ke alerts | admin · storekeeper · viewer |
+| **Inventory** | Stock in / out, barcode scan, products, suppliers, low-stock alerts | admin · storekeeper · viewer |
 | **Employees** | Attendance, overtime, tasks, salary | admin · supervisor · viewer |
-| **Gate kiosk** | Employees PIN se check-in / check-out karte hain (bina login) | — |
-| **Users & Access** | Users banana, password badalna, access dena / hatana | portal admin |
+| **Gate kiosk** | Employees check in / check out with a PIN (no login) | — |
+| **Users & Access** | Create users, change passwords, grant / remove access | portal admin |
 | **Documents** | Leak Test (TS-001), Tank Certificate (HMI-2026-001, English + Arabic), Quotation (QT-AL000001), Invoice (INV-AL00001, ZATCA QR), Delivery Note (AH-2026-001), Purchase Order (PO-00001), Job Card (JC-2026-001), Material Request (MR-2026-001): draft / approve, history, PDF | manager · staff · viewer |
 
 ---
@@ -16,181 +16,188 @@ Server ki zaroorat nahi: website **GitHub Pages** par chalti hai, aur saara data
 ## Files
 
 ```
-index.html            portal home (login ke baad)
+index.html            portal home (after login)
 login.html            login page
-access.html           Users & Access (sirf portal admin)
-documents.html        Documents (8 types; PDF browser mein banti hai)
+access.html           Users & Access (portal admin only)
+documents.html        Documents (8 types; PDFs are generated in the browser)
 inventory.html        Inventory
 employees.html        Employees (attendance, overtime, tasks, working kit, payroll)
-kiosk.html            gate tablet ke liye
-assets/config.js      <- yahan Supabase URL aur key daalni hai
-assets/portal.js      login check + portal ki upar wali patti
+kiosk.html            for the gate tablet
+assets/config.js      <- put the Supabase URL and key here
+assets/portal.js      login check + the portal's top bar
 assets/portal.css, logo_mark.png, favicon.png
-assets/header.jpg, footer.jpg, stamp.png   PDF ke liye letterhead aur company stamp
-supabase_setup.sql    database (ek dafa chalana hai)
-supabase_docs.sql     Documents ka database, price list, photos aur certificates ki storage
+assets/header.jpg, footer.jpg, stamp.png   letterhead and company stamp for PDFs
+supabase_setup.sql    database (run once)
+supabase_docs.sql     Documents database, price list, storage for photos and certificates
 supabase_hr.sql       Employees: working kit, paid tasks, deductions, advances, payslips
-manifest.webmanifest, sw.js   phone par app ki tarah install karne ke liye
-assets/shell.css      upar ki patti aur design (har page par khud lagta hai)
+manifest.webmanifest, sw.js   for installing on a phone like an app
+assets/shell.css      top bar and design (applied to every page automatically)
 assets/icon-192.png, icon-512.png   app icon
-supabase/functions/admin-users/index.ts   users banane wala Edge Function
+supabase/functions/admin-users/index.ts   Edge Function that creates users
 ```
 
 ---
 
 ## Step 1 — Supabase: database
 
-1. Apna naya project kholein → left menu **SQL Editor** → **New query**.
-2. `supabase_setup.sql` ka poora content paste karein → **Run**.
-   - "destructive operation" ki warning aaye to **Run this query** dabayein. Yeh sirf `drop policy if exists` ki wajah se hai, kuch delete nahi hota.
-   - Neeche **Success** aana chahiye. Is file se 26 employees bhi add ho jate hain.
+1. Open your new project → left menu **SQL Editor** → **New query**.
+2. Paste the full content of `supabase_setup.sql` → **Run**.
+   - If a "destructive operation" warning appears, click **Run this query**. It is only because of `drop policy if exists`; nothing is deleted.
+   - You should see **Success** at the bottom. This file also adds the 26 employees.
 
 ### Step 1b — Documents (phase 2)
 
-Isi tarah **SQL Editor → New query** mein `supabase_docs.sql` ka poora content paste karke **Run** karein. Is se documents ki table, numbering, draft / approve ke rules aur photos ke liye private storage (`docs` bucket) ban jati hai. File dobara chalana safe hai; nayi numbering aaye to dobara chalayein.
+In the same way, open **SQL Editor → New query**, paste the full content of `supabase_docs.sql` and click **Run**. This creates the documents table, numbering, draft / approve rules and private storage for photos (the `docs` bucket). The file is safe to run again; run it again whenever new numbering is added.
 
-### Step 1c — Employees: kit aur payroll
+### Step 1c — Employees: kit and payroll
 
-Phir `supabase_hr.sql` bhi isi tarah **Run** karein. Is se working kit (rounds aur standard kit), paid tasks, deductions / violations, advances aur payslips ki tables ban jati hain. Yeh bhi dobara chalana safe hai.
+Then **Run** `supabase_hr.sql` the same way. This creates the tables for working kit (rounds and standard kit), paid tasks, deductions / violations, advances and payslips. It is also safe to run again.
 
 ## Step 2 — Supabase: login settings
 
 **Authentication → Sign In / Providers**:
-- **Email** provider **on** rahe.
-- **"Allow new users to sign up"** ko **off** kar dein. Users sirf portal ke Users & Access page se banenge, koi khud account nahi bana sakega.
+- Keep the **Email** provider **on**.
+- Turn **"Allow new users to sign up"** **off**. Users are created only from the portal's Users & Access page; nobody can create their own account.
 
-## Step 3 — Supabase: Edge Function (users banane ke liye)
+## Step 3 — Supabase: Edge Function (for creating users)
 
-Naya user banane ke liye Supabase ki secret key chahiye, jo website mein kabhi nahi daali ja sakti. Is liye yeh kaam ek chhota function Supabase ke andar karta hai.
+Creating a new user needs Supabase's secret key, which must never be put in the website. So a small function inside Supabase does this job.
 
 1. Left menu **Edge Functions** → **Deploy a new function** → **Via Editor**.
-2. Function ka naam bilkul yeh rakhein: **`admin-users`**
-3. Editor mein pehle se likha code mita dein. `supabase/functions/admin-users/index.ts` ka poora content paste karein.
-4. **Deploy function** dabayein.
+2. Name the function exactly: **`admin-users`**
+3. Delete the code already in the editor. Paste the full content of `supabase/functions/admin-users/index.ts`.
+4. Click **Deploy function**.
 
-"Verify JWT" wali setting **off** kar dein (naye Supabase projects mein yeh request ko function tak pohanchne nahi deti). Function khud har request par check karta hai ke bulane wala login hai aur portal admin hai. Secret key Supabase function ko khud de deta hai, aapko kahin paste nahi karni.
+Turn the "Verify JWT" setting **off** (in new Supabase projects it stops requests from reaching the function). The function itself checks on every request that the caller is logged in and is a portal admin. Supabase gives the secret key to the function automatically; you don't need to paste it anywhere.
 
-Agar Users & Access par error aaye: **Edge Functions → admin-users → Logs** dekhein. `ReferenceError ... index.ts:1:1` ka matlab hai editor mein code ki jagah kuch aur paste ho gaya, Code tab mein poora code dobara paste karke Deploy karein.
+If you get an error on Users & Access: check **Edge Functions → admin-users → Logs**. `ReferenceError ... index.ts:1:1` means something other than the code was pasted into the editor; paste the full code again in the Code tab and Deploy.
 
-## Step 4 — Pehla admin (sirf ek dafa)
+## Step 4 — First admin (one time only)
 
 1. **Authentication → Users → Add user → Create new user**
    - Email: `azeem@alhyakel.local` (User ID `azeem` + `@alhyakel.local`)
-   - Password: apna password (kam az kam 8)
-   - **Auto Confirm User** ✔ tick karein → **Create user**
-2. **SQL Editor** mein yeh chalayein:
+   - Password: your password (at least 8 characters)
+   - Tick **Auto Confirm User** ✔ → **Create user**
+2. Run this in the **SQL Editor**:
    ```sql
    insert into public.portal_users (id, username, full_name, is_admin, docs_role, inv_role, hr_role)
    select id, 'azeem', 'Azeem Bukhari', true, 'manager', 'admin', 'admin'
    from auth.users where email = 'azeem@alhyakel.local';
    ```
-   Result mein `INSERT 0 1` aana chahiye. Agar `INSERT 0 0` aaye to email match nahi hua, dobara check karein.
+   The result should be `INSERT 0 1`. If you get `INSERT 0 0`, the email did not match; check it again.
 
-Baaqi saare users portal ke **Users & Access** page se banenge, dashboard se nahi.
+All other users are created from the portal's **Users & Access** page, not from the Supabase dashboard.
 
 ## Step 5 — `assets/config.js`
 
-Supabase → **Project Settings → API Keys** se yeh do cheezein copy karein:
-- **Project URL** (ya **Project Settings → Data API** par milta hai)
-- **anon public** key ya **publishable** key (`sb_publishable_…`), dono mein se koi ek
+Copy these two things from Supabase → **Project Settings → API Keys**:
+- **Project URL** (also found under **Project Settings → Data API**)
+- The **anon public** key or the **publishable** key (`sb_publishable_…`), either one
 
-`assets/config.js` mein paste karein:
+Paste them into `assets/config.js`:
 ```js
 window.PORTAL_CONFIG = {
   SUPABASE_URL: 'https://abcdefghijklmnop.supabase.co',
-  SUPABASE_ANON_KEY: 'eyJhbGciOi…   ya   sb_publishable_…',
+  SUPABASE_ANON_KEY: 'eyJhbGciOi…   or   sb_publishable_…',
   LOGIN_DOMAIN: 'alhyakel.local'
 };
 ```
 
-⚠️ **service_role / secret key (`sb_secret_…`) kabhi yahan na daalein.** Yeh file public hoti hai. anon ya publishable key public hone ke liye hi bani hai, data database ke rules se mehfooz hai.
+⚠️ **Never put the service_role / secret key (`sb_secret_…`) here.** This file is public. The anon or publishable key is designed to be public; the data is protected by the database rules.
 
 ## Step 6 — GitHub Pages
 
-1. GitHub par **naya repository** banayein, maslan `alhyakel-portal`, **Public**.
-2. **Add file → Upload files**: is folder ki **saari files aur folders** (`assets`, `supabase` bhi) upload karein → **Commit changes**.
-   - `index.html` repo ke andar seedha top level par ho, kisi aur folder ke andar nahi.
+1. Create a **new repository** on GitHub, e.g. `alhyakel-portal`, **Public**.
+2. **Add file → Upload files**: upload **all files and folders** in this folder (including `assets` and `supabase`) → **Commit changes**.
+   - `index.html` must be at the top level of the repo, not inside another folder.
 3. Repo → **Settings → Pages** → Source: **Deploy from a branch** → Branch: **main**, folder **/(root)** → **Save**.
-4. 1-2 minute baad link banega: `https://azeemsyedb-code.github.io/alhyakel-portal/`
+4. After 1-2 minutes the link will be ready: `https://azeemsyedb-code.github.io/alhyakel-portal/`
 
-## Step 7 — Pehli dafa istemal
+## Step 7 — First use
 
-1. Link kholein → User ID `azeem` aur apna password → **Login**.
-2. **Users & Access** → **+ Naya user banayein** → naam, User ID, password aur har hisse ka role chunein.
-3. **Employees → Employees** → har employee par click karke **salary** aur **kiosk PIN** dalein.
-4. Gate ke tablet par `…/alhyakel-portal/kiosk.html` kholein → Chrome menu → **Add to Home screen**.
+1. Open the link → User ID `azeem` and your password → **Login**.
+2. **Users & Access** → **+ Add a new user** → choose the name, User ID, password and a role for each section.
+3. **Employees → Employees** → click each employee and enter their **salary** and **kiosk PIN**.
+4. On the gate tablet, open `…/alhyakel-portal/kiosk.html` → Chrome menu → **Add to Home screen**.
 
 ---
 
-## Naye features (design update)
+## New features (design update)
 
-- **Upar ki patti:** logo, search (documents, products, employees ek jagah se), notifications ki ghanti (approval ka intezar, overdue invoices, kam stock, 30 din mein expire hone wale tank certificates, overdue tasks) aur user menu (Logout).
-- **Home dashboard:** live numbers, "Needs attention" list aur quick actions.
-- **Invoice payments:** invoice khol kar **Payments** mein payment darj karein. List mein Paid / Partially paid / Unpaid / Overdue nazar aata hai. **Receivables** button: har customer ka baqi paisa, kitne din se (Excel/CSV download).
-- **Share:** har document par **Share** button. Phone par PDF seedha WhatsApp / email mein jati hai; computer par PDF download ho kar WhatsApp Web ya email khulta hai.
-- **Phone app:** portal kholein → Chrome menu → **Install app / Add to Home screen** (iPhone: Safari → Share → Add to Home Screen). `manifest.webmanifest`, `sw.js` aur `assets/icon-*.png` is ke liye hain.
+- **Top bar:** logo, search (documents, products and employees from one place), notification bell (waiting for approval, overdue invoices, low stock, tank certificates expiring within 30 days, overdue tasks) and user menu (Logout).
+- **Home dashboard:** live numbers, a "Needs attention" list and quick actions.
+- **Invoice payments:** open an invoice and record payments under **Payments**. The list shows Paid / Partially paid / Unpaid / Overdue. **Receivables** button: each customer's outstanding balance and how many days it has been due (Excel/CSV download).
+- **Share:** every document has a **Share** button. On a phone the PDF goes straight to WhatsApp / email; on a computer the PDF downloads and WhatsApp Web or email opens.
+- **Phone app:** open the portal → Chrome menu → **Install app / Add to Home screen** (iPhone: Safari → Share → Add to Home Screen). `manifest.webmanifest`, `sw.js` and `assets/icon-*.png` are for this.
 
-## Price list, QR certificates, kit aur payroll
+## Price list, QR certificates, kit and payroll
 
-- **Price List (Documents → Price List):** har product category aur sub-category ke saath ek dafa likh dein (rate, unit, tafseel). Quotation / Invoice banate waqt upar **Category → Sub-category → Product** chunein, qty daalein aur **+ Add**; line rate aur 15% VAT ke saath khud bhar jati hai. Edit sirf manager / staff, delete sirf manager.
-- **Leak Test aur Tank certificate ka QR:** ab QR khud banta hai. Certificate **Save** karte hi uski PDF Supabase ke `certs` folder mein chali jati hai aur QR usi PDF ka link hota hai, koi third-party QR nahi. Scan karne par PDF seedha khulti hai (bina login). Certificate badal kar dobara Save karein to wahi QR nayi PDF dikhata hai. **Purane certificates** ko ek dafa khol kar **Save** dabayein, tab un ka QR banega.
-- **Working kit (Employees → Working kit):** inventory se alag hai (store se saman aap bulk mein nikalte hain).
-  - **Standard kit** (sirf HR admin): kit mein kya kya hai (coverall, shoes, gloves…) aur nayi kit har kitne mahine (3 ya 4) baad.
-  - **Issue kit round:** ek click mein chune hue employees ko poori kit, maslan `KIT-2026-10`. Jin ki kit due hai woh pehle se tick hote hain. Pichli kit ke items khud "Replaced" ho jate hain. Shoes / coverall ka size pichle record se khud aa jata hai.
-  - **Kit schedule:** har employee ki pichli kit aur agli kit ki tareekh; due hone par ghanti (notifications) mein bhi aata hai.
-  - **Kit forms (PDF):** upar se round chunein → har employee ka ek page, sign karwa kar file kar lein.
-  - **Single items:** beech mein kuch dena ho (naya joiner, phati hui shoes) to; is se agli kit ki tareekh nahi badalti.
-  - **Return:** Good / Damaged / Lost. Damaged ya Lost par charge, HR admin "Salary se kaatein" rakhe to payslip mein katauti.
-- **Paid tasks:** task banate waqt HR admin **Paid task** tick karke raqam likhe. Task jis mahine "Done" ho, us mahine ki salary mein judta hai.
-- **Payroll (sirf HR admin):** mahina chunein. Har employee ki payslip: basic + overtime + paid tasks + bonus, minus absent (basic ÷ 30 har din, half day aadha), violations / deductions aur advance ki qist. **+ Deduction / violation / bonus** aur **+ Advance** se record karein (advance ki qist agle mahine se katni shuru hoti hai). **Save** se payslip mehfooz hoti hai aur advance ki wapsi hisaab mein aati hai; baad mein kuch badle to row par "Changed since" aata hai, **Re-save** karein. **Payslip** / **All payslips (PDF)** print karke employee se sign karwayein.
+- **Price List (Documents → Price List):** enter each product once with its category and sub-category (rate, unit, description). When creating a Quotation / Invoice, choose **Category → Sub-category → Product** at the top, enter the qty and click **+ Add**; the line fills in automatically with the rate and 15% VAT. Only manager / staff can edit; only manager can delete.
+- **QR on Leak Test and Tank certificates:** the QR is now generated automatically. As soon as a certificate is **saved**, its PDF goes to the `certs` folder in Supabase and the QR is a link to that PDF; no third-party QR service. Scanning it opens the PDF directly (no login). If you change a certificate and **Save** again, the same QR shows the new PDF. For **old certificates**, open each one once and click **Save** to create its QR.
+- **Working kit (Employees → Working kit):** separate from inventory (you take items out of the store in bulk).
+  - **Standard kit** (HR admin only): what the kit contains (coverall, shoes, gloves…) and how often a new kit is issued (every 3 or 4 months).
+  - **Issue kit round:** give the full kit to selected employees in one click, e.g. `KIT-2026-10`. Employees whose kit is due are ticked already. Items from the previous kit are marked "Replaced" automatically. Shoe / coverall sizes are filled in from the previous record.
+  - **Kit schedule:** each employee's last kit and next kit date; when due, it also shows in the bell (notifications).
+  - **Kit forms (PDF):** choose a round at the top → one page per employee; get it signed and file it.
+  - **Single items:** for giving something in between (a new joiner, torn shoes); this does not change the next kit date.
+  - **Return:** Good / Damaged / Lost. Damaged or Lost items carry a charge; if the HR admin keeps "Deduct from salary" on, it is deducted in the payslip.
+- **Paid tasks:** when creating a task, the HR admin ticks **Paid task** and enters the amount. It is added to the salary for the month in which the task is marked "Done".
+- **Payroll (HR admin only):** choose a month. Each employee's payslip: basic + overtime + paid tasks + bonus, minus absences (basic ÷ 30 per day, half day = half), violations / deductions and the advance installment. Record these with **+ Deduction / violation / bonus** and **+ Advance** (advance installments start being deducted from the next month). **Save** stores the payslip and counts the advance repayment; if something changes later, the row shows "Changed since" — click **Re-save**. Print **Payslip** / **All payslips (PDF)** and have the employee sign.
 
-## Invoice aur ZATCA
+## Invoice and ZATCA
 
-Invoice par ZATCA (phase 1) wala QR code khud lagta hai: company ka naam, VAT number, date, total aur VAT. Agar company ZATCA phase 2 (Fatoora e-invoicing integration) mein shamil hai, to legal tax invoice ZATCA se juray hue accounting system se hi jari honi chahiye; yeh portal wala invoice us surat mein andaruni / proforma copy samjhein.
+Invoices automatically get the ZATCA (phase 1) QR code: company name, VAT number, date, total and VAT. If the company falls under ZATCA phase 2 (Fatoora e-invoicing integration), the legal tax invoice must be issued from an accounting system connected to ZATCA; in that case treat the portal invoice as an internal / proforma copy.
 
-## Roles ka matlab
+## What the roles mean
 
-| | admin / manager | beech wala | viewer |
+| | admin / manager | middle role | viewer |
 |---|---|---|---|
-| **Inventory** | admin: sab kuch + delete + stock count (adjust) | storekeeper: products, suppliers, stock in / out | sirf dekhna |
-| **Employees** | admin: sab kuch + salary + PIN + settings + payroll | supervisor: attendance, overtime ghante, tasks, working kit (salary nahi) | sirf dekhna (salary nahi) |
-| **Documents** | manager: sab kuch + approve / reopen + delete | staff: naya banana aur draft edit karna (approved nahi) | sirf dekhna aur PDF download |
+| **Inventory** | admin: everything + delete + stock count (adjust) | storekeeper: products, suppliers, stock in / out | view only |
+| **Employees** | admin: everything + salary + PIN + settings + payroll | supervisor: attendance, overtime hours, tasks, working kit (no salary) | view only (no salary) |
+| **Documents** | manager: everything + approve / reopen + delete | staff: create new and edit drafts (not approved ones) | view and download PDF only |
 
-**Portal admin** (Users & Access) alag tick hai. Aap khud apna admin access nahi hata sakte, na apna account band ya delete kar sakte hain.
-
----
-
-## Purani cheezein
-
-- **Purane GitHub Pages sites** (`alhyakel-inventory`, `emoplyees-tracker`): un repos mein **Settings → Pages → Unpublish site**.
-- **Purane Supabase projects**: sab test data tha, **pause** ya **delete** kar sakte hain.
-- **Render wala AHMI portal**: saare 8 documents ab yahin bante hain. Purane documents ki PDFs (Render se) download karke rakh lein, phir Render service band kar sakte hain.
+**Portal admin** (Users & Access) is a separate tick. You cannot remove your own admin access, and you cannot block or delete your own account.
 
 ---
 
-## Agar masla aaye
+## Old systems
 
-| Kya dikhe | Wajah / hal |
+- **Old GitHub Pages sites** (`alhyakel-inventory`, `emoplyees-tracker`): in those repos go to **Settings → Pages → Unpublish site**.
+- **Old Supabase projects**: they only had test data; you can **pause** or **delete** them.
+- **AHMI portal on Render**: all 8 documents are now created here. Download the PDFs of old documents (from Render) and keep them, then you can shut down the Render service.
+
+---
+
+## Troubleshooting
+
+| What you see | Cause / fix |
 |---|---|
-| "Setup needed: assets/config.js …" | `config.js` mein URL / key nahi daali, ya ghalat file upload hui |
-| Login par "Ghalat User ID ya password" | Password ya User ID ghalat hai. Pehle admin ke liye Step 4 ka email check karein |
-| Login par "Yeh login portal mein add nahi hai" | Step 4 ka SQL (`insert into portal_users`) nahi chala |
-| Users & Access par "Edge Function admin-users nahi mila" | Step 3 dobara karein. Naam bilkul `admin-users` ho |
-| Kisi page par "Database error: … does not exist" | `supabase_setup.sql` poori nahi chali. Step 1 dobara chalayein |
-| GitHub link par 404 | Pages on nahi hua ya `index.html` kisi folder ke andar hai (Step 6) |
-| Documents par "Database error" | `supabase_docs.sql` nahi chali (Step 1b) |
-| Certificate save hua lekin "Image upload nahi hui" | Step 1b dobara chalayein (storage bucket), phir Save dobara dabayein |
-| Payroll / Working kit par "Database error" | `supabase_hr.sql` nahi chali (Step 1c) |
-| Certificate save hua lekin "QR wali PDF upload nahi hui" | `supabase_docs.sql` dobara chalayein (`certs` bucket), phir Save dobara |
-| Kiosk par koi naam nahi | Kisi employee ka PIN set nahi (Employees → Employees) |
+| "Setup needed: …assets/config.js" | The URL / key was not added to `config.js`, or the wrong file was uploaded |
+| "Incorrect User ID or password" on login | The password or User ID is wrong. For the first admin, check the email from Step 4 |
+| "This login has not been added to the portal" on login | The Step 4 SQL (`insert into portal_users`) was not run |
+| "Could not reach the Edge Function …admin-users…" on Users & Access | Repeat Step 3. The name must be exactly `admin-users` |
+| "Database error: … does not exist" on any page | `supabase_setup.sql` did not run completely. Run Step 1 again |
+| 404 on the GitHub link | Pages is not turned on, or `index.html` is inside a folder (Step 6) |
+| "Database error" on Documents | `supabase_docs.sql` was not run (Step 1b) |
+| Certificate saved but the image did not upload | Run Step 1b again (storage bucket), then click Save again |
+| "Database error" on Payroll / Working kit | `supabase_hr.sql` was not run (Step 1c) |
+| Certificate saved but the QR PDF did not upload | Run `supabase_docs.sql` again (`certs` bucket), then Save again |
+| No names on the kiosk | No employee has a PIN set (Employees → Employees) |
 
-Free Supabase project agar **7 din** tak bilkul istemal na ho to pause ho jata hai. Roz ke istemal mein yeh nahi hoga. Agar ho jaye to Supabase dashboard mein **Restore** dabayein.
+A free Supabase project is paused if it is not used at all for **7 days**. With daily use this will not happen. If it does, click **Restore** in the Supabase dashboard.
 
 ---
 
 ## Technical
 
-- **Login:** Supabase Auth. User ID `ahmed` andar `ahmed@alhyakel.local` hota hai. Har page `assets/portal.js` se login aur access check karta hai.
-- **Access:** `portal_users` table. Database ke RLS rules har role ko rokte hain. Menu chhupana sirf dikhawa hai, asli rok database mein hai.
-- **Salary:** `hr_pay` alag table, jo sirf HR admin padh sakta hai. Kiosk PIN bcrypt hash mein hai. 5 ghalat PIN par employee 10 minute ke liye lock ho jata hai.
-- **Users banana, password, band / delete:** Edge Function `admin-users`. Yeh har request par check karta hai ke bulane wala portal admin hai.
+- **Login:** Supabase Auth. User ID `ahmed` is stored internally as `ahmed@alhyakel.local`. Every page checks login and access through `assets/portal.js`.
+- **Access:** the `portal_users` table. The database's RLS rules enforce each role. Hiding menu items is only cosmetic; the real restriction is in the database.
+- **Salary:** `hr_pay` is a separate table that only the HR admin can read. The kiosk PIN is stored as a bcrypt hash. After 5 wrong PINs, the employee is locked for 10 minutes.
+- **Creating users, passwords, blocking / deleting:** Edge Function `admin-users`. It checks on every request that the caller is a portal admin.
+
+## Working faster
+
+- **Phone:** on a phone the module tabs sit at the bottom of the screen like an app, tables turn into cards, and forms open as full-width sheets.
+- **Save & New:** every document form has a **Save & New** button that saves and opens a fresh form of the same type.
+- **Keyboard:** press <kbd>/</kbd> to jump to search, and <kbd>Ctrl</kbd>+<kbd>S</kbd> (<kbd>Cmd</kbd>+<kbd>S</kbd> on Mac) to save the open form or dialog.
+- **Filters are remembered:** list filters (employee, status, category, kit round…) keep your last choice on that device.
