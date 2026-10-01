@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Al Hyakel Portal</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/portal.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/config.js"></script>
+<script src="assets/portal.js"></script>
+</head>
+<body>
+<main>
+  <div id="denied" class="flash" hidden></div>
+  <h1 id="hello">Assalam-o-Alaikum</h1>
+  <p class="muted">Jis hisse ka aapko access hai, woh neeche khula hai.</p>
+  <div class="module-grid" id="grid"></div>
+</main>
+<script>
+(async () => {
+  const U = await window.PORTAL_READY, L = PORTAL_CONFIG.links;
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+  document.getElementById('hello').textContent = `Assalam-o-Alaikum, ${U.full_name}`;
+  const d = new URLSearchParams(location.search).get('denied');
+  if (d) { const el = document.getElementById('denied'); el.textContent = `Aapko ${({docs: 'Documents', inv: 'Inventory', hr: 'Employees', admin: 'Users & Access'})[d] || d} ka access nahi hai.`; el.hidden = false; }
+  const card = (cls, href, title, text, role, extra = '') =>
+    `<a class="module-card ${cls} ${role ? '' : 'locked'}" href="${href}"${extra}><h3>${title}</h3><p>${text}</p><span class="pill">${esc(role || 'no access')}</span></a>`;
+  const kioskUrl = new URL(L.kiosk, location.href).href;
+  document.getElementById('grid').innerHTML = [
+    card('', L.documents, 'Documents', 'Leak Test Certificate banayein, save karein aur PDF download karein. Delivery Note, Quotation aur PO jaldi.', U.docs_role),
+    card('orange', L.inventory, 'Inventory', 'Stock in / out, barcode scan, products, suppliers aur kam stock ke alerts.', U.inv_role),
+    card('dark', L.employees, 'Employees', 'Roz ki attendance, overtime aur employees ko diye gaye tasks.', U.hr_role),
+    U.is_admin ? card('', L.access, 'Users &amp; Access', 'Naye users banayein, password badlein, aur tay karein kaun kaunsa hissa khol sakta hai.', 'admin') : '',
+    U.hr_role === 'admin' ? `<a class="module-card dark" href="${L.kiosk}" target="_blank" rel="noopener"><h3>Gate kiosk</h3>
+      <p>Gate wale tablet par yeh link kholein. Employees apne PIN se check-in / check-out karte hain.</p><span class="mono">${esc(kioskUrl)}</span></a>` : ''
+  ].join('');
+})();
+</script>
+</body>
+</html>
