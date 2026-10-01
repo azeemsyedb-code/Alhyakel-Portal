@@ -29,6 +29,9 @@ assets/portal.css, logo_mark.png, favicon.png
 assets/header.jpg, footer.jpg, stamp.png   PDF ke liye letterhead aur company stamp
 supabase_setup.sql    database (ek dafa chalana hai)
 supabase_docs.sql     Documents ka database + photos ki storage (phase 2, ek dafa chalana hai)
+manifest.webmanifest, sw.js   phone par app ki tarah install karne ke liye
+assets/shell.css      upar ki patti aur design (har page par khud lagta hai)
+assets/icon-192.png, icon-512.png   app icon
 supabase/functions/admin-users/index.ts   users banane wala Edge Function
 ```
 
@@ -113,6 +116,14 @@ window.PORTAL_CONFIG = {
 4. Gate ke tablet par `…/alhyakel-portal/kiosk.html` kholein → Chrome menu → **Add to Home screen**.
 
 ---
+
+## Naye features (design update)
+
+- **Upar ki patti:** logo, search (documents, products, employees ek jagah se), notifications ki ghanti (approval ka intezar, overdue invoices, kam stock, 30 din mein expire hone wale tank certificates, overdue tasks) aur user menu (Logout).
+- **Home dashboard:** live numbers, "Needs attention" list aur quick actions.
+- **Invoice payments:** invoice khol kar **Payments** mein payment darj karein. List mein Paid / Partially paid / Unpaid / Overdue nazar aata hai. **Receivables** button: har customer ka baqi paisa, kitne din se (Excel/CSV download).
+- **Share:** har document par **Share** button. Phone par PDF seedha WhatsApp / email mein jati hai; computer par PDF download ho kar WhatsApp Web ya email khulta hai.
+- **Phone app:** portal kholein → Chrome menu → **Install app / Add to Home screen** (iPhone: Safari → Share → Add to Home Screen). `manifest.webmanifest`, `sw.js` aur `assets/icon-*.png` is ke liye hain.
 
 ## Invoice aur ZATCA
 

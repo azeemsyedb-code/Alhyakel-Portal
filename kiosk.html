@@ -10,7 +10,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🕒</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Noto+Naskh+Arabic:wght@500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Naskh+Arabic:wght@500&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#1F2A33;--tile:#2B3844;--tile2:#34444F;--line:#3E4E5A;--text:#E8EDF1;--muted:#9AA8B3;
   --yellow:#F2B705;--green:#3FA36A;--red:#E0574D;--ink:#1A242C}
@@ -72,6 +72,23 @@ body{background:var(--bg);color:var(--text);font:17px/1.4 Barlow,"Segoe UI",syst
 .task small{color:#4A5B68}
 .ok{display:block;width:100%;margin-top:8px;padding:14px;font:600 20px Barlow,sans-serif;border:0;border-radius:10px;background:var(--ink);color:#fff;cursor:pointer}
 @media (prefers-reduced-motion:reduce){.shake{animation:none}}
+/* ===== portal design ===== */
+:root{--bg:#F5F7F9;--tile:#fff;--tile2:#F2F7F8;--line:#E6EBEE;--text:#1F2D35;--muted:#73818A;--yellow:#E07A2E;--green:#2E9E6A;--red:#D9475B;--ink:#1F2D35}
+body{font-family:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.top{background:#fff}
+.clock,.hello b,.pad h2,.done-card .t{font-family:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;letter-spacing:0}
+.clock small{color:var(--yellow)}
+.stripe{height:4px;background:linear-gradient(90deg,#1D6E80,#1D6E80 70%,#E07A2E 70%)}
+.bar input{background:#fff;color:var(--text);border-radius:12px;box-shadow:0 2px 10px rgba(30,60,80,.06)}
+.tile{box-shadow:0 2px 10px rgba(30,60,80,.06);border-radius:12px}
+.tile:hover,.tile:focus-visible{background:var(--tile2)}
+.ov{background:rgba(20,35,45,.55)}
+.pad{background:#fff;border-top:6px solid #1D6E80}
+.keys button{font:600 28px 'IBM Plex Sans',system-ui,sans-serif;border-color:var(--line);background:#F5F7F9}
+.keys .go{background:#1D6E80;border-color:#1D6E80;color:#fff;font-size:20px}
+.done-card{background:#fff}
+.done-card .hd.in{background:#2E9E6A}.done-card .hd.out{background:#1D6E80}
+.ok{font:600 20px 'IBM Plex Sans',system-ui,sans-serif;background:#1D6E80}
 </style>
 </head>
 <body>

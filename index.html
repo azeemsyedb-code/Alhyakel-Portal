@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Al Hyakel Portal</title>
 <link rel="icon" href="assets/favicon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="assets/portal.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/config.js"></script>
@@ -13,28 +14,69 @@
 <body>
 <main>
   <div id="denied" class="flash" hidden></div>
-  <h1 id="hello">Assalam-o-Alaikum</h1>
-  <p class="muted">Jis hisse ka aapko access hai, woh neeche khula hai.</p>
+  <div class="hello"><div><h1 id="hello">Assalam-o-Alaikum</h1><p id="today"></p></div><div id="newbtn"></div></div>
+  <div class="kpis" id="kpis"></div>
   <div class="module-grid" id="grid"></div>
+  <div class="home-cols">
+    <div class="card list-card" style="padding:0"><h3>Needs attention</h3><div id="attn"><div class="none">Loading…</div></div></div>
+    <div class="card list-card" style="padding:0"><h3>Quick actions</h3><div id="quick"></div></div>
+  </div>
+  <div class="install" id="install" hidden><button class="btn sec" id="installBtn">Install on this phone / computer</button><span class="muted">Portal ko app ki tarah home screen pe rakhein.</span></div>
 </main>
 <script>
 (async () => {
-  const U = await window.PORTAL_READY, L = PORTAL_CONFIG.links;
+  const U = await window.PORTAL_READY, L = PORTAL_CONFIG.links, sb = window.portalSb, ic = window.portalIcon, COL = window.portalColors;
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
-  document.getElementById('hello').textContent = `Assalam-o-Alaikum, ${U.full_name}`;
+  const $ = id => document.getElementById(id);
+  const sar = n => (Number(n) || 0).toLocaleString('en-US', {maximumFractionDigits: 0});
+  $('hello').textContent = `Assalam-o-Alaikum, ${U.full_name.split(' ')[0]}`;
+  $('today').textContent = new Date().toLocaleDateString('en-GB', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Riyadh'});
   const d = new URLSearchParams(location.search).get('denied');
-  if (d) { const el = document.getElementById('denied'); el.textContent = `Aapko ${({docs: 'Documents', inv: 'Inventory', hr: 'Employees', admin: 'Users & Access'})[d] || d} ka access nahi hai.`; el.hidden = false; }
-  const card = (cls, href, title, text, role, extra = '') =>
-    `<a class="module-card ${cls} ${role ? '' : 'locked'}" href="${href}"${extra}><h3>${title}</h3><p>${text}</p><span class="pill">${esc(role || 'no access')}</span></a>`;
+  if (d) { const el = $('denied'); el.textContent = `Aapko ${({docs: 'Documents', inv: 'Inventory', hr: 'Employees', admin: 'Users & Access'})[d] || d} ka access nahi hai.`; el.hidden = false; }
+  if (U.docs_role === 'manager' || U.docs_role === 'staff') $('newbtn').innerHTML = `<a class="btn" href="documents.html#quotation/new">+ New Quotation</a>`;
+
+  // module cards
+  const card = (href, color, icn, small, title, text, roleLabel, role, extra = '') =>
+    `<a class="module-card" href="${href}"${extra}><span class="dot" style="background:${color}">${ic(icn)}</span><small id="${'c_' + icn}">${esc(small)}</small><h3>${title}</h3><p>${text}</p>
+      <div class="meta"><span>${roleLabel}</span><b>${esc(/\.html$/.test(role) ? role : role.charAt(0).toUpperCase() + role.slice(1))}</b></div></a>`;
   const kioskUrl = new URL(L.kiosk, location.href).href;
-  document.getElementById('grid').innerHTML = [
-    card('', L.documents, 'Documents', 'Certificates, Quotation, Invoice, Delivery Note, PO, Job Card aur Material Request. Save, approve aur PDF download.', U.docs_role),
-    card('orange', L.inventory, 'Inventory', 'Stock in / out, barcode scan, products, suppliers aur kam stock ke alerts.', U.inv_role),
-    card('dark', L.employees, 'Employees', 'Roz ki attendance, overtime aur employees ko diye gaye tasks.', U.hr_role),
-    U.is_admin ? card('', L.access, 'Users &amp; Access', 'Naye users banayein, password badlein, aur tay karein kaun kaunsa hissa khol sakta hai.', 'admin') : '',
-    U.hr_role === 'admin' ? `<a class="module-card dark" href="${L.kiosk}" target="_blank" rel="noopener"><h3>Gate kiosk</h3>
-      <p>Gate wale tablet par yeh link kholein. Employees apne PIN se check-in / check-out karte hain.</p><span class="mono">${esc(kioskUrl)}</span></a>` : ''
-  ].join('');
+  $('grid').innerHTML = [
+    U.docs_role && card(L.documents, COL.brand, 'doc', '8 document types', 'Documents', 'Certificates, quotations, invoices, PO, delivery notes, job cards and material requests.', 'Your role', U.docs_role),
+    U.inv_role && card(L.inventory, COL.orange, 'box', 'Stock', 'Inventory', 'Stock in / out with barcode scan, products, suppliers and low-stock alerts.', 'Your role', U.inv_role),
+    U.hr_role && card(L.employees, COL.green, 'team', 'Staff', 'Employees', 'Daily attendance, overtime and tasks for every employee.', 'Your role', U.hr_role),
+    U.is_admin && card(L.access, COL.purple, 'key', 'Logins', 'Users &amp; Access', 'Create logins, reset passwords and decide who opens what.', 'Your role', 'Portal admin'),
+    U.hr_role === 'admin' && card(L.kiosk, COL.blue, 'gate', 'Gate tablet', 'Check-in kiosk', 'Employees check in and out with their PIN at the gate.', 'Open on tablet', 'kiosk.html', ' target="_blank" rel="noopener"')
+  ].filter(Boolean).join('') || '<div class="card">Aapko abhi kisi hisse ka access nahi diya gaya. Admin se rabta karein.</div>';
+
+  // quick actions
+  const qa = [];
+  if (U.docs_role === 'manager' || U.docs_role === 'staff') qa.push(['documents.html#quotation/new', COL.brand, 'doc', 'New Quotation', 'Documents'],
+    ['documents.html#leak/new', COL.brand, 'check', 'New Leak Test Certificate', 'Documents'], ['documents.html#invoice', COL.brand, 'cash', 'Invoices & payments', 'Documents']);
+  if (U.inv_role === 'admin' || U.inv_role === 'storekeeper') qa.push(['inventory.html#scan', COL.orange, 'box', 'Stock in / out (scan)', 'Inventory']);
+  if (U.hr_role) qa.push(['employees.html#today', COL.green, 'clock', "Today's attendance", 'Employees']);
+  if (U.is_admin) qa.push([L.access, COL.purple, 'key', 'Add a user', 'Users & Access']);
+  $('quick').innerHTML = qa.map(([h, c, i, t, s]) => `<a class="row" href="${h}"><span class="dot" style="background:${c}">${ic(i)}</span><span><b>${esc(t)}</b><span>${esc(s)}</span></span></a>`).join('')
+    || '<div class="none">Koi quick action nahi.</div>';
+
+  // dashboard numbers + needs attention
+  const a = await window.portalAlerts(), s = a.stats, k = [];
+  if (U.docs_role === 'manager') k.push(['documents.html#quotation', COL.orange, 'check', s.approvals ?? 0, 'Waiting for approval']);
+  if (U.inv_role) k.push(['inventory.html#products', COL.red, 'alert', s.low ?? 0, 'Low stock items']);
+  if (U.hr_role) k.push(['employees.html#today', COL.green, 'clock', `${s.checkedIn ?? 0} / ${s.employees ?? 0}`, 'Checked in today']);
+  if (U.docs_role) k.push(['documents.html#invoice', COL.blue, 'cash', sar(s.invoicedMonth), 'Invoiced this month (SAR)']);
+  if (U.docs_role && s.overdue) k.push(['documents.html#invoice', COL.red, 'cash', s.overdue, `Overdue invoices (SAR ${sar(s.overdueAmount)})`]);
+  $('kpis').innerHTML = k.map(([h, c, i, n, t]) => `<a class="kpi" href="${h}"><span class="dot" style="background:${c}">${ic(i)}</span><span><b>${esc(n)}</b><span>${esc(t)}</span></span></a>`).join('');
+  if (!k.length) $('kpis').hidden = true;
+  if (s.products != null && $('c_box')) $('c_box').textContent = `${s.products} products`;
+  if (s.employees != null && $('c_team')) $('c_team').textContent = `${s.employees} employees`;
+  const rows = a.groups.flatMap(g => g.items.slice(0, 4).map(i => ({...i, g})));
+  $('attn').innerHTML = rows.length ? rows.map(r => `<a class="row" href="${r.href}"><span class="dot" style="background:${r.g.color}">${ic(r.g.icon)}</span><span><b>${esc(r.label)}</b><span>${esc(r.g.title)} · ${esc(r.sub)}</span></span></a>`).join('')
+    : '<div class="none">Sab theek hai. Abhi kisi cheez par tawajjo ki zaroorat nahi.</div>';
+
+  // install as an app
+  let deferred = null;
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; $('install').hidden = false; });
+  $('installBtn').addEventListener('click', async () => { if (!deferred) return; deferred.prompt(); await deferred.userChoice; deferred = null; $('install').hidden = true; });
 })();
 </script>
 </body>

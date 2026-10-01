@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Alhyakel Inventory</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.webmanifest">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -20,9 +20,6 @@
   --cond:'Barlow Condensed','Arial Narrow',var(--font);
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
-}
-@media (prefers-color-scheme:dark){
-  :root{--bg:#141a20;--panel:#1d252d;--ink:#e6eaee;--steel:#8fa7bb;--muted:#9aa6b2;--line:#2f3a45;--accent:#f2b705;--accent-ink:#141a20;--ok:#58b07e;--danger:#e0685c;--in:#58b07e;--out:#e08b52;--adj:#8c9ee0}
 }
 *,*::before,*::after{box-sizing:inherit}
 html,body{margin:0;height:100%}
@@ -39,7 +36,6 @@ h1,h2,h3{font-family:var(--cond);letter-spacing:.01em;margin:0}
 
 /* Layout */
 header{background:var(--steel);color:#fff;display:flex;align-items:center;gap:16px;padding:10px 18px;flex-wrap:wrap;position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
-@media (prefers-color-scheme:dark){header{background:#26323d}}
 header .brand{font-family:var(--cond);font-size:22px;font-weight:700;margin-right:auto;display:flex;align-items:center;gap:10px}
 header .brand i{width:14px;height:22px;background:var(--accent);display:inline-block}
 nav{display:flex;gap:2px;flex-wrap:wrap}
@@ -119,6 +115,48 @@ tr.low td{background:color-mix(in srgb,var(--panel) 88%,var(--danger))}
   .label svg{width:100%;height:auto}
 }
 #logout{display:none!important}   /* Logout is in the portal bar */
+
+/* ===== portal design (overrides the original inventory look) ===== */
+:root{--bg:#F5F7F9;--panel:#fff;--ink:#1F2D35;--steel:#1D6E80;--muted:#73818A;--line:#E6EBEE;--accent:#1D6E80;--accent-ink:#fff;
+  --ok:#2E9E6A;--danger:#D9475B;--in:#2E9E6A;--out:#E07A2E;--adj:#3B82C4;
+  --font:'IBM Plex Sans','IBM Plex Sans Arabic','Segoe UI',system-ui,sans-serif;--cond:var(--font)}
+body{font-size:14.5px;font-variant-numeric:tabular-nums}
+h1,h2,h3{font-family:var(--font);font-weight:600;letter-spacing:0}
+#app > header{position:static;background:none;color:var(--ink);display:block;max-width:1240px;margin:0 auto;padding:24px 28px 4px}
+#app > header .brand{font-family:var(--font);font-size:22px;font-weight:600;display:block;margin:0}
+#app > header .brand i{display:none}
+#app > header .brand small{display:block;font-size:14px;font-weight:400;color:var(--muted)}
+#app > header nav{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 4px}
+#app > header nav button{padding:7px 15px;border-radius:99px;background:#fff;color:var(--muted);font:500 13.5px var(--font);border:0;box-shadow:0 1px 4px rgba(30,60,80,.08)}
+#app > header nav button:hover{color:var(--ink)}
+#app > header nav button.active{background:var(--steel);color:#fff}
+#app > header .who{display:none}
+main{max-width:1240px;padding:16px 28px 60px}
+.page-head h2{font-size:19px}
+.btn{border-radius:8px;border-color:var(--line);font-weight:500}
+.btn.primary{background:var(--steel);border-color:var(--steel);color:#fff;font-weight:600;box-shadow:0 4px 12px rgba(29,110,128,.22)}
+.btn.danger{border-color:#F1C7CD}
+input,select,textarea{border-radius:8px}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:none;box-shadow:0 0 0 3px #E6F2F4;border-color:var(--steel)}
+.panel{border:0;border-radius:12px;box-shadow:0 2px 10px rgba(30,60,80,.06);padding:18px 20px}
+.panel h3{font-size:15px}
+.tablewrap{border:0;border-radius:12px;box-shadow:0 2px 10px rgba(30,60,80,.06)}
+.panel .tablewrap{box-shadow:none;border:1px solid var(--line)}
+th{background:#FAFBFC;font-weight:500;font-size:12.5px}
+th,td{padding:11px 14px;border-bottom-color:#EEF2F4}
+tr.low td{background:#FFF5F6}
+.tag{border-radius:99px;padding:2px 10px;font-weight:600}
+.stats{border:0;background:none;gap:16px}
+.stat{background:#fff;border:0;border-radius:12px;box-shadow:0 2px 10px rgba(30,60,80,.06)}
+.stat b{font-family:var(--font);font-size:26px;font-weight:600}
+.found{border-left:0;box-shadow:0 2px 10px rgba(30,60,80,.06)}
+.found .qty{font-family:var(--font);font-weight:600}
+.scanbar input{border:1.5px solid var(--steel);border-radius:10px}
+.typepick{gap:8px}.typepick button{border-radius:99px}
+.modal{background:rgba(20,35,45,.45)}
+.modal .box{border-top:0;border-radius:14px;box-shadow:0 24px 60px rgba(20,30,40,.3)}
+#toast{background:var(--ink);color:#fff;border-radius:10px;font-weight:500}
+@media (max-width:600px){#app > header{padding:18px 14px 2px} main{padding:14px 14px 48px}}
 </style>
 </head>
 <body>
@@ -138,7 +176,7 @@ tr.low td{background:color-mix(in srgb,var(--panel) 88%,var(--danger))}
 <!-- ============ APP ============ -->
 <div id="app" class="hidden">
   <header>
-    <div class="brand"><i></i>Alhyakel Inventory</div>
+    <div class="brand"><i></i>Inventory<small>Stock in / out, barcode scan, products and suppliers</small></div>
     <nav id="nav">
       <button data-v="dashboard">Dashboard</button>
       <button data-v="scan">Scan</button>
@@ -306,7 +344,10 @@ async function boot(){
   document.querySelectorAll(".admin-only").forEach(el => el.classList.toggle("hidden", !isAdmin()));
   $("#login").classList.add("hidden"); $("#app").classList.remove("hidden");
   await loadAll();
+  const [hv, ...hq] = decodeURIComponent(location.hash.slice(1)).split(':');
+  if (["dashboard","scan","products","movements","suppliers"].includes(hv)) S.view = hv;
   go(S.view);
+  if (hv === "scan" && hq.length) scan(hq.join(':'));
 }
 
 async function loadAll(){
@@ -332,6 +373,7 @@ $("#nav").addEventListener("click", e => { const v = e.target.dataset.v; if (v) 
 function go(v){
   stopCamera();
   S.view = v;
+  history.replaceState(null, "", "#" + v);
   document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("active", b.dataset.v === v));
   ({dashboard, scan, products, movements, suppliers, users})[v]();
 }

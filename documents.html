@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Documents | Al Hyakel Portal</title>
 <link rel="icon" href="assets/favicon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="assets/portal.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,82 +18,85 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 <script src="assets/config.js"></script>
 <script src="assets/portal.js" data-module="docs"></script>
 <style>
-main{max-width:1100px}
-.doc-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:6px}
-.doc-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 20px;border-bottom:2px solid var(--border)}
-.doc-tabs a,.doc-tabs span{padding:8px 14px;text-decoration:none;font-weight:600;font-size:14px;border-bottom:3px solid transparent;margin-bottom:-2px;color:var(--muted)}
-.doc-tabs a.on{color:var(--teal-dark);border-bottom-color:var(--orange)}
-.doc-tabs span{opacity:.55;cursor:default}
-.doc-tabs span small{font-weight:500}
+.ahhead .row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .tools{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px}
 .tools .field{margin:0}
 .tools input[type=search]{width:min(340px,100%)}
 td .btn{margin-right:4px}
-td.no{font:600 14px/1.2 Consolas,Menlo,monospace;color:var(--teal-dark);white-space:nowrap}
-.res{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:99px}
-.res.PASS{background:#e3f2e9;color:var(--green)}
-.res.FAIL{background:#fbe6e4;color:var(--red)}
-.res.draft{background:#eef1f2;color:var(--muted)}
-.status-line{margin:2px 0 12px;font-size:14px}
+td.no{font-weight:600;color:var(--text);white-space:nowrap}
+.res{display:inline-block;font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:99px;white-space:nowrap}
+.res.PASS{background:#E5F5EC;color:#23794F}
+.res.FAIL{background:#FCE8EB;color:#B4283D}
+.res.draft{background:#FFF1E6;color:#B5591A}
+.res.paid{background:#E5F5EC;color:#23794F}.res.partial{background:#E6EEF8;color:#2B66A6}.res.unpaid{background:#EEF1F3;color:#5E6E76}.res.overdue{background:#FCE8EB;color:#B4283D}
+.status-line{margin:2px 0 14px;font-size:14px}
 .empty{padding:34px 18px;text-align:center;color:var(--muted)}
 tbody tr.click{cursor:pointer}
-tbody tr.click:hover td{background:#f6f9f9}
+tbody tr.click:hover td{background:#F7FAFB}
+.who{display:flex;align-items:center;gap:10px}
+.mini{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:600;font-size:11.5px}
 
 /* form */
-.sheet{background:#fff;border:1px solid var(--border);border-radius:8px;padding:6px 22px 18px;margin-bottom:16px}
-.sheet h3{color:var(--teal-dark);font-size:1.05rem;margin:16px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.sheet{background:#fff;border-radius:12px;padding:6px 22px 20px;margin-bottom:16px;box-shadow:0 2px 10px rgba(30,60,80,.06)}
+.sheet h3{color:var(--text);font-size:15px;font-weight:600;margin:18px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:2px 18px}
 .field input,.field select,.field textarea{width:100%}
-textarea{font:inherit;padding:8px 10px;border:1px solid var(--border);border-radius:5px;resize:vertical;min-height:70px}
-textarea:focus{outline:2px solid var(--teal);outline-offset:1px}
-.fixed{padding:8px 10px;background:#f2f5f5;border:1px dashed var(--border);border-radius:5px;font-weight:600;color:var(--teal-dark)}
+textarea{resize:vertical;min-height:70px}
+.fixed{padding:9px 11px;background:#F2F8F9;border:1px dashed #CFE2E6;border-radius:8px;font-weight:600;color:var(--teal-dark)}
 .choice{display:flex;gap:18px;flex-wrap:wrap;padding:6px 0}
-.choice label{display:flex;align-items:center;gap:7px;font-weight:600;cursor:pointer}
-.choice input{width:18px;height:18px;margin:0}
-.choice.result label{padding:6px 14px;border:2px solid var(--border);border-radius:6px}
-.choice.result label:has(input:checked)[data-v=PASS]{border-color:var(--green);color:var(--green);background:#eef7f1}
-.choice.result label:has(input:checked)[data-v=FAIL]{border-color:var(--red);color:var(--red);background:#fdf0ee}
-.hint{font-size:13px;color:var(--muted);margin:2px 0 0}
+.choice label{display:flex;align-items:center;gap:7px;font-weight:500;cursor:pointer}
+.choice input{width:18px;height:18px;margin:0;accent-color:var(--teal)}
+.choice.result label{padding:7px 16px;border:1.5px solid var(--border);border-radius:99px}
+.choice.result label:has(input:checked)[data-v=PASS]{border-color:var(--green);color:#23794F;background:#E5F5EC}
+.choice.result label:has(input:checked)[data-v=FAIL]{border-color:var(--red);color:#B4283D;background:#FCE8EB}
+.hint{font-size:12.5px;color:var(--muted);margin:2px 0 0}
 .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
-.slot{border:2px dashed var(--border);border-radius:8px;aspect-ratio:4/3;position:relative;display:grid;place-items:center;background:#fafcfc;overflow:hidden}
+.slot{border:1.5px dashed #CFDADF;border-radius:12px;aspect-ratio:4/3;position:relative;display:grid;place-items:center;background:#FAFCFC;overflow:hidden}
 .slot img{width:100%;height:100%;object-fit:contain;background:#fff}
 .slot .lbl{color:var(--muted);font-size:14px;text-align:center;padding:10px}
 .slot input{position:absolute;inset:0;opacity:0;cursor:pointer}
-.slot .x{position:absolute;top:6px;right:6px;background:#fff;border:1px solid var(--border);border-radius:4px;padding:2px 8px;font-size:13px;cursor:pointer;z-index:2}
+.slot .x{position:absolute;top:8px;right:8px;background:#fff;border:1px solid var(--border);border-radius:99px;padding:3px 10px;font:500 12px var(--font);cursor:pointer;z-index:2}
 .slot.qr{aspect-ratio:1;max-width:220px}
-.slot.filled{border-style:solid}
+.slot.filled{border-style:solid;border-color:var(--border)}
 .slot.ro input{display:none}
-.bar{position:sticky;bottom:0;background:rgba(242,245,245,.96);border-top:1px solid var(--border);padding:12px 0;display:flex;gap:10px;flex-wrap:wrap;align-items:center;z-index:5}
+.bar{position:sticky;bottom:0;background:rgba(245,247,249,.94);backdrop-filter:blur(6px);border-top:1px solid var(--border);padding:12px 0;display:flex;gap:10px;flex-wrap:wrap;align-items:center;z-index:5}
 .bar .grow{flex:1}
-.meta{font-size:13px;color:var(--muted)}
+.meta{font-size:13px;color:var(--muted);margin:2px 0 0}
 .err{margin:0}
-#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--teal-dark);color:#fff;padding:10px 18px;border-radius:6px;font-weight:600;z-index:60;box-shadow:0 6px 20px rgba(0,0,0,.2)}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--text);color:#fff;padding:11px 18px;border-radius:10px;font-weight:500;z-index:60;box-shadow:0 10px 30px rgba(0,0,0,.2)}
 #toast.bad{background:var(--red)}
 .busy{opacity:.6;pointer-events:none}
 /* line items */
 .items{width:100%;border-collapse:collapse;min-width:640px}
-.items th{background:#e3efef;color:var(--teal-dark);font-size:13px;padding:7px 8px}
-.items td{padding:4px;border-bottom:1px solid var(--border);vertical-align:top}
-.items td input,.items td textarea{width:100%;padding:6px 7px;min-height:0}
+.items th{background:#FAFBFC;color:var(--muted);font-size:12.5px;font-weight:500;padding:9px 8px}
+.items td{padding:5px 4px;border-bottom:1px solid #EEF2F4;vertical-align:top}
+.items td input,.items td textarea{width:100%;padding:7px 8px;min-height:0}
 .items td textarea{resize:vertical;min-height:36px}
-.items td.n{width:34px;text-align:center;color:var(--muted);padding-top:12px}
-.items td.amt{text-align:right;font-variant-numeric:tabular-nums;padding:12px 8px 0;white-space:nowrap}
+.items td.n{width:34px;text-align:center;color:var(--muted);padding-top:13px}
+.items td.amt{text-align:right;padding:13px 8px 0;white-space:nowrap}
 .items input[type=number]{text-align:right}
-.items .rm{background:none;border:0;color:var(--red);cursor:pointer;font-size:18px;line-height:1;padding:8px 6px}
-.totals{margin:12px 0 0 auto;width:min(320px,100%);font-variant-numeric:tabular-nums}
-.totals div{display:flex;justify-content:space-between;padding:5px 2px;border-bottom:1px solid var(--border)}
-.totals div.grand{font-weight:700;color:var(--teal-dark);font-size:1.1rem;border-bottom:2px solid var(--teal)}
-td.money{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-@media (max-width:600px){main{padding:18px 14px 40px}.sheet{padding:4px 14px 14px}}
+.items .rm{background:none;border:0;color:var(--red);cursor:pointer;font-size:18px;line-height:1;padding:9px 6px}
+.totals{margin:14px 0 0 auto;width:min(320px,100%)}
+.totals div{display:flex;justify-content:space-between;padding:6px 2px;border-bottom:1px solid var(--border)}
+.totals div.grand{font-weight:600;color:var(--text);font-size:1.1rem;border-bottom:2px solid var(--teal)}
+td.money{text-align:right;white-space:nowrap}
+/* payments */
+.paybox{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px}
+.paybox div{background:#FAFBFC;border-radius:10px;padding:12px 14px}
+.paybox b{display:block;font-size:18px;font-weight:600}.paybox span{color:var(--muted);font-size:12.5px}
+.payform{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:12px}
+.payform .field{margin:0;flex:1 1 140px}
+.share{position:relative}
+.sharemenu{position:absolute;bottom:calc(100% + 6px);left:0;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 30px rgba(30,60,80,.16);padding:6px;min-width:200px;z-index:20}
+.sharemenu button{display:block;width:100%;text-align:left;background:none;border:0;padding:9px 10px;border-radius:7px;font:inherit;cursor:pointer}
+.sharemenu button:hover{background:var(--bg)}
+@media (max-width:600px){.sheet{padding:4px 14px 14px}}
 </style>
 </head>
 <body>
-<main>
-  <div class="doc-head">
-    <div><h1>Documents</h1><p class="muted" style="margin:4px 0 0">Certificates aur company documents banayein, save karein aur PDF download karein.</p></div>
-    <span class="pill" id="myRole"></span>
-  </div>
-  <nav class="doc-tabs" id="tabs" aria-label="Document types">
+<div class="ahhead">
+  <div class="row"><div><h1>Documents</h1><p>Certificates aur company documents: save, approve, PDF download aur share.</p></div><span class="pill" id="myRole"></span></div>
+  <nav class="ahpills" id="tabs" aria-label="Document types">
     <a href="#leak" data-t="leak">Leak Test</a>
     <a href="#tank" data-t="tank">Tank Certificate</a>
     <a href="#quotation" data-t="quotation">Quotation</a>
@@ -102,6 +106,8 @@ td.money{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
     <a href="#jobcard" data-t="jobcard">Job Card</a>
     <a href="#mr" data-t="mr">Material Request</a>
   </nav>
+</div>
+<main>
   <div id="view"></div>
 </main>
 <div id="toast" hidden></div>
@@ -349,6 +355,61 @@ async function pdfFor(rec, photos, qr) {
   return leakPdf(rec, {...await assets(), photos, qr});
 }
 
+/* ============================== small helpers ============================== */
+const AV_COLORS = ['#1D6E80', '#E07A2E', '#2E9E6A', '#3B82C4', '#8A5CC2', '#D9475B', '#C27A1A'];
+function who(name) {
+  const n = String(name || '').trim(); if (!n) return '';
+  let h = 0; for (const ch of n) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const ini = n.split(/\s+/).filter(w => /\w/.test(w)).slice(0, 2).map(w => w[0]).join('').toUpperCase() || n[0];
+  return `<span class="who"><span class="mini" style="background:${AV_COLORS[h % AV_COLORS.length]}">${esc(ini)}</span>${esc(n)}</span>`;
+}
+
+/* Share a PDF: phones open the share sheet (WhatsApp, email, …) with the PDF attached;
+   computers download the PDF and open WhatsApp Web / the email app with a ready message. */
+function wireShare(btn, getPdf, getName, getText) {
+  btn.addEventListener('click', async e => {
+    e.stopPropagation();
+    const old = btn.textContent; btn.disabled = true; btn.textContent = 'Ruko…';
+    try {
+      const pdf = await getPdf(), name = getName(), text = getText();
+      const file = new File([pdf.output('blob')], name, {type: 'application/pdf'});
+      if (navigator.canShare && navigator.canShare({files: [file]})) {
+        try { await navigator.share({files: [file], title: name, text}); } catch (err) { if (err.name !== 'AbortError') throw err; }
+        return;
+      }
+      document.querySelectorAll('.sharemenu').forEach(m => m.remove());
+      const m = document.createElement('div'); m.className = 'sharemenu';
+      m.innerHTML = '<button type="button" data-s="wa">WhatsApp</button><button type="button" data-s="mail">Email</button><button type="button" data-s="dl">Sirf PDF download</button>';
+      btn.parentElement.appendChild(m);
+      m.addEventListener('click', ev => {
+        const k = ev.target.dataset.s; if (!k) return;
+        pdf.save(name);
+        if (k === 'wa') window.open('https://wa.me/?text=' + encodeURIComponent(text + '\n(PDF attached)'), '_blank', 'noopener');
+        if (k === 'mail') location.href = `mailto:?subject=${encodeURIComponent(name.replace(/\.pdf$/, '') + ' - Al Hyakel Metal Industries')}&body=${encodeURIComponent(text + '\n\nPlease find the PDF attached.\n\nRegards,\nAl Hyakel Metal Industries')}`;
+        if (k !== 'dl') toast('PDF download ho gayi. Ab usay message ke saath attach kar dein.');
+        m.remove();
+      });
+      setTimeout(() => document.addEventListener('click', () => m.remove(), {once: true}), 0);
+    } catch (err) { toast('Share nahi ho saka: ' + nice(err), true); }
+    finally { btn.disabled = false; btn.textContent = old; }
+  });
+}
+
+/* Invoice payments */
+const PAY_LABEL = {paid: 'Paid', partial: 'Partially paid', unpaid: 'Unpaid', overdue: 'Overdue'};
+function payState(total, paid, due) {
+  const bal = r2((Number(total) || 0) - (Number(paid) || 0));
+  if (bal <= 0.005) return 'paid';
+  if (due && due < today()) return 'overdue';
+  return paid > 0.005 ? 'partial' : 'unpaid';
+}
+async function paymentsFor(ids) {
+  if (!ids.length) return {};
+  const {data, error} = await sb.from('docs_payments').select('document_id, amount').in('document_id', ids);
+  if (error) return null;           // table not there yet (SQL not run)
+  const m = {}; data.forEach(p => m[p.document_id] = r2((m[p.document_id] || 0) + Number(p.amount))); return m;
+}
+
 /* ============================== draft / approve ============================== */
 const statusPill = r => r?.status === 'approved' ? '<span class="res PASS">Approved</span>' : '<span class="res draft">Draft</span>';
 const locked = rec => rec?.status === 'approved' && ROLE !== 'manager';     // approved documents: only a manager can change them
@@ -361,7 +422,7 @@ function approvalButtons(rec) {
 async function approvalLine(rec) {
   if (!rec) return '';
   return rec.status === 'approved'
-    ? `${statusPill(rec)} &nbsp;Approved by ${esc(await nameOf(rec.approved_by))} · ${new Date(rec.approved_at).toLocaleString('en-GB', {dateStyle: 'medium', timeStyle: 'short'})}${ROLE === 'manager' ? '' : ' &nbsp;(sirf manager badal sakta hai)'}`
+    ? `${statusPill(rec)} &nbsp;Approved${rec.approved_by ? ' by ' + esc(await nameOf(rec.approved_by)) : ''}${rec.approved_at ? ' · ' + new Date(rec.approved_at).toLocaleString('en-GB', {dateStyle: 'medium', timeStyle: 'short'}) : ''}${ROLE === 'manager' ? '' : ' &nbsp;(sirf manager badal sakta hai)'}`
     : `${statusPill(rec)}${ROLE === 'manager' ? ' &nbsp;Check karke <b>Approve</b> dabayein.' : ' &nbsp;Manager ke approve karne ka intezar.'}`;
 }
 function wireApproval(rec, type) {
@@ -398,7 +459,7 @@ async function showList() {
     $('#rows').innerHTML = rows.length ? rows.map(r => `<tr class="click" data-id="${r.id}">
         <td class="no">${esc(r.doc_no)}</td><td style="white-space:nowrap">${esc(fmtDate(r.doc_date))}</td>
         <td>${r.data?.project_no ? `<b>${esc(r.data.project_no)}</b> ` : ''}${esc(r.data?.project_name)}</td>
-        <td>${esc(r.party_name)}</td><td>${esc(r.data?.equipment_tag)}</td>
+        <td>${who(r.party_name)}</td><td>${esc(r.data?.equipment_tag)}</td>
         <td><span class="res ${r.data?.result === 'FAIL' ? 'FAIL' : 'PASS'}">${r.data?.result === 'FAIL' ? 'FAIL' : 'PASS'}</span></td><td>${statusPill(r)}</td>
         <td style="white-space:nowrap"><button class="btn small sec" data-pdf="${r.id}">PDF</button></td></tr>`).join('')
       : `<tr><td colspan="8" class="empty">${LIST.length ? 'Is search se koi certificate nahi mila.' : 'Abhi tak koi certificate nahi bana.' + (CAN_EDIT ? ' <a href="#leak/new">Pehla certificate banayein</a>.' : '')}</td></tr>`;
@@ -508,6 +569,7 @@ async function showForm(id, copyFrom) {
         ${ro ? '' : `<button class="btn" id="save" type="submit">Save</button>`}
         <button class="btn sec" type="button" id="dl">Download PDF</button>
         <button class="btn sec" type="button" id="pv">Preview</button>
+        <span class="share"><button class="btn sec" type="button" id="sh">Share</button></span>
         ${rec && CAN_EDIT ? `<a class="btn sec" href="#leak/copy/${rec.id}">Copy as new</a>` : ''}
         ${approvalButtons(rec)}
         <span class="grow"></span>
@@ -575,6 +637,8 @@ async function showForm(id, copyFrom) {
     try { await fn(); } catch (e) { $('#err').textContent = nice(e); } btn.disabled = false; btn.textContent = t; };
 
   $('#dl').onclick = e => run(e.target, async () => (await makePdf()).save((rec?.doc_no || 'Leak-Test-DRAFT') + '.pdf'));
+  wireShare($('#sh'), makePdf, () => (rec?.doc_no || 'Leak-Test-DRAFT') + '.pdf',
+    () => `Leak Test Certificate ${rec?.doc_no || ''} - ${$('#party_name').value.trim()}${$('#project_name').value.trim() ? ' (' + $('#project_name').value.trim() + ')' : ''}`);
   $('#pv').onclick = e => run(e.target, async () => {
     const w = window.open('', '_blank');
     const url = (await makePdf()).output('bloburl');
@@ -679,7 +743,7 @@ const IDOCS = {
             {k: 'delivered', label: 'Qty Delivered', num: true}, {k: 'received', label: 'Qty Received', num: true}],
     extra: [{title: 'Driver / Truck', fields: [['driver_name', 'Driver Name'], ['driver_iqama', 'Driver Iqama No.'], ['truck_no', 'Truck No.']]}],
     notes: [['remarks', 'Customer Remarks']],
-    listCols: [['Customer', r => esc(r.party_name)], ['PO No.', r => esc(r.data?.po_no)], ['Items', r => (r.data?.items || []).length], ['Truck', r => esc(r.data?.truck_no)]],
+    listCols: [['Customer', r => who(r.party_name)], ['PO No.', r => esc(r.data?.po_no)], ['Items', r => (r.data?.items || []).length], ['Truck', r => esc(r.data?.truck_no)]],
     search: r => [r.data?.po_no, r.data?.invoice_no, r.data?.truck_no, r.data?.driver_name]
   },
   quotation: {
@@ -692,7 +756,7 @@ const IDOCS = {
             {k: 'rate', label: 'Rate (SAR)', num: true}, {k: 'tax_pct', label: 'Tax %', num: true, def: '15'}],
     extra: [{title: 'Terms & Conditions', fields: [['completion_time', 'Completion Time'], ['payment_terms', 'Payment Terms'], ['validity', 'Validity']]}],
     notes: [['notes', 'Notes']],
-    listCols: [['Customer', r => esc(r.party_name)], ['Total (SAR)', r => money(r.data?.grand_total), 'money']],
+    listCols: [['Customer', r => who(r.party_name)], ['Total (SAR)', r => money(r.data?.grand_total), 'money']],
     search: r => [r.data?.customer_trn]
   },
   po: {
@@ -705,7 +769,7 @@ const IDOCS = {
             {k: 'rate', label: 'Rate (SAR)', num: true}, {k: 'tax_pct', label: 'Tax %', num: true, def: '15'}],
     extra: [{title: 'Terms', optional: true, fields: [['delivery_date', 'Delivery Date'], ['delivery_terms', 'Delivery Terms'], ['payment_terms', 'Payment Terms']]}],
     notes: [['notes', 'Notes']],
-    listCols: [['Vendor', r => esc(r.party_name)], ['Ref #', r => esc(r.data?.ref_number)], ['Total (SAR)', r => money(r.data?.grand_total), 'money']],
+    listCols: [['Vendor', r => who(r.party_name)], ['Ref #', r => esc(r.data?.ref_number)], ['Total (SAR)', r => money(r.data?.grand_total), 'money']],
     search: r => [r.data?.ref_number, r.data?.vendor_trn]
   }
 };
@@ -716,9 +780,11 @@ IDOCS.invoice = {
   head: [['quote_ref', 'Quote Reference'], ['customer_po', 'Customer PO No.']],
   party: [['customer_address', 'Address'], ['customer_trn', 'TRN / VAT No.']],
   items: IDOCS.quotation.items,
-  extra: [{title: 'Payment', optional: true, fields: [['payment_terms', 'Payment Terms'], ['due_date', 'Due Date']]}],
+  extra: [{title: 'Payment', optional: true, fields: [['payment_terms', 'Payment Terms'], ['due_date', 'Due Date', 'date']]}],
   notes: [['notes', 'Notes']],
-  listCols: [['Customer', r => esc(r.party_name)], ['Quote Ref', r => esc(r.data?.quote_ref)], ['Total (SAR)', r => money(r.data?.grand_total), 'money']],
+  listCols: [['Customer', r => who(r.party_name)], ['Due', r => esc(fmtDate(r.data?.due_date))], ['Total (SAR)', r => money(r.data?.grand_total), 'money'],
+             ['Balance', r => r.paid == null ? '' : money(r2((r.data?.grand_total || 0) - r.paid)), 'money'],
+             ['Payment', r => { if (r.paid == null) return ''; const st = payState(r.data?.grand_total, r.paid, r.data?.due_date); return `<span class="res ${st}">${PAY_LABEL[st]}</span>`; }]],
   search: r => [r.data?.quote_ref, r.data?.customer_po, r.data?.customer_trn]
 };
 IDOCS.jobcard = {
@@ -732,7 +798,7 @@ IDOCS.jobcard = {
   itemsOptional: true,
   extra: [], notes: [['remarks', 'Remarks']],
   signs: ['Prepared By', 'Supervisor', 'Completed By'],
-  listCols: [['Customer', r => esc(r.party_name)], ['Equipment', r => esc(r.data?.equipment)], ['Assigned To', r => esc(r.data?.assigned_to)], ['Job Status', r => esc(r.data?.job_status)]],
+  listCols: [['Customer', r => who(r.party_name)], ['Equipment', r => esc(r.data?.equipment)], ['Assigned To', r => esc(r.data?.assigned_to)], ['Job Status', r => esc(r.data?.job_status)]],
   search: r => [r.data?.equipment, r.data?.assigned_to, r.data?.job_status]
 };
 IDOCS.mr = {
@@ -744,7 +810,7 @@ IDOCS.mr = {
   items: [{k: 'description', label: 'Description', wide: true}, {k: 'qty', label: 'Qty', num: true}, {k: 'unit', label: 'Unit', text: true}, {k: 'purpose', label: 'Purpose', text: true}],
   extra: [], notes: [['remarks', 'Remarks']],
   signs: ['Requested By', 'Approved By', 'Store / Issued By'],
-  listCols: [['Requested By', r => esc(r.party_name)], ['Department', r => esc(r.data?.department)], ['Job Ref', r => esc(r.data?.job_ref)], ['Items', r => (r.data?.items || []).length]],
+  listCols: [['Requested By', r => who(r.party_name)], ['Department', r => esc(r.data?.department)], ['Job Ref', r => esc(r.data?.job_ref)], ['Items', r => (r.data?.items || []).length]],
   search: r => [r.data?.department, r.data?.job_ref]
 };
 IDOCS.dn.signs = ['Prepared By', 'Delivered By (Driver)', 'Received By (Name / Sign / Date)'];
@@ -756,6 +822,7 @@ async function loadIList(type, force) {
   const {data, error} = await sb.from('docs_documents').select('id, doc_no, doc_date, party_name, data, status, created_at')
     .eq('doc_type', type).order('created_at', {ascending: false}).limit(5000);
   if (error) throw error;
+  if (type === 'invoice') { const m = await paymentsFor(data.map(r => r.id)); if (m) data.forEach(r => r.paid = m[r.id] || 0); }
   return ILIST[type] = data;
 }
 
@@ -889,7 +956,7 @@ function itemsPdf(type, r, img) {
     need(wl.length * 4 + 4); pdf.text(wl, M, y + 3); y += wl.length * 4 + 5;
   }
   T.extra.forEach(s => { if (s.optional && !s.fields.some(([k]) => String(d[k] || '').trim())) return;
-    section(s.title); kv(s.fields.filter(([k]) => !s.optional || String(d[k] || '').trim()).map(([k, l]) => [l, d[k]]), 1); });
+    section(s.title); kv(s.fields.filter(([k]) => !s.optional || String(d[k] || '').trim()).map(([k, l, t]) => [l, t === 'date' ? fmtDate(d[k]) : d[k]]), 1); });
   T.notes.forEach(([k, l]) => { if (String(d[k] || '').trim()) { section(l); kv([[l === 'Notes' ? 'Notes' : 'Remarks', d[k]]], 1); } });
   if (T.money) {
     // quotation / invoice: bank details on the left, stamp + signature on the right of the same band
@@ -953,6 +1020,7 @@ async function showIList(type) {
     <div class="tools">
       <div class="field"><label for="q">Search</label><input id="q" type="search" placeholder="Number, customer, PO…"></div>
       <span style="flex:1"></span>
+      ${type === 'invoice' ? '<a class="btn sec" href="#invoice/receivables">Receivables</a>' : ''}
       ${CAN_EDIT ? `<a class="btn" href="#${type}/new">+ New ${esc(T.title)}</a>` : ''}
     </div>
     <div class="table-wrap"><table><thead><tr><th>No.</th><th>Date</th>${T.listCols.map(c => `<th${c[2] ? ' style="text-align:right"' : ''}>${c[0]}</th>`).join('')}<th>Status</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
@@ -1005,6 +1073,7 @@ async function showIForm(type, id, copyFrom, fromQuote) {
   const stLine = await approvalLine(rec);
   const blankItem = () => Object.fromEntries(T.items.map(c => [c.k, c.def || '']));
   let items = (d.items && d.items.length ? d.items : [blankItem()]).map(it => ({...it}));
+  if (type === 'invoice' && !rec && !d.due_date) { const x = new Date(today() + 'T00:00:00'); x.setDate(x.getDate() + 30); d.due_date = new Intl.DateTimeFormat('en-CA').format(x); }
   const who = rec ? `Banaya: ${esc(await nameOf(rec.created_by))} · ${new Date(rec.created_at).toLocaleString('en-GB', {dateStyle: 'medium', timeStyle: 'short'})}` +
     (rec.updated_at ? ` &nbsp;|&nbsp; Akhri tabdeeli: ${esc(await nameOf(rec.updated_by))} · ${new Date(rec.updated_at).toLocaleString('en-GB', {dateStyle: 'medium', timeStyle: 'short'})}` : '') : '';
   const people = [...list, ...others];
@@ -1046,6 +1115,7 @@ async function showIForm(type, id, copyFrom, fromQuote) {
         ${ro ? '' : '<button type="button" class="btn sec small" id="addItem" style="margin-top:10px">+ Add item</button>'}
         ${T.money ? '<div class="totals" id="totals"></div><p class="hint" id="inwords"></p>' : ''}
       </div>
+      ${type === 'invoice' && rec ? '<div class="sheet" id="pays"><h3>Payments</h3><p class="muted">Load ho raha hai…</p></div>' : ''}
       <div class="sheet"${T.extra.length || T.notes.length ? '' : ' hidden'}>
         ${T.extra.map(s => `<h3>${esc(s.title)}</h3><div class="grid">${s.fields.map(f => fld(f, d[f[0]])).join('')}</div>`).join('')}
         ${T.notes.map(([k, l]) => `<div class="field" style="margin-top:12px"><label for="f_${k}">${esc(l)}</label><textarea id="f_${k}" rows="3" ${dis}>${esc(d[k])}</textarea></div>`).join('')}
@@ -1055,6 +1125,7 @@ async function showIForm(type, id, copyFrom, fromQuote) {
         ${ro ? '' : '<button class="btn" id="save" type="submit">Save</button>'}
         <button class="btn sec" type="button" id="dl">Download PDF</button>
         <button class="btn sec" type="button" id="pv">Preview</button>
+        <span class="share"><button class="btn sec" type="button" id="sh">Share</button></span>
         ${rec && CAN_EDIT ? `<a class="btn sec" href="#${type}/copy/${rec.id}">Copy as new</a>` : ''}
         ${rec && CAN_EDIT && type === 'quotation' ? `<a class="btn sec" href="#invoice/fromquote/${rec.id}">Make Invoice</a>` : ''}
         ${approvalButtons(rec)}
@@ -1063,6 +1134,7 @@ async function showIForm(type, id, copyFrom, fromQuote) {
       </div>
     </form>`;
   wireApproval(rec, type);
+  if (type === 'invoice' && rec) drawPayments(rec);
 
   const form = $('#f');
   const drawItems = () => {
@@ -1115,6 +1187,8 @@ async function showIForm(type, id, copyFrom, fromQuote) {
     try { await fn(); } catch (e) { $('#err').textContent = nice(e); } btn.disabled = false; btn.textContent = t; };
   const draft = () => ({...collect(), doc_no: rec?.doc_no || ($('#f_no')?.value.trim() || '')});
   $('#dl').onclick = e => run(e.target, async () => (await iPdf(type, draft())).save((draft().doc_no || T.title.replace(/ /g, '-') + '-DRAFT') + '.pdf'));
+  wireShare($('#sh'), () => iPdf(type, draft()), () => (draft().doc_no || T.title.replace(/ /g, '-') + '-DRAFT') + '.pdf',
+    () => { const v = draft(); return `${T.title} ${v.doc_no || ''} - ${v.party_name}${T.money ? ` - SAR ${money(v.data.grand_total)}` : ''}`; });
   $('#pv').onclick = e => run(e.target, async () => {
     const w = window.open('', '_blank'); const url = (await iPdf(type, draft())).output('bloburl');
     if (w) w.location = url; else location.href = url;
@@ -1157,7 +1231,7 @@ IDOCS.tank = {
   title: 'Tank Certificate', plural: 'Tank Certificates', group: 'customer', custom: true,
   nextNo: (list, date) => { const y = (date || today()).slice(0, 4); return `HMI-${y}-${String(maxNo(list, new RegExp(`^HMI-${y}-(\\d+)$`)) + 1).padStart(3, '0')}`; },
   party: [['customer_address', 'Address']],
-  listCols: [['Customer', r => esc(r.party_name)], ['Tank No.', r => esc(r.data?.tank_no)], ['Truck Plate', r => esc(r.data?.truck_plate)], ['Valid Until', r => esc(fmtDate(r.data?.valid_until))]],
+  listCols: [['Customer', r => who(r.party_name)], ['Tank No.', r => esc(r.data?.tank_no)], ['Truck Plate', r => esc(r.data?.truck_plate)], ['Valid Until', r => esc(fmtDate(r.data?.valid_until))]],
   search: r => [r.data?.tank_no, r.data?.truck_plate, r.data?.serial_no]
 };
 
@@ -1343,6 +1417,7 @@ async function showTankForm(id, copyFrom) {
         ${ro ? '' : '<button class="btn" id="save" type="submit">Save</button>'}
         <button class="btn sec" type="button" id="dl">Download PDF</button>
         <button class="btn sec" type="button" id="pv">Preview</button>
+        <span class="share"><button class="btn sec" type="button" id="sh">Share</button></span>
         ${rec && CAN_EDIT ? `<a class="btn sec" href="#tank/copy/${rec.id}">Copy as new</a>` : ''}
         ${approvalButtons(rec)}
         <span class="grow"></span>
@@ -1368,6 +1443,8 @@ async function showTankForm(id, copyFrom) {
   const run = async (btn, fn) => { const t = btn.textContent; btn.disabled = true; btn.textContent = 'Ruko…'; $('#err').textContent = '';
     try { await fn(); } catch (e) { $('#err').textContent = nice(e); } btn.disabled = false; btn.textContent = t; };
   $('#dl').onclick = e => run(e.target, async () => (await iPdf(type, draft())).save((draft().doc_no || 'Tank-Certificate-DRAFT') + '.pdf'));
+  wireShare($('#sh'), () => iPdf(type, draft()), () => (draft().doc_no || 'Tank-Certificate-DRAFT') + '.pdf',
+    () => { const v = draft(); return `Tank Inspection Certificate ${v.doc_no || ''} - ${v.party_name} - Tank ${v.data.tank_no || '-'}, valid until ${fmtDate(v.data.valid_until)}`; });
   $('#pv').onclick = e => run(e.target, async () => { const w = window.open('', '_blank'); const url = (await iPdf(type, draft())).output('bloburl'); if (w) w.location = url; else location.href = url; });
   $('#del')?.addEventListener('click', e => run(e.target, async () => {
     if (!confirm(`${rec.doc_no} ko hamesha ke liye delete karna hai?`)) return;
@@ -1387,6 +1464,84 @@ async function showTankForm(id, copyFrom) {
   }); });
 }
 
+/* ============================== invoice payments panel ============================== */
+async function drawPayments(rec) {
+  const box = $('#pays'); if (!box) return;
+  const {data, error} = await sb.from('docs_payments').select('*').eq('document_id', rec.id).order('paid_on');
+  if (error) { box.innerHTML = '<h3>Payments</h3><p class="flash">Payments ki table nahi mili. Supabase mein naya <b>supabase_docs.sql</b> chalayein.</p>'; return; }
+  const total = Number(rec.data?.grand_total) || 0, paid = r2(data.reduce((s, p) => s + Number(p.amount), 0)), bal = r2(total - paid);
+  const st = payState(total, paid, rec.data?.due_date);
+  const canAdd = CAN_EDIT, canDel = CAN_DELETE;
+  box.innerHTML = `<h3>Payments <span class="res ${st}" style="margin-left:6px">${PAY_LABEL[st]}</span></h3>
+    <div class="paybox"><div><b>${money(total)}</b><span>Invoice total (SAR)</span></div><div><b>${money(paid)}</b><span>Received</span></div>
+      <div><b style="color:${bal > 0.005 ? 'var(--red)' : 'var(--green)'}">${money(Math.max(0, bal))}</b><span>Balance</span></div>
+      <div><b>${esc(fmtDate(rec.data?.due_date) || '-')}</b><span>Due date</span></div></div>
+    ${data.length ? `<div class="table-wrap" style="box-shadow:none;border:1px solid var(--border)"><table><thead><tr><th>Date</th><th style="text-align:right">Amount (SAR)</th><th>Method</th><th>Reference</th><th>Recorded by</th><th></th></tr></thead><tbody>
+      ${(await Promise.all(data.map(async p => `<tr><td>${esc(fmtDate(p.paid_on))}</td><td class="money">${money(p.amount)}</td><td>${esc(p.method)}</td><td>${esc(p.reference)}</td>
+        <td>${esc(await nameOf(p.created_by))}</td><td>${canDel ? `<button type="button" class="btn small danger" data-delpay="${p.id}">Delete</button>` : ''}</td></tr>`))).join('')}
+      </tbody></table></div>` : '<p class="muted" style="margin:0">Abhi koi payment darj nahi hui.</p>'}
+    ${canAdd && bal > 0.005 ? `<div class="payform">
+      <div class="field"><label for="p_date">Payment date</label><input id="p_date" type="date" value="${today()}"></div>
+      <div class="field"><label for="p_amt">Amount (SAR)</label><input id="p_amt" type="number" step="0.01" min="0.01" value="${bal.toFixed(2)}"></div>
+      <div class="field"><label for="p_method">Method</label><select id="p_method"><option>Bank transfer</option><option>Cash</option><option>Cheque</option><option>Card</option></select></div>
+      <div class="field"><label for="p_ref">Reference</label><input id="p_ref" placeholder="Transfer / cheque no."></div>
+      <button type="button" class="btn" id="p_add">Record payment</button></div>` : ''}`;
+  $('#p_add')?.addEventListener('click', async e => {
+    const amt = Number($('#p_amt').value);
+    if (!(amt > 0)) { toast('Amount daalein.', true); return; }
+    if (amt > bal + 0.005 && !confirm(`Yeh balance (${money(bal)}) se zyada hai. Phir bhi darj karna hai?`)) return;
+    e.target.disabled = true;
+    const {error: err} = await sb.from('docs_payments').insert({document_id: rec.id, paid_on: $('#p_date').value || today(), amount: r2(amt),
+      method: $('#p_method').value, reference: $('#p_ref').value.trim() || null});
+    if (err) { e.target.disabled = false; toast(nice(err), true); return; }
+    ILIST.invoice = null; toast('Payment darj ho gayi'); drawPayments(rec);
+  });
+  box.querySelectorAll('[data-delpay]').forEach(b => b.addEventListener('click', async () => {
+    if (!confirm('Yeh payment delete karni hai?')) return;
+    const {error: err} = await sb.from('docs_payments').delete().eq('id', b.dataset.delpay);
+    if (err) { toast(nice(err), true); return; }
+    ILIST.invoice = null; toast('Payment delete ho gayi'); drawPayments(rec);
+  }));
+}
+
+/* receivables: what each customer still owes, by how late it is */
+async function showReceivables() {
+  const seq = ROUTE_SEQ;
+  view.innerHTML = '<p class="muted">Load ho raha hai…</p>';
+  let list; try { list = await loadIList('invoice', true); } catch (e) { view.innerHTML = `<p class="flash">Database error: ${esc(nice(e))}</p>`; return; }
+  if (seq !== ROUTE_SEQ) return;
+  const t = today(), days = d => Math.floor((new Date(t) - new Date(d)) / 864e5);
+  const B = ['Not due', '1-30 days', '31-60 days', '61-90 days', '90+ days'];
+  const by = {};
+  list.forEach(r => {
+    if (r.paid == null) return;
+    const bal = r2((r.data?.grand_total || 0) - r.paid); if (bal <= 0.005) return;
+    const due = r.data?.due_date || r.doc_date, late = days(due);
+    const b = late <= 0 ? 0 : late <= 30 ? 1 : late <= 60 ? 2 : late <= 90 ? 3 : 4;
+    const c = by[r.party_name || '-'] ||= {name: r.party_name || '-', b: [0, 0, 0, 0, 0], n: 0};
+    c.b[b] = r2(c.b[b] + bal); c.n++;
+  });
+  const rows = Object.values(by).map(c => ({...c, total: r2(c.b.reduce((a, x) => a + x, 0))})).sort((a, b) => b.total - a.total);
+  const tot = B.map((_, i) => r2(rows.reduce((a, c) => a + c.b[i], 0))), grand = r2(tot.reduce((a, x) => a + x, 0));
+  view.innerHTML = `
+    <div class="tools"><a class="btn sec" href="#invoice">&larr; Invoices</a><span style="flex:1"></span>
+      ${rows.length ? '<button class="btn sec" id="csv">Excel (CSV) download</button>' : ''}</div>
+    <div class="kpis" style="margin-bottom:16px">${[['Total receivable', grand, 'var(--teal)'], ['Not due yet', tot[0], 'var(--green)'], ['Overdue', r2(grand - tot[0]), 'var(--red)'], ['90+ days', tot[4], 'var(--orange)']]
+      .map(([l, v, c]) => `<div class="kpi"><span><b style="color:${c}">SAR ${money(v)}</b><span>${l}</span></span></div>`).join('')}</div>
+    ${list.length && list[0].paid == null ? '<p class="flash">Payments ki table nahi mili. Supabase mein naya <b>supabase_docs.sql</b> chalayein.</p>' : ''}
+    <div class="table-wrap"><table><thead><tr><th>Customer</th><th style="text-align:right">Invoices</th>${B.map(b => `<th style="text-align:right">${b}</th>`).join('')}<th style="text-align:right">Total (SAR)</th></tr></thead>
+    <tbody>${rows.length ? rows.map(c => `<tr><td>${who(c.name)}</td><td class="money">${c.n}</td>${c.b.map((v, i) => `<td class="money"${i >= 3 && v ? ' style="color:var(--red);font-weight:600"' : ''}>${v ? money(v) : '-'}</td>`).join('')}<td class="money"><b>${money(c.total)}</b></td></tr>`).join('')
+      : `<tr><td colspan="8" class="empty">Kisi customer ka koi paisa baqi nahi.</td></tr>`}</tbody>
+    ${rows.length ? `<tfoot><tr><td><b>Total</b></td><td></td>${tot.map(v => `<td class="money"><b>${money(v)}</b></td>`).join('')}<td class="money"><b>${money(grand)}</b></td></tr></tfoot>` : ''}</table></div>
+    <p class="muted" style="font-size:13px">Din due date se gine jate hain (due date na ho to invoice ki date se).</p>`;
+  $('#csv')?.addEventListener('click', () => {
+    const q = v => `"${String(v).replace(/"/g, '""')}"`;
+    const lines = [['Customer', 'Invoices', ...B, 'Total'], ...rows.map(c => [c.name, c.n, ...c.b, c.total]), ['Total', '', ...tot, grand]].map(r => r.map(q).join(','));
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + lines.join('\n')], {type: 'text/csv'}));
+    a.download = `receivables-${today()}.csv`; a.click();
+  });
+}
+
 /* ============================== routing ============================== */
 let ROUTE_SEQ = 0;
 async function route() {
@@ -1400,6 +1555,7 @@ async function route() {
     if (!a) return showIList(type);
     if (a === 'new') return CAN_EDIT ? form(null) : (location.hash = '#' + type);
     if (a === 'copy') return CAN_EDIT ? form(null, b) : (location.hash = '#' + type);
+    if (a === 'receivables' && type === 'invoice') return showReceivables();
     if (a === 'fromquote' && type === 'invoice') return CAN_EDIT ? showIForm('invoice', null, null, b) : (location.hash = '#invoice');
     return form(a);
   }

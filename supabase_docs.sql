@@ -173,3 +173,43 @@ create policy docs_files_update on storage.objects for update to authenticated
   with check (bucket_id = 'docs' and public.my_role('docs') in ('manager','staff'));
 create policy docs_files_delete on storage.objects for delete to authenticated
   using (bucket_id = 'docs' and public.my_role('docs') in ('manager','staff'));
+
+-- ---------------------------------------------------------------------
+-- 5. Invoice payments (phase 3). One row per payment received.
+--    manager + staff record payments; only a manager deletes one.
+-- ---------------------------------------------------------------------
+create table if not exists public.docs_payments (
+  id          uuid primary key default gen_random_uuid(),
+  document_id uuid not null references public.docs_documents(id) on delete cascade,
+  paid_on     date not null default ((now() at time zone 'Asia/Riyadh')::date),
+  amount      numeric(14,2) not null check (amount > 0),
+  method      text,
+  reference   text,
+  created_by  uuid default auth.uid(),
+  created_at  timestamptz not null default now()
+);
+create index if not exists docs_payments_doc_idx on public.docs_payments (document_id);
+
+create or replace function public.docs_payment_check()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if not exists (select 1 from public.docs_documents where id = new.document_id and doc_type = 'invoice') then
+    raise exception 'Payments sirf invoice par darj ho sakti hain.';
+  end if;
+  new.created_by := auth.uid();
+  new.created_at := now();
+  return new;
+end $$;
+drop trigger if exists docs_payment_check_trg on public.docs_payments;
+create trigger docs_payment_check_trg before insert on public.docs_payments
+  for each row execute function public.docs_payment_check();
+
+alter table public.docs_payments enable row level security;
+drop policy if exists docs_payments_read   on public.docs_payments;
+drop policy if exists docs_payments_insert on public.docs_payments;
+drop policy if exists docs_payments_delete on public.docs_payments;
+create policy docs_payments_read   on public.docs_payments for select to authenticated using (public.my_role('docs') is not null);
+create policy docs_payments_insert on public.docs_payments for insert to authenticated with check (public.my_role('docs') in ('manager','staff'));
+create policy docs_payments_delete on public.docs_payments for delete to authenticated using (public.my_role('docs') = 'manager');
+revoke all on public.docs_payments from anon;
+revoke update on public.docs_payments from authenticated;

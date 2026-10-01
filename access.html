@@ -2,22 +2,25 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Users &amp; Access | Al Hyakel Portal</title>
 <link rel="icon" href="assets/favicon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="assets/portal.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/config.js"></script>
 <script src="assets/portal.js" data-module="admin"></script>
 </head>
 <body>
-<main>
+<div class="ahhead">
   <h1>Users &amp; Access</h1>
-  <p class="muted">Har user ke liye tay karein ke woh kaunsa hissa khol sakta hai aur andar kya kar sakta hai. "No access" = woh hissa us user ko nazar hi nahi aayega.</p>
+  <p>Har user ke liye tay karein ke woh kaunsa hissa khol sakta hai aur andar kya kar sakta hai. "No access" = woh hissa us user ko nazar hi nahi aayega.</p>
+</div>
+<main>
   <div id="flash" class="flash" hidden role="status"></div>
 
   <details class="card" id="newBox" style="margin:14px 0 20px">
-    <summary style="font-weight:700;color:var(--teal)">+ Naya user banayein</summary>
+    <summary style="font-weight:600;color:var(--teal)">+ Naya user banayein</summary>
     <form id="newForm" style="margin-top:14px">
       <div class="form-grid">
         <div class="field"><label for="n_full">Poora naam</label><input id="n_full" required></div>
@@ -41,7 +44,7 @@
 
   <div class="card" style="margin-top:22px">
     <h2>Roles ka matlab</h2>
-    <p><b>Documents:</b> manager = sab kuch + approve + company settings. staff = documents banana aur dekhna. viewer = sirf dekhna aur download.</p>
+    <p><b>Documents:</b> manager = sab kuch + approve / reopen + delete. staff = documents banana, draft edit karna, payments darj karna. viewer = sirf dekhna aur download.</p>
     <p><b>Inventory:</b> admin = sab kuch + delete + stock count (adjust). storekeeper = products, suppliers, stock in / out. viewer = sirf dekhna.</p>
     <p><b>Employees:</b> admin = sab kuch + salary + kiosk PIN + settings. supervisor = attendance, overtime ghante, tasks (salary nazar nahi aati). viewer = sirf dekhna (salary nahi).</p>
   </div>

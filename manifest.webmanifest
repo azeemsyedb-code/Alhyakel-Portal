@@ -1,0 +1,14 @@
+{
+  "name": "Al Hyakel Portal",
+  "short_name": "Al Hyakel",
+  "description": "Documents, inventory and employees for Al Hyakel Metal Industries",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F5F7F9",
+  "theme_color": "#1D6E80",
+  "icons": [
+    {"src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+  ]
+}
