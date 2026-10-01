@@ -65,6 +65,8 @@
 
   const today = () => new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Riyadh'}).format(new Date());
   const addDays = (d, n) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+  const addMonths = (d, n) => { const [y, m, day] = d.split('-').map(Number), x = new Date(Date.UTC(y, m - 1 + n, 1));
+    x.setUTCDate(Math.min(day, new Date(Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + 1, 0)).getUTCDate())); return x.toISOString().slice(0, 10); };
   const DOC_NAMES = {leak: 'Leak Test', tank: 'Tank Certificate', quotation: 'Quotation', invoice: 'Invoice', dn: 'Delivery Note', po: 'Purchase Order', jobcard: 'Job Card', mr: 'Material Request'};
   window.portalDocNames = DOC_NAMES;
   const initials = n => String(n || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
@@ -117,9 +119,21 @@
       jobs.push(Promise.all([sb.from('hr_employees').select('id', {count: 'exact', head: true}).eq('active', true),
         sb.from('hr_attendance').select('id', {count: 'exact', head: true}).eq('work_date', t).not('check_in', 'is', null)])
         .then(([e, a]) => { stats.employees = e.count || 0; stats.checkedIn = a.count || 0; }));
+      if (U.hr_role === 'admin' || U.hr_role === 'supervisor')   // kit round due (every N months)
+        jobs.push(Promise.all([sb.from('hr_settings').select('kit_cycle_months').eq('id', 1).maybeSingle(), sb.from('hr_employees').select('id, name').eq('active', true),
+          sb.from('hr_kit').select('employee_id, issued_on').not('batch', 'is', null).order('issued_on', {ascending: false}).limit(5000)])
+          .then(([st, em, kit]) => {
+            const rows = kit.data || []; if (!rows.length || kit.error) return;   // no kit round given yet
+            const n = Number(st.data?.kit_cycle_months || 4), last = {};
+            rows.forEach(k => { if (!last[k.employee_id] || k.issued_on > last[k.employee_id]) last[k.employee_id] = k.issued_on; });
+            const due = (em.data || []).filter(e => !last[e.id] || addMonths(last[e.id], n) <= t);
+            stats.kitDue = due.length;
+            if (due.length) groups.push({key: 'kit', title: 'Working kit due', color: COL.green, icon: 'team', count: due.length,
+              items: due.slice(0, 8).map(e => ({label: e.name, sub: last[e.id] ? `last kit ${last[e.id]}` : 'no kit yet', href: 'employees.html#kit'}))});
+          }));
     }
     await Promise.allSettled(jobs);
-    const order = ['approve', 'overdue', 'low', 'expiry', 'tasks'];
+    const order = ['approve', 'overdue', 'low', 'expiry', 'tasks', 'kit'];
     groups.sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key));
     return {groups, stats, total: groups.reduce((s, g) => s + g.count, 0)};
   })());
