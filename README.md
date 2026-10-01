@@ -9,7 +9,7 @@ Server ki zaroorat nahi: website **GitHub Pages** par chalti hai, aur saara data
 | **Employees** | Attendance, overtime, tasks, salary | admin · supervisor · viewer |
 | **Gate kiosk** | Employees PIN se check-in / check-out karte hain (bina login) | — |
 | **Users & Access** | Users banana, password badalna, access dena / hatana | portal admin |
-| **Documents** | Quotation, PO, Delivery Note, certificates … | **Phase 2** (abhi nahi) |
+| **Documents** | Leak Test Certificate (save, history, PDF). Delivery Note, Quotation, PO agle hisson mein | manager · staff · viewer |
 
 ---
 
@@ -19,13 +19,16 @@ Server ki zaroorat nahi: website **GitHub Pages** par chalti hai, aur saara data
 index.html            portal home (login ke baad)
 login.html            login page
 access.html           Users & Access (sirf portal admin)
+documents.html        Documents (Leak Test Certificate, PDF browser mein banti hai)
 inventory.html        Inventory
 employees.html        Employees (attendance, overtime, tasks)
 kiosk.html            gate tablet ke liye
 assets/config.js      <- yahan Supabase URL aur key daalni hai
 assets/portal.js      login check + portal ki upar wali patti
 assets/portal.css, logo_mark.png, favicon.png
+assets/docs/          PDF ke liye letterhead (header.jpg, footer.jpg) aur stamp.png
 supabase_setup.sql    database (ek dafa chalana hai)
+supabase_docs.sql     Documents ka database + photos ki storage (phase 2, ek dafa chalana hai)
 supabase/functions/admin-users/index.ts   users banane wala Edge Function
 ```
 
@@ -37,6 +40,10 @@ supabase/functions/admin-users/index.ts   users banane wala Edge Function
 2. `supabase_setup.sql` ka poora content paste karein → **Run**.
    - "destructive operation" ki warning aaye to **Run this query** dabayein. Yeh sirf `drop policy if exists` ki wajah se hai, kuch delete nahi hota.
    - Neeche **Success** aana chahiye. Is file se 26 employees bhi add ho jate hain.
+
+### Step 1b — Documents (phase 2)
+
+Isi tarah **SQL Editor → New query** mein `supabase_docs.sql` ka poora content paste karke **Run** karein. Is se documents ki table, TS-001 wali numbering aur photos ke liye private storage (`docs` bucket) ban jati hai.
 
 ## Step 2 — Supabase: login settings
 
@@ -111,7 +118,7 @@ window.PORTAL_CONFIG = {
 |---|---|---|---|
 | **Inventory** | admin: sab kuch + delete + stock count (adjust) | storekeeper: products, suppliers, stock in / out | sirf dekhna |
 | **Employees** | admin: sab kuch + salary + PIN + settings | supervisor: attendance, overtime ghante, tasks (salary nahi) | sirf dekhna (salary nahi) |
-| **Documents** | manager | staff | viewer *(Phase 2)* |
+| **Documents** | manager: sab kuch + delete | staff: naya banana aur edit | sirf dekhna aur PDF download |
 
 **Portal admin** (Users & Access) alag tick hai. Aap khud apna admin access nahi hata sakte, na apna account band ya delete kar sakte hain.
 
@@ -121,7 +128,7 @@ window.PORTAL_CONFIG = {
 
 - **Purane GitHub Pages sites** (`alhyakel-inventory`, `emoplyees-tracker`): un repos mein **Settings → Pages → Unpublish site**.
 - **Purane Supabase projects**: sab test data tha, **pause** ya **delete** kar sakte hain.
-- **Render wala AHMI portal**: jab tak Phase 2 (Documents) tayyar na ho, **chalta rehne dein**. Documents abhi wahi bante hain. Phase 2 ke baad usay band kar denge.
+- **Render wala AHMI portal**: Leak Test Certificate ab yahin banta hai. Baaqi documents (Delivery Note, Quotation, PO, Tank Certificate) jab tak yahan na aa jayein, Render wala portal **chalta rehne dein**.
 
 ---
 
@@ -135,6 +142,8 @@ window.PORTAL_CONFIG = {
 | Users & Access par "Edge Function admin-users nahi mila" | Step 3 dobara karein. Naam bilkul `admin-users` ho |
 | Kisi page par "Database error: … does not exist" | `supabase_setup.sql` poori nahi chali. Step 1 dobara chalayein |
 | GitHub link par 404 | Pages on nahi hua ya `index.html` kisi folder ke andar hai (Step 6) |
+| Documents par "Database error" | `supabase_docs.sql` nahi chali (Step 1b) |
+| Certificate save hua lekin "Image upload nahi hui" | Step 1b dobara chalayein (storage bucket), phir Save dobara dabayein |
 | Kiosk par koi naam nahi | Kisi employee ka PIN set nahi (Employees → Employees) |
 
 Free Supabase project agar **7 din** tak bilkul istemal na ho to pause ho jata hai. Roz ke istemal mein yeh nahi hoga. Agar ho jaye to Supabase dashboard mein **Restore** dabayein.
