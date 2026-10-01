@@ -11,7 +11,7 @@
   C.links = {home: 'index.html', documents: 'documents.html', inventory: 'inventory.html', employees: 'employees.html',
              kiosk: 'kiosk.html', access: 'access.html', logout: 'login.html?logout=1'};
   C.user = null;
-  C.DOCS_READY = false;   // Documents part arrives in phase 2
+  C.DOCS_READY = true;    // Documents part (phase 2) is live
   const need = (document.currentScript && document.currentScript.dataset.module) || '';
   const never = () => new Promise(() => {});
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
