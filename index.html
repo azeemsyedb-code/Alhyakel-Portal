@@ -28,7 +28,7 @@
     `<a class="module-card ${cls} ${role ? '' : 'locked'}" href="${href}"${extra}><h3>${title}</h3><p>${text}</p><span class="pill">${esc(role || 'no access')}</span></a>`;
   const kioskUrl = new URL(L.kiosk, location.href).href;
   document.getElementById('grid').innerHTML = [
-    card('', L.documents, 'Documents', 'Leak Test, Tank Certificate, Delivery Note, Quotation aur Purchase Order banayein, save karein aur PDF download karein.', U.docs_role),
+    card('', L.documents, 'Documents', 'Certificates, Quotation, Invoice, Delivery Note, PO, Job Card aur Material Request. Save, approve aur PDF download.', U.docs_role),
     card('orange', L.inventory, 'Inventory', 'Stock in / out, barcode scan, products, suppliers aur kam stock ke alerts.', U.inv_role),
     card('dark', L.employees, 'Employees', 'Roz ki attendance, overtime aur employees ko diye gaye tasks.', U.hr_role),
     U.is_admin ? card('', L.access, 'Users &amp; Access', 'Naye users banayein, password badlein, aur tay karein kaun kaunsa hissa khol sakta hai.', 'admin') : '',

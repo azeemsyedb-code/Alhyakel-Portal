@@ -32,6 +32,8 @@ td.no{font:600 14px/1.2 Consolas,Menlo,monospace;color:var(--teal-dark);white-sp
 .res{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:99px}
 .res.PASS{background:#e3f2e9;color:var(--green)}
 .res.FAIL{background:#fbe6e4;color:var(--red)}
+.res.draft{background:#eef1f2;color:var(--muted)}
+.status-line{margin:2px 0 12px;font-size:14px}
 .empty{padding:34px 18px;text-align:center;color:var(--muted)}
 tbody tr.click{cursor:pointer}
 tbody tr.click:hover td{background:#f6f9f9}
@@ -91,11 +93,14 @@ td.money{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
     <span class="pill" id="myRole"></span>
   </div>
   <nav class="doc-tabs" id="tabs" aria-label="Document types">
-    <a href="#leak" data-t="leak">Leak Test Certificate</a>
-    <a href="#dn" data-t="dn">Delivery Note</a>
-    <a href="#quotation" data-t="quotation">Quotation</a>
-    <a href="#po" data-t="po">Purchase Order</a>
+    <a href="#leak" data-t="leak">Leak Test</a>
     <a href="#tank" data-t="tank">Tank Certificate</a>
+    <a href="#quotation" data-t="quotation">Quotation</a>
+    <a href="#invoice" data-t="invoice">Invoice</a>
+    <a href="#dn" data-t="dn">Delivery Note</a>
+    <a href="#po" data-t="po">Purchase Order</a>
+    <a href="#jobcard" data-t="jobcard">Job Card</a>
+    <a href="#mr" data-t="mr">Material Request</a>
   </nav>
   <div id="view"></div>
 </main>
@@ -142,7 +147,7 @@ let LIST = null;   // leak certificates (latest first)
 async function loadList(force) {
   if (LIST && !force) return LIST;
   const {data, error} = await sb.from('docs_documents')
-    .select('id, doc_no, doc_date, party_name, data, files, created_at, updated_at')
+    .select('id, doc_no, doc_date, party_name, data, files, status, created_at, updated_at')
     .eq('doc_type', 'leak').order('created_at', {ascending: false}).limit(5000);
   if (error) throw error;
   LIST = data;
@@ -344,6 +349,33 @@ async function pdfFor(rec, photos, qr) {
   return leakPdf(rec, {...await assets(), photos, qr});
 }
 
+/* ============================== draft / approve ============================== */
+const statusPill = r => r?.status === 'approved' ? '<span class="res PASS">Approved</span>' : '<span class="res draft">Draft</span>';
+const locked = rec => rec?.status === 'approved' && ROLE !== 'manager';     // approved documents: only a manager can change them
+function approvalButtons(rec) {
+  if (!rec) return '';
+  if (ROLE !== 'manager') return '';
+  return rec.status === 'approved' ? '<button class="btn sec" type="button" id="reopen">Reopen as draft</button>'
+                                   : '<button class="btn" type="button" id="approve" style="background:var(--green)">Approve</button>';
+}
+async function approvalLine(rec) {
+  if (!rec) return '';
+  return rec.status === 'approved'
+    ? `${statusPill(rec)} &nbsp;Approved by ${esc(await nameOf(rec.approved_by))} · ${new Date(rec.approved_at).toLocaleString('en-GB', {dateStyle: 'medium', timeStyle: 'short'})}${ROLE === 'manager' ? '' : ' &nbsp;(sirf manager badal sakta hai)'}`
+    : `${statusPill(rec)}${ROLE === 'manager' ? ' &nbsp;Check karke <b>Approve</b> dabayein.' : ' &nbsp;Manager ke approve karne ka intezar.'}`;
+}
+function wireApproval(rec, type) {
+  const go = async (status, btn) => {
+    if (dirty && !confirm('Pehle Save karein, warna tabdeeliyan zaya ho jayengi. Phir bhi aage barhna hai?')) return;
+    btn.disabled = true;
+    const {error} = await sb.from('docs_documents').update({status}).eq('id', rec.id);
+    if (error) { btn.disabled = false; toast(nice(error), true); return; }
+    dirty = false; toast(status === 'approved' ? `${rec.doc_no} approve ho gaya` : `${rec.doc_no} dobara draft ban gaya`); route();
+  };
+  $('#approve')?.addEventListener('click', e => go('approved', e.target));
+  $('#reopen')?.addEventListener('click', e => go('draft', e.target));
+}
+
 /* ============================== list ============================== */
 async function showList() {
   const seq = ROUTE_SEQ;
@@ -357,7 +389,7 @@ async function showList() {
       <span style="flex:1"></span>
       ${CAN_EDIT ? '<a class="btn" href="#leak/new">+ New certificate</a>' : ''}
     </div>
-    <div class="table-wrap"><table><thead><tr><th>Test No.</th><th>Date</th><th>Project</th><th>Client</th><th>Equipment</th><th>Result</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
+    <div class="table-wrap"><table><thead><tr><th>Test No.</th><th>Date</th><th>Project</th><th>Client</th><th>Equipment</th><th>Result</th><th>Status</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
     <p class="muted" id="count" style="font-size:13px"></p>`;
   const draw = () => {
     const q = $('#q').value.trim().toLowerCase(), fr = $('#fr').value;
@@ -367,9 +399,9 @@ async function showList() {
         <td class="no">${esc(r.doc_no)}</td><td style="white-space:nowrap">${esc(fmtDate(r.doc_date))}</td>
         <td>${r.data?.project_no ? `<b>${esc(r.data.project_no)}</b> ` : ''}${esc(r.data?.project_name)}</td>
         <td>${esc(r.party_name)}</td><td>${esc(r.data?.equipment_tag)}</td>
-        <td><span class="res ${r.data?.result === 'FAIL' ? 'FAIL' : 'PASS'}">${r.data?.result === 'FAIL' ? 'FAIL' : 'PASS'}</span></td>
+        <td><span class="res ${r.data?.result === 'FAIL' ? 'FAIL' : 'PASS'}">${r.data?.result === 'FAIL' ? 'FAIL' : 'PASS'}</span></td><td>${statusPill(r)}</td>
         <td style="white-space:nowrap"><button class="btn small sec" data-pdf="${r.id}">PDF</button></td></tr>`).join('')
-      : `<tr><td colspan="7" class="empty">${LIST.length ? 'Is search se koi certificate nahi mila.' : 'Abhi tak koi certificate nahi bana.' + (CAN_EDIT ? ' <a href="#leak/new">Pehla certificate banayein</a>.' : '')}</td></tr>`;
+      : `<tr><td colspan="8" class="empty">${LIST.length ? 'Is search se koi certificate nahi mila.' : 'Abhi tak koi certificate nahi bana.' + (CAN_EDIT ? ' <a href="#leak/new">Pehla certificate banayein</a>.' : '')}</td></tr>`;
     $('#count').textContent = LIST.length ? `${rows.length} of ${LIST.length} certificates` : '';
   };
   $('#q').addEventListener('input', draw); $('#fr').addEventListener('change', draw);
@@ -411,7 +443,8 @@ async function showForm(id, copyFrom) {
     const {data} = await sb.from('docs_documents').select('*').eq('id', copyFrom).maybeSingle();
     src = data ? {data: data.data, party_name: data.party_name} : null;
   }
-  const ro = !CAN_EDIT;
+  const ro = !CAN_EDIT || locked(rec);
+  const stLine = await approvalLine(rec);
   const d = {test_method: 'pneumatic', test_medium: 'Air', result: 'PASS', ...(src?.data || {})};
   if (!rec) { d.project_no = copyFrom ? d.project_no : nextProjectNo(); }
   if (!d.statement) d.statement = LEAK.statement(d.result, d.test_method);
@@ -435,6 +468,7 @@ async function showForm(id, copyFrom) {
     <p style="margin:0 0 10px"><a href="#leak">&larr; Leak Test Certificates</a></p>
     <h2>${rec ? `Leak Test Certificate <span class="mono" style="font-size:1.1rem">${esc(rec.doc_no)}</span>` : 'New Leak Test Certificate'}</h2>
     ${who ? `<p class="meta">${who}</p>` : ''}
+    ${stLine ? `<p class="status-line">${stLine}</p>` : ''}
     <form id="f" autocomplete="off">
       <div class="sheet">
         <h3>Report information</h3>
@@ -475,11 +509,13 @@ async function showForm(id, copyFrom) {
         <button class="btn sec" type="button" id="dl">Download PDF</button>
         <button class="btn sec" type="button" id="pv">Preview</button>
         ${rec && CAN_EDIT ? `<a class="btn sec" href="#leak/copy/${rec.id}">Copy as new</a>` : ''}
+        ${approvalButtons(rec)}
         <span class="grow"></span>
         ${rec && CAN_DELETE ? '<button class="btn danger" type="button" id="del">Delete</button>' : ''}
       </div>
     </form>`;
 
+  wireApproval(rec, 'leak');
   const form = $('#f');
   const slotHtml = (s, label, i, cls = '') => `<div class="slot ${cls} ${s ? 'filled' : ''} ${ro ? 'ro' : ''}" data-i="${i}">
       ${s ? `<img src="${s.dataUrl}" alt="${esc(label)}">` : `<span class="lbl">${ro ? 'Koi image nahi' : '+ ' + esc(label) + '<br><small>click karke chunein</small>'}</span>`}
@@ -673,12 +709,51 @@ const IDOCS = {
     search: r => [r.data?.ref_number, r.data?.vendor_trn]
   }
 };
+IDOCS.invoice = {
+  title: 'Invoice', plural: 'Invoices', pdfTitle: 'TAX INVOICE', money: true, group: 'customer', zatca: true,
+  noLabel: 'Invoice No.', dateLabel: 'Invoice Date', partyTitle: 'Customer', partyLabel: 'Customer Name',
+  nextNo: list => 'INV-AL' + String(maxNo(list, /^INV-AL(\d+)$/) + 1).padStart(5, '0'),
+  head: [['quote_ref', 'Quote Reference'], ['customer_po', 'Customer PO No.']],
+  party: [['customer_address', 'Address'], ['customer_trn', 'TRN / VAT No.']],
+  items: IDOCS.quotation.items,
+  extra: [{title: 'Payment', optional: true, fields: [['payment_terms', 'Payment Terms'], ['due_date', 'Due Date']]}],
+  notes: [['notes', 'Notes']],
+  listCols: [['Customer', r => esc(r.party_name)], ['Quote Ref', r => esc(r.data?.quote_ref)], ['Total (SAR)', r => money(r.data?.grand_total), 'money']],
+  search: r => [r.data?.quote_ref, r.data?.customer_po, r.data?.customer_trn]
+};
+IDOCS.jobcard = {
+  title: 'Job Card', plural: 'Job Cards', pdfTitle: 'JOB CARD / WORK ORDER', group: 'customer',
+  noLabel: 'Job Number', dateLabel: 'Date', partyTitle: 'Customer', partyLabel: 'Customer Name',
+  nextNo: (list, date) => { const y = (date || today()).slice(0, 4); return `JC-${y}-${String(maxNo(list, new RegExp(`^JC-${y}-(\\d+)$`)) + 1).padStart(3, '0')}`; },
+  head: [['equipment', 'Equipment'], ['assigned_to', 'Assigned To'], ['job_status', 'Job Status', 'select', ['Open', 'In Progress', 'Completed', 'On Hold']], ['target_date', 'Target Date', 'date']],
+  party: [],
+  body: [['description', 'Job Description']],
+  items: [{k: 'description', label: 'Material / Work', wide: true}, {k: 'qty', label: 'Qty', num: true}, {k: 'unit', label: 'Unit', text: true}],
+  itemsOptional: true,
+  extra: [], notes: [['remarks', 'Remarks']],
+  signs: ['Prepared By', 'Supervisor', 'Completed By'],
+  listCols: [['Customer', r => esc(r.party_name)], ['Equipment', r => esc(r.data?.equipment)], ['Assigned To', r => esc(r.data?.assigned_to)], ['Job Status', r => esc(r.data?.job_status)]],
+  search: r => [r.data?.equipment, r.data?.assigned_to, r.data?.job_status]
+};
+IDOCS.mr = {
+  title: 'Material Request', plural: 'Material Requests', pdfTitle: 'MATERIAL REQUEST', group: 'staff',
+  noLabel: 'Request Number', dateLabel: 'Date', partyTitle: 'Requested By', partyLabel: 'Requested By',
+  nextNo: (list, date) => { const y = (date || today()).slice(0, 4); return `MR-${y}-${String(maxNo(list, new RegExp(`^MR-${y}-(\\d+)$`)) + 1).padStart(3, '0')}`; },
+  head: [['job_ref', 'Job / Project Ref'], ['required_by', 'Needed By (Date)', 'date']],
+  party: [['department', 'Department']],
+  items: [{k: 'description', label: 'Description', wide: true}, {k: 'qty', label: 'Qty', num: true}, {k: 'unit', label: 'Unit', text: true}, {k: 'purpose', label: 'Purpose', text: true}],
+  extra: [], notes: [['remarks', 'Remarks']],
+  signs: ['Requested By', 'Approved By', 'Store / Issued By'],
+  listCols: [['Requested By', r => esc(r.party_name)], ['Department', r => esc(r.data?.department)], ['Job Ref', r => esc(r.data?.job_ref)], ['Items', r => (r.data?.items || []).length]],
+  search: r => [r.data?.department, r.data?.job_ref]
+};
+IDOCS.dn.signs = ['Prepared By', 'Delivered By (Driver)', 'Received By (Name / Sign / Date)'];
 const GROUP_TYPES = g => Object.keys(IDOCS).filter(k => IDOCS[k].group === g);
 
 const ILIST = {};
 async function loadIList(type, force) {
   if (ILIST[type] && !force) return ILIST[type];
-  const {data, error} = await sb.from('docs_documents').select('id, doc_no, doc_date, party_name, data, created_at')
+  const {data, error} = await sb.from('docs_documents').select('id, doc_no, doc_date, party_name, data, status, created_at')
     .eq('doc_type', type).order('created_at', {ascending: false}).limit(5000);
   if (error) throw error;
   return ILIST[type] = data;
@@ -769,12 +844,28 @@ function itemsPdf(type, r, img) {
 
   frame();
   const top = [[T.noLabel, r.doc_no || '(on save)'], [T.dateLabel, fmtDate(r.doc_date)],
-               ...T.head.map(([k, l]) => [l, d[k]])];
+               ...T.head.map(([k, l, t]) => [l, t === 'date' ? fmtDate(d[k]) : d[k]])];
   kv(top);
   section(T.partyTitle);
   kv([[T.partyLabel, r.party_name], ...T.party.map(([k, l]) => [l, d[k]])], 1);
+  (T.body || []).forEach(([k, l]) => {
+    if (!String(d[k] || '').trim()) return;
+    section(l);
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9.5); pdf.setTextColor(...C.ink);
+    const bl = hasAr(d[k]) ? null : pdf.splitTextToSize(String(d[k]).trim(), CW);
+    if (bl) bl.forEach(line => { need(5); pdf.text(line, M, y + 3.5); y += 4.6; });
+    else { const a = arImg(String(d[k]).trim(), 9.5, {maxW: CW}); need(a.h + 2); pdf.addImage(a.dataUrl, 'PNG', M, y, a.w, a.h); y += a.h; }
+    y += 4;
+  });
   const items = (d.items || []);
-  if (type === 'dn') {
+  if (!T.money && type !== 'dn') {
+    if (items.length) {
+      section('Items');
+      const cw = T.items.length > 3 ? 24 : 26;
+      table([{label: '#', w: 10}, ...T.items.map((c, i) => i === 0 ? {label: c.label} : {label: c.label, w: c.k === 'purpose' ? 40 : cw, align: c.num ? 'right' : 'left'})],
+        items.map((it, i) => [i + 1, ...T.items.map(c => c.num ? qtyTxt(it[c.k]) : it[c.k])]));
+    }
+  } else if (type === 'dn') {
     table([{label: 'Sr.#', w: 12}, {label: 'Description'}, {label: 'Qty', w: 22, align: 'right'}, {label: 'Qty Delivered', w: 28, align: 'right'}, {label: 'Qty Received', w: 28, align: 'right'}],
       items.map((it, i) => [i + 1, it.description, qtyTxt(it.qty), qtyTxt(it.delivered), qtyTxt(it.received)]));
   } else {
@@ -801,10 +892,16 @@ function itemsPdf(type, r, img) {
     section(s.title); kv(s.fields.filter(([k]) => !s.optional || String(d[k] || '').trim()).map(([k, l]) => [l, d[k]]), 1); });
   T.notes.forEach(([k, l]) => { if (String(d[k] || '').trim()) { section(l); kv([[l === 'Notes' ? 'Notes' : 'Remarks', d[k]]], 1); } });
   if (T.money) {
-    // quotation: bank details on the left, stamp + signature on the right of the same band
+    // quotation / invoice: bank details on the left, stamp + signature on the right of the same band
     need(40);
     const y0 = y;
-    if (type === 'quotation') { section('Bank Details', 112); kv(BANK, 1, 112); }
+    const bankW = T.zatca ? 88 : 112;
+    if (type === 'quotation' || type === 'invoice') { section('Bank Details', bankW); kv(BANK, 1, bankW); }
+    if (T.zatca) {
+      drawQr(pdf, zatcaQr(r), M + bankW + 4, y0 + 2, 30);
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6.5); pdf.setTextColor(...C.muted);
+      pdf.text('ZATCA QR', M + bankW + 19, y0 + 35, {align: 'center'});
+    }
     const sw = 50, sk = Math.min(sw / img.stamp.w, 25 / img.stamp.h), x = W - M - 62;
     const sy = Math.max(y, y0 + 36);
     pdf.addImage(img.stamp.dataUrl, 'PNG', x + (62 - img.stamp.w * sk) / 2, sy - 4 - img.stamp.h * sk, img.stamp.w * sk, img.stamp.h * sk, 'stamp');
@@ -814,13 +911,13 @@ function itemsPdf(type, r, img) {
     y = sy + 8;
   }
 
-  // delivery note: signature lines at the bottom of the last page
-  if (type === 'dn') {
+  // signature lines at the bottom of the last page (delivery note, job card, material request)
+  if (T.signs) {
     if (y + 26 > BOTTOM) newPage();
     const sy = BOTTOM - 8;
     pdf.setDrawColor(...C.ink); pdf.setLineWidth(0.35);
     const w = (CW - 20) / 3;
-    ['Prepared By', 'Delivered By (Driver)', 'Received By (Name / Sign / Date)'].forEach((t, i) => {
+    T.signs.forEach((t, i) => {
       const x = M + i * (w + 10);
       pdf.line(x, sy, x + w, sy);
       pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.5); pdf.setTextColor(...C.slate);
@@ -833,6 +930,14 @@ function itemsPdf(type, r, img) {
     pdf.text(`${r.doc_no || 'DRAFT'}   |   Page ${i} of ${n}`, W - M, BOTTOM + 4.5, {align: 'right'});
   }
   return pdf;
+}
+const SELLER_AR = 'شركة الهياكل للصناعات المعدنية';
+function zatcaQr(r) {
+  const d = r.data || {}, enc = new TextEncoder();
+  const fields = [SELLER_AR, VAT_NO, `${r.doc_date || today()}T12:00:00Z`, Number(d.grand_total || 0).toFixed(2), Number(d.vat_total || 0).toFixed(2)];
+  const bytes = [];
+  fields.forEach((v, i) => { const b = enc.encode(v); bytes.push(i + 1, b.length, ...b); });
+  return btoa(String.fromCharCode(...bytes));
 }
 const iPdf = async (type, r) => { await arabicReady(); return type === 'tank' ? tankPdf(r, await assets()) : itemsPdf(type, r, await assets()); };
 
@@ -850,15 +955,15 @@ async function showIList(type) {
       <span style="flex:1"></span>
       ${CAN_EDIT ? `<a class="btn" href="#${type}/new">+ New ${esc(T.title)}</a>` : ''}
     </div>
-    <div class="table-wrap"><table><thead><tr><th>No.</th><th>Date</th>${T.listCols.map(c => `<th${c[2] ? ' style="text-align:right"' : ''}>${c[0]}</th>`).join('')}<th></th></tr></thead><tbody id="rows"></tbody></table></div>
+    <div class="table-wrap"><table><thead><tr><th>No.</th><th>Date</th>${T.listCols.map(c => `<th${c[2] ? ' style="text-align:right"' : ''}>${c[0]}</th>`).join('')}<th>Status</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
     <p class="muted" id="count" style="font-size:13px"></p>`;
   const draw = () => {
     const q = $('#q').value.trim().toLowerCase();
     const rows = list.filter(r => !q || [r.doc_no, r.party_name, ...T.search(r)].join(' ').toLowerCase().includes(q));
     $('#rows').innerHTML = rows.length ? rows.map(r => `<tr class="click" data-id="${r.id}"><td class="no">${esc(r.doc_no)}</td>
-        <td style="white-space:nowrap">${esc(fmtDate(r.doc_date))}</td>${T.listCols.map(c => `<td class="${c[2] || ''}">${c[1](r)}</td>`).join('')}
+        <td style="white-space:nowrap">${esc(fmtDate(r.doc_date))}</td>${T.listCols.map(c => `<td class="${c[2] || ''}">${c[1](r)}</td>`).join('')}<td>${statusPill(r)}</td>
         <td><button class="btn small sec" data-pdf="${r.id}">PDF</button></td></tr>`).join('')
-      : `<tr><td colspan="${T.listCols.length + 3}" class="empty">${list.length ? 'Is search se kuch nahi mila.' : `Abhi tak koi ${esc(T.title)} nahi bana.` + (CAN_EDIT ? ` <a href="#${type}/new">Pehla banayein</a>.` : '')}</td></tr>`;
+      : `<tr><td colspan="${T.listCols.length + 4}" class="empty">${list.length ? 'Is search se kuch nahi mila.' : `Abhi tak koi ${esc(T.title)} nahi bana.` + (CAN_EDIT ? ` <a href="#${type}/new">Pehla banayein</a>.` : '')}</td></tr>`;
     $('#count').textContent = list.length ? `${rows.length} of ${list.length}` : '';
   };
   $('#q').addEventListener('input', draw);
@@ -876,7 +981,7 @@ async function showIList(type) {
 }
 
 /* ---------- form ---------- */
-async function showIForm(type, id, copyFrom) {
+async function showIForm(type, id, copyFrom, fromQuote) {
   const seq = ROUTE_SEQ;
   const T = IDOCS[type];
   view.innerHTML = '<p class="muted">Load ho raha hai…</p>';
@@ -889,16 +994,24 @@ async function showIForm(type, id, copyFrom) {
     if (!data) { view.innerHTML = `<p class="flash">Document nahi mila. <a href="#${type}">Wapas list par</a></p>`; return; }
     src = data; if (id) rec = data;
   }
-  const ro = !CAN_EDIT;
+  if (fromQuote) {
+    const {data: q} = await sb.from('docs_documents').select('*').eq('id', fromQuote).eq('doc_type', 'quotation').maybeSingle();
+    if (q) src = {party_name: q.party_name, data: {customer_address: q.data?.customer_address, customer_trn: q.data?.customer_trn,
+      items: q.data?.items || [], quote_ref: q.doc_no, payment_terms: q.data?.payment_terms}};
+  }
+  const ro = !CAN_EDIT || locked(rec);
   const dis = ro ? 'disabled' : '';
   const d = {...(src?.data || {})};
+  const stLine = await approvalLine(rec);
   const blankItem = () => Object.fromEntries(T.items.map(c => [c.k, c.def || '']));
   let items = (d.items && d.items.length ? d.items : [blankItem()]).map(it => ({...it}));
   const who = rec ? `Banaya: ${esc(await nameOf(rec.created_by))} · ${new Date(rec.created_at).toLocaleString('en-GB', {dateStyle: 'medium', timeStyle: 'short'})}` +
     (rec.updated_at ? ` &nbsp;|&nbsp; Akhri tabdeeli: ${esc(await nameOf(rec.updated_by))} · ${new Date(rec.updated_at).toLocaleString('en-GB', {dateStyle: 'medium', timeStyle: 'short'})}` : '') : '';
   const people = [...list, ...others];
   const names = [...new Set(people.map(r => r.party_name).filter(Boolean))].sort();
-  const fld = ([k, l, t], val) => `<div class="field"><label for="f_${k}">${esc(l)}</label><input id="f_${k}" ${t ? `type="${t}"` : ''} value="${esc(val)}" ${dis}></div>`;
+  const fld = ([k, l, t, opts], val) => `<div class="field"><label for="f_${k}">${esc(l)}</label>${t === 'select'
+    ? `<select id="f_${k}" ${dis}>${opts.map(o => `<option${o === val ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select>`
+    : `<input id="f_${k}" ${t ? `type="${t}"` : ''} value="${esc(val)}" ${dis}>`}</div>`;
   const dateNow = rec?.doc_date || today();
 
   if (seq !== ROUTE_SEQ) return;   // user already moved to another page
@@ -906,6 +1019,7 @@ async function showIForm(type, id, copyFrom) {
     <p style="margin:0 0 10px"><a href="#${type}">&larr; ${esc(T.plural)}</a></p>
     <h2>${rec ? `${esc(T.title)} <span class="mono" style="font-size:1.1rem">${esc(rec.doc_no)}</span>` : 'New ' + esc(T.title)}</h2>
     ${who ? `<p class="meta">${who}</p>` : ''}
+    ${stLine ? `<p class="status-line">${stLine}</p>` : ''}
     <form id="f" autocomplete="off">
       <div class="sheet">
         <h3>${esc(T.title)} details</h3>
@@ -922,7 +1036,8 @@ async function showIForm(type, id, copyFrom) {
             <datalist id="names">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
           ${T.party.map(f => fld(f, d[f[0]])).join('')}
         </div>
-        ${ro ? '' : `<p class="hint">Purana ${T.group === 'vendor' ? 'vendor' : 'customer'} chunein to uska address waghera khud bhar jayega.</p>`}
+        ${ro || !T.party.length ? '' : `<p class="hint">Purana ${T.group === 'vendor' ? 'vendor' : 'customer'} chunein to uska address waghera khud bhar jayega.</p>`}
+        ${(T.body || []).map(([k, l]) => `<div class="field" style="margin-top:12px"><label for="f_${k}">${esc(l)}</label><textarea id="f_${k}" rows="4" ${dis}>${esc(d[k])}</textarea></div>`).join('')}
       </div>
       <div class="sheet">
         <h3>Items</h3>
@@ -931,7 +1046,7 @@ async function showIForm(type, id, copyFrom) {
         ${ro ? '' : '<button type="button" class="btn sec small" id="addItem" style="margin-top:10px">+ Add item</button>'}
         ${T.money ? '<div class="totals" id="totals"></div><p class="hint" id="inwords"></p>' : ''}
       </div>
-      <div class="sheet">
+      <div class="sheet"${T.extra.length || T.notes.length ? '' : ' hidden'}>
         ${T.extra.map(s => `<h3>${esc(s.title)}</h3><div class="grid">${s.fields.map(f => fld(f, d[f[0]])).join('')}</div>`).join('')}
         ${T.notes.map(([k, l]) => `<div class="field" style="margin-top:12px"><label for="f_${k}">${esc(l)}</label><textarea id="f_${k}" rows="3" ${dis}>${esc(d[k])}</textarea></div>`).join('')}
       </div>
@@ -941,10 +1056,13 @@ async function showIForm(type, id, copyFrom) {
         <button class="btn sec" type="button" id="dl">Download PDF</button>
         <button class="btn sec" type="button" id="pv">Preview</button>
         ${rec && CAN_EDIT ? `<a class="btn sec" href="#${type}/copy/${rec.id}">Copy as new</a>` : ''}
+        ${rec && CAN_EDIT && type === 'quotation' ? `<a class="btn sec" href="#invoice/fromquote/${rec.id}">Make Invoice</a>` : ''}
+        ${approvalButtons(rec)}
         <span class="grow"></span>
         ${rec && CAN_DELETE ? '<button class="btn danger" type="button" id="del">Delete</button>' : ''}
       </div>
     </form>`;
+  wireApproval(rec, type);
 
   const form = $('#f');
   const drawItems = () => {
@@ -952,6 +1070,7 @@ async function showIForm(type, id, copyFrom) {
     $('#items').innerHTML = items.map((it, i) => `<tr data-i="${i}"><td class="n">${i + 1}</td>
       ${T.items.map(c => `<td${c.wide ? ' style="min-width:240px"' : ' style="width:110px"'}>${c.wide
         ? `<textarea data-k="${c.k}" rows="1" aria-label="${esc(c.label)} ${i + 1}" ${dis}>${esc(it[c.k])}</textarea>`
+        : c.text ? `<input data-k="${c.k}" value="${esc(it[c.k])}" aria-label="${esc(c.label)} ${i + 1}" ${dis}>`
         : `<input data-k="${c.k}" type="number" step="any" inputmode="decimal" value="${esc(it[c.k])}" aria-label="${esc(c.label)} ${i + 1}" ${dis}>`}</td>`).join('')}
       ${T.money ? `<td class="amt">${money(q.rows[i].amount)}</td>` : ''}
       <td>${ro || items.length < 2 ? '' : `<button type="button" class="rm" data-rm="${i}" aria-label="Remove item ${i + 1}">&times;</button>`}</td></tr>`).join('');
@@ -986,9 +1105,9 @@ async function showIForm(type, id, copyFrom) {
 
   const collect = () => {
     const data = {};
-    [...T.head, ...T.party, ...T.extra.flatMap(s => s.fields), ...T.notes].forEach(([k]) => data[k] = ($('#f_' + k)?.value || '').trim());
+    [...T.head, ...T.party, ...(T.body || []), ...T.extra.flatMap(s => s.fields), ...T.notes].forEach(([k]) => data[k] = ($('#f_' + k)?.value || '').trim());
     data.items = items.map(it => Object.fromEntries(T.items.map(c => [c.k, String(it[c.k] ?? '').trim()])))
-      .filter(it => T.items.some(c => !c.def && it[c.k] !== ''));
+      .filter(it => T.items.some(c => !c.def && !c.text && it[c.k] !== ''));
     if (T.money) { const q = quoteTotals(data.items); Object.assign(data, {sub_total: q.sub, vat_total: q.vat, grand_total: q.total, total_in_words: sarWords(q.total)}); }
     return {doc_date: $('#f_date').value, party_name: $('#f_party').value.trim(), data};
   };
@@ -1010,7 +1129,7 @@ async function showIForm(type, id, copyFrom) {
     const v = collect();
     if (!v.doc_date) throw new Error('Date daalein.');
     if (!v.party_name) { $('#f_party').focus(); throw new Error(T.partyLabel + ' daalein.'); }
-    if (!v.data.items.length) throw new Error('Kam az kam ek item daalein.');
+    if (!v.data.items.length && !T.itemsOptional) throw new Error('Kam az kam ek item daalein.');
     let res;
     if (rec) res = await sb.from('docs_documents').update(v).eq('id', rec.id).select().single();
     else {
@@ -1176,8 +1295,9 @@ async function showTankForm(id, copyFrom) {
     if (!data) { view.innerHTML = `<p class="flash">Certificate nahi mila. <a href="#tank">Wapas list par</a></p>`; return; }
     src = data; if (id) rec = data;
   }
-  const ro = !CAN_EDIT, dis = ro ? 'disabled' : '';
+  const ro = !CAN_EDIT || locked(rec), dis = ro ? 'disabled' : '';
   const dateNow = rec?.doc_date || today();
+  const stLine = await approvalLine(rec);
   const d = {valid_until: addMonths(dateNow, 6), ...(src?.data || {})};
   if (!rec) d.valid_until = addMonths(dateNow, 6);
   if (!d.note_en) d.note_en = TANK.noteEn(d.valid_until);
@@ -1193,6 +1313,7 @@ async function showTankForm(id, copyFrom) {
     <p style="margin:0 0 10px"><a href="#tank">&larr; Tank Certificates</a></p>
     <h2>${rec ? `Tank Certificate <span class="mono" style="font-size:1.1rem">${esc(rec.doc_no)}</span>` : 'New Tank Certificate'}</h2>
     ${who ? `<p class="meta">${who}</p>` : ''}
+    ${stLine ? `<p class="status-line">${stLine}</p>` : ''}
     <form id="f" autocomplete="off">
       <div class="sheet">
         <h3>Certificate</h3>
@@ -1223,10 +1344,12 @@ async function showTankForm(id, copyFrom) {
         <button class="btn sec" type="button" id="dl">Download PDF</button>
         <button class="btn sec" type="button" id="pv">Preview</button>
         ${rec && CAN_EDIT ? `<a class="btn sec" href="#tank/copy/${rec.id}">Copy as new</a>` : ''}
+        ${approvalButtons(rec)}
         <span class="grow"></span>
         ${rec && CAN_DELETE ? '<button class="btn danger" type="button" id="del">Delete</button>' : ''}
       </div>
     </form>`;
+  wireApproval(rec, 'tank');
   const form = $('#f');
   form.addEventListener('input', e => {
     dirty = true;
@@ -1270,13 +1393,14 @@ async function route() {
   ROUTE_SEQ++;
   const h = location.hash.replace(/^#/, '') || 'leak';
   const [type, a, b] = h.split('/');
-  if (!['leak', 'dn', 'quotation', 'po', 'tank'].includes(type)) { location.hash = '#leak'; return; }
+  if (!['leak', 'tank', 'quotation', 'invoice', 'dn', 'po', 'jobcard', 'mr'].includes(type)) { location.hash = '#leak'; return; }
   $$('#tabs a').forEach(x => x.classList.toggle('on', x.dataset.t === type));
   if (type !== 'leak') {
     const form = type === 'tank' ? (i, c) => showTankForm(i, c) : (i, c) => showIForm(type, i, c);
     if (!a) return showIList(type);
     if (a === 'new') return CAN_EDIT ? form(null) : (location.hash = '#' + type);
     if (a === 'copy') return CAN_EDIT ? form(null, b) : (location.hash = '#' + type);
+    if (a === 'fromquote' && type === 'invoice') return CAN_EDIT ? showIForm('invoice', null, null, b) : (location.hash = '#invoice');
     return form(a);
   }
   if (!a) return showList();

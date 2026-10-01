@@ -9,7 +9,7 @@ Server ki zaroorat nahi: website **GitHub Pages** par chalti hai, aur saara data
 | **Employees** | Attendance, overtime, tasks, salary | admin · supervisor · viewer |
 | **Gate kiosk** | Employees PIN se check-in / check-out karte hain (bina login) | — |
 | **Users & Access** | Users banana, password badalna, access dena / hatana | portal admin |
-| **Documents** | Leak Test (TS-001), Delivery Note (AH-2026-001), Quotation (QT-AL000001), Purchase Order (PO-00001), Tank Certificate (HMI-2026-001, English + Arabic): save, history, PDF | manager · staff · viewer |
+| **Documents** | Leak Test (TS-001), Tank Certificate (HMI-2026-001, English + Arabic), Quotation (QT-AL000001), Invoice (INV-AL00001, ZATCA QR), Delivery Note (AH-2026-001), Purchase Order (PO-00001), Job Card (JC-2026-001), Material Request (MR-2026-001): draft / approve, history, PDF | manager · staff · viewer |
 
 ---
 
@@ -19,7 +19,7 @@ Server ki zaroorat nahi: website **GitHub Pages** par chalti hai, aur saara data
 index.html            portal home (login ke baad)
 login.html            login page
 access.html           Users & Access (sirf portal admin)
-documents.html        Documents (Leak Test, Delivery Note, Quotation, PO, Tank Certificate; PDF browser mein banti hai)
+documents.html        Documents (8 types; PDF browser mein banti hai)
 inventory.html        Inventory
 employees.html        Employees (attendance, overtime, tasks)
 kiosk.html            gate tablet ke liye
@@ -43,7 +43,7 @@ supabase/functions/admin-users/index.ts   users banane wala Edge Function
 
 ### Step 1b — Documents (phase 2)
 
-Isi tarah **SQL Editor → New query** mein `supabase_docs.sql` ka poora content paste karke **Run** karein. Is se documents ki table, numbering (TS-001, AH-2026-001, QT-AL000001, PO-00001, HMI-2026-001) aur photos ke liye private storage (`docs` bucket) ban jati hai. File dobara chalana safe hai; nayi numbering aaye to dobara chalayein.
+Isi tarah **SQL Editor → New query** mein `supabase_docs.sql` ka poora content paste karke **Run** karein. Is se documents ki table, numbering, draft / approve ke rules aur photos ke liye private storage (`docs` bucket) ban jati hai. File dobara chalana safe hai; nayi numbering aaye to dobara chalayein.
 
 ## Step 2 — Supabase: login settings
 
@@ -114,13 +114,17 @@ window.PORTAL_CONFIG = {
 
 ---
 
+## Invoice aur ZATCA
+
+Invoice par ZATCA (phase 1) wala QR code khud lagta hai: company ka naam, VAT number, date, total aur VAT. Agar company ZATCA phase 2 (Fatoora e-invoicing integration) mein shamil hai, to legal tax invoice ZATCA se juray hue accounting system se hi jari honi chahiye; yeh portal wala invoice us surat mein andaruni / proforma copy samjhein.
+
 ## Roles ka matlab
 
 | | admin / manager | beech wala | viewer |
 |---|---|---|---|
 | **Inventory** | admin: sab kuch + delete + stock count (adjust) | storekeeper: products, suppliers, stock in / out | sirf dekhna |
 | **Employees** | admin: sab kuch + salary + PIN + settings | supervisor: attendance, overtime ghante, tasks (salary nahi) | sirf dekhna (salary nahi) |
-| **Documents** | manager: sab kuch + delete | staff: naya banana aur edit | sirf dekhna aur PDF download |
+| **Documents** | manager: sab kuch + approve / reopen + delete | staff: naya banana aur draft edit karna (approved nahi) | sirf dekhna aur PDF download |
 
 **Portal admin** (Users & Access) alag tick hai. Aap khud apna admin access nahi hata sakte, na apna account band ya delete kar sakte hain.
 
@@ -130,7 +134,7 @@ window.PORTAL_CONFIG = {
 
 - **Purane GitHub Pages sites** (`alhyakel-inventory`, `emoplyees-tracker`): un repos mein **Settings → Pages → Unpublish site**.
 - **Purane Supabase projects**: sab test data tha, **pause** ya **delete** kar sakte hain.
-- **Render wala AHMI portal**: Leak Test, Delivery Note, Quotation, PO aur Tank Certificate ab yahin bante hain. Invoice, Job Card aur Material Request jab tak yahan na aa jayein, Render wala portal **chalta rehne dein**.
+- **Render wala AHMI portal**: saare 8 documents ab yahin bante hain. Purane documents ki PDFs (Render se) download karke rakh lein, phir Render service band kar sakte hain.
 
 ---
 

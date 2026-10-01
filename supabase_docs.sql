@@ -30,6 +30,13 @@ create table if not exists public.docs_documents (
 );
 create index if not exists docs_documents_type_date_idx on public.docs_documents (doc_type, doc_date desc);
 
+-- draft / approved (phase 2d)
+alter table public.docs_documents add column if not exists status text not null default 'draft';
+alter table public.docs_documents add column if not exists approved_by uuid;
+alter table public.docs_documents add column if not exists approved_at timestamptz;
+alter table public.docs_documents drop constraint if exists docs_documents_status_check;
+alter table public.docs_documents add constraint docs_documents_status_check check (status in ('draft','approved'));
+
 -- ---------------------------------------------------------------------
 -- 2. Numbers are given by the database, so two people saving at the
 --    same moment never get the same number.
@@ -38,19 +45,25 @@ create index if not exists docs_documents_type_date_idx on public.docs_documents
 --      quotation : QT-AL000001, QT-AL000002, ...
 --      po   : PO-00001, PO-00002, ...
 --      tank : HMI-2026-001, ... (restarts every year)
+--      invoice : INV-AL00001, ...
+--      jobcard : JC-2026-001, mr : MR-2026-001 (restart every year)
 --    A number typed in the form is used as-is (must be unique).
 -- ---------------------------------------------------------------------
 create or replace function public.docs_before_write()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare
-  v_n   int;
-  v_yr  text;
+  v_n    int;
+  v_yr   text;
+  v_role text := public.my_role('docs');
 begin
   if tg_op = 'INSERT' then
     new.created_by := auth.uid();
     new.created_at := now();
     new.updated_by := null;
     new.updated_at := null;
+    new.status := 'draft';                 -- every document starts as a draft
+    new.approved_by := null;
+    new.approved_at := null;
     if new.doc_no is null or btrim(new.doc_no) = '' then
       perform pg_advisory_xact_lock(hashtext('docs_no_' || new.doc_type));
       if new.doc_type = 'leak' then
@@ -71,6 +84,15 @@ begin
         select coalesce(max((regexp_match(doc_no, '^PO-(\d+)$'))[1]::int), 0) + 1 into v_n
           from public.docs_documents where doc_type = 'po';
         new.doc_no := 'PO-' || lpad(v_n::text, 5, '0');
+      elsif new.doc_type = 'invoice' then
+        select coalesce(max((regexp_match(doc_no, '^INV-AL(\d+)$'))[1]::int), 0) + 1 into v_n
+          from public.docs_documents where doc_type = 'invoice';
+        new.doc_no := 'INV-AL' || lpad(v_n::text, 5, '0');
+      elsif new.doc_type in ('jobcard', 'mr') then
+        v_yr := to_char(new.doc_date, 'YYYY');
+        select coalesce(max((regexp_match(doc_no, '^' || case new.doc_type when 'jobcard' then 'JC' else 'MR' end || '-' || v_yr || '-(\d+)$'))[1]::int), 0) + 1 into v_n
+          from public.docs_documents where doc_type = new.doc_type;
+        new.doc_no := case new.doc_type when 'jobcard' then 'JC-' else 'MR-' end || v_yr || '-' || lpad(v_n::text, 3, '0');
       elsif new.doc_type = 'quotation' then
         select coalesce(max((regexp_match(doc_no, '^QT-AL(\d+)$'))[1]::int), 0) + 1 into v_n
           from public.docs_documents where doc_type = 'quotation';
@@ -81,6 +103,20 @@ begin
       end if;
     end if;
   else
+    -- approved documents: only a docs manager may change them (SQL editor / service key is not limited)
+    if auth.uid() is not null and old.status = 'approved' and coalesce(v_role, '') <> 'manager' then
+      raise exception 'Yeh document approve ho chuka hai. Sirf manager isay badal sakta hai.';
+    end if;
+    if new.status is distinct from old.status then
+      if auth.uid() is not null and coalesce(v_role, '') <> 'manager' then
+        raise exception 'Sirf manager approve ya reopen kar sakta hai.';
+      end if;
+      new.approved_by := case when new.status = 'approved' then auth.uid() end;
+      new.approved_at := case when new.status = 'approved' then now() end;
+    else
+      new.approved_by := old.approved_by;
+      new.approved_at := old.approved_at;
+    end if;
     -- number, type and creator never change after the first save
     new.doc_type   := old.doc_type;
     new.doc_no     := old.doc_no;
