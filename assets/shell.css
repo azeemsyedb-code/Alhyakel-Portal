@@ -84,3 +84,61 @@ body.ah{font-family:var(--ah-font)}
   .ahhead{padding:18px 14px 2px}
 }
 @media print{#ahbar{display:none}}
+
+/* ---------- shared look for dialogs on every module ---------- */
+.modal .box h3{font-size:19px!important;font-weight:600;margin:-20px -20px 16px!important;padding:16px 20px;border-bottom:1px solid var(--ah-line)}
+.modal .actions{border-top:1px solid var(--ah-line);margin:18px -20px -20px!important;padding:14px 20px}
+dialog .dlg-h{font-size:19px!important;font-weight:600}
+.dlg-b label.chk{flex-wrap:wrap;align-items:center}
+.dlg-b label.chk .hint{flex-basis:100%;margin-left:26px;margin-top:-4px}
+kbd{font:600 11px var(--ah-font);background:#fff;border:1px solid var(--ah-line);border-bottom-width:2px;border-radius:4px;padding:1px 5px;color:var(--ah-muted)}
+
+/* ---------- phones ---------- */
+@media (max-width:760px){
+  /* module tabs move to a bottom bar, like a phone app */
+  body.ah-bar{padding-bottom:calc(62px + env(safe-area-inset-bottom,0px))}
+  #ahbar .row2{position:fixed;left:0;right:0;bottom:0;z-index:55;background:#fff;border-top:1px solid var(--ah-line);margin:0;max-width:none;
+    justify-content:space-around;gap:0;padding:4px 2px calc(4px + env(safe-area-inset-bottom,0px));box-shadow:0 -4px 16px rgba(30,60,80,.06)}
+  #ahbar .row2 a{flex:1 1 0;min-width:0;flex-direction:column;gap:3px;padding:6px 2px!important;font-size:11px;border-bottom:0;border-radius:10px!important}
+  #ahbar .row2 a svg{width:21px;height:21px}
+  #ahbar .row2 a span{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+  #ahbar .row2 a.on{color:var(--ah-brand);background:var(--ah-brand-l)!important}
+  #ahbar.hr,#ahbar .hr{border-top:0}
+  /* bigger touch targets; 16px inputs stop iPhone from zooming in */
+  .btn,button.btn{min-height:40px}
+  input,select,textarea{font-size:16px!important}
+  /* sticky action bars sit above the bottom tabs */
+  .bar{bottom:calc(62px + env(safe-area-inset-bottom,0px))!important}
+  .toast,#toast{bottom:calc(76px + env(safe-area-inset-bottom,0px))!important}
+  /* tables -> cards */
+  table.ah-cards{min-width:0!important;border-collapse:separate}
+  table.ah-cards thead{display:none}
+  table.ah-cards,table.ah-cards tbody{display:block;width:100%}
+  table.ah-cards tr{display:block;padding:10px 14px;border-bottom:1px solid #EEF2F4;position:relative}
+  table.ah-cards tbody tr:last-child{border-bottom:0}
+  table.ah-cards td{display:flow-root;padding:4px 0!important;border:0!important;text-align:right!important;min-height:0;width:auto!important;white-space:normal;line-height:1.6}
+  table.ah-cards td::before{content:attr(data-label);float:left;max-width:45%;margin-right:12px;text-align:left;color:var(--ah-muted);font-size:12.5px;font-weight:500}
+  table.ah-cards td[data-label=""]::before{display:none}
+  table.ah-cards td:first-child{font-weight:600}
+  table.ah-cards td[colspan]{text-align:center!important;padding:14px 0!important}
+  table.ah-cards td input:not([type=checkbox]):not([type=radio]),table.ah-cards td select,table.ah-cards td textarea{width:55%!important;max-width:55%;text-align:left;display:inline-block;vertical-align:middle}
+  table.ah-cards td .sub{display:block}
+  .table-wrap,.tablewrap,.wrap{overflow-x:visible}
+  /* item editor (quotation, invoice …): each line becomes a card */
+  table.items.ah-cards td.n{text-align:left!important;color:var(--ah-ink);font-weight:600}
+  table.items.ah-cards td.amt{padding-top:6px!important}
+  /* dialogs become bottom sheets */
+  dialog{width:100vw!important;max-width:100vw!important;margin:auto 0 0!important;border-radius:16px 16px 0 0!important;max-height:92vh}
+  .dlg-b{grid-template-columns:1fr!important;max-height:calc(92vh - 140px)}
+  .modal{place-items:end center!important;padding:0!important;z-index:70!important}
+  .modal .box{border-radius:16px 16px 0 0!important;max-height:92vh;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+  .modal .box [class*=grid],.modal .box .row{grid-template-columns:1fr!important}
+}
+@media print{#ahbar .row2{display:none}}
+@media (max-width:760px){
+  table.items.ah-cards td{text-align:left!important}
+  table.items.ah-cards td::before{float:none;display:block;max-width:none;margin:0 0 2px}
+  table.items.ah-cards td input:not([type=checkbox]),table.items.ah-cards td textarea,table.items.ah-cards td select{width:100%!important;max-width:100%}
+  table.items.ah-cards td.amt{text-align:right!important}
+  table.items.ah-cards td.amt::before{float:left;display:inline}
+}

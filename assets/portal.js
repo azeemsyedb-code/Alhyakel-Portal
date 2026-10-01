@@ -159,6 +159,42 @@
     return out.sort((a, b) => order.indexOf(a.g) - order.indexOf(b.g));
   }
 
+  /* ---------- page helpers: phone-friendly tables, remembered filters, keyboard shortcuts ---------- */
+  function enhance() {
+    // 1) tables become cards on phones: every cell gets its column name as a label
+    const label = () => document.querySelectorAll('main table:not(.grid):not([data-nocards])').forEach(t => {
+      const heads = [...t.querySelectorAll('thead th')].flatMap(th => Array(Number(th.colSpan) || 1).fill(th.textContent.trim()));
+      if (!heads.length) return;
+      t.classList.add('ah-cards');
+      t.querySelectorAll('tbody tr').forEach(tr => { let i = 0;
+        [...tr.children].forEach(td => { if (!td.hasAttribute('data-label')) td.setAttribute('data-label', td.colSpan > 1 ? '' : heads[i] || ''); i += Number(td.colSpan) || 1; }); });
+    });
+    // 2) list filters (dropdowns / tick boxes marked data-remember) keep their last choice on this device
+    const store = {get: k => { try { return localStorage.getItem('ah:' + k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem('ah:' + k, v); } catch (e) {} }};
+    const remember = () => document.querySelectorAll('[data-remember]:not([data-rmb])').forEach(el => {
+      el.dataset.rmb = '1'; const k = el.dataset.remember, box = el.type === 'checkbox';
+      el.addEventListener('change', () => store.set(k, box ? (el.checked ? '1' : '0') : el.value));
+      const v = store.get(k); if (v == null) return;
+      if (box ? el.checked === (v === '1') : el.value === v) return;
+      if (box) el.checked = v === '1'; else { el.value = v; if (el.value !== v) return; }   // option no longer exists
+      el.dispatchEvent(new Event('input', {bubbles: true})); el.dispatchEvent(new Event('change', {bubbles: true}));
+    });
+    let queued = false;
+    new MutationObserver(() => { if (queued) return; queued = true; setTimeout(() => { queued = false; label(); remember(); }, 0); })
+      .observe(document.body, {childList: true, subtree: true});
+    label(); setTimeout(remember, 0);
+    // 3) shortcuts: "/" = search, Ctrl+S = save (open dialog first, else the page's Save button)
+    const visible = el => el && !el.disabled && el.offsetParent !== null;
+    document.addEventListener('keydown', e => {
+      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable;
+      if (e.key === '/' && !typing && !e.ctrlKey && !e.metaKey) { e.preventDefault(); document.getElementById('ahq')?.focus(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        const btn = [...document.querySelectorAll('dialog[open] .primary, dialog[open] button[type=submit], .modal:not(.hidden) .btn.primary, #save')].find(visible);
+        if (btn) { e.preventDefault(); btn.click(); }
+      }
+    });
+  }
+
   /* ---------- top bar ---------- */
   function drawBar() {
     const U = C.user, L = C.links;
@@ -183,12 +219,15 @@
             <div class="ahdrop right" id="ahmenu" hidden>
               <div class="me"><b>${esc(U.full_name)}</b><span>${esc(U.username)}${roles ? ' · ' + esc(roles) : ''}</span></div>
               <a href="${L.home}">${icon('home')}Portal home</a>
-              <a href="${L.logout}">${icon('out')}Logout</a></div></div>
+              <a href="${L.logout}">${icon('out')}Logout</a>
+              <div class="none" style="text-align:left;padding:10px 10px 6px;font-size:12.5px;border-top:1px solid var(--ah-line);margin-top:4px">Shortcuts: <kbd>/</kbd> search · <kbd>Ctrl</kbd>+<kbd>S</kbd> save</div></div></div>
         </div>
       </div>
       <nav class="row2 hr" aria-label="Portal">${tabs.map(([t, h, ic]) =>
-        `<a href="${h}"${h === here ? ' class="on" aria-current="page"' : ''}>${icon(ic)}${esc(t)}</a>`).join('')}</nav>`;
+        `<a href="${h}"${h === here ? ' class="on" aria-current="page"' : ''}>${icon(ic)}<span>${esc(t === 'Users & Access' ? 'Access' : t)}</span></a>`).join('')}</nav>`;
     document.body.insertBefore(bar, document.body.firstChild);
+    document.body.classList.add('ah-bar');
+    enhance();
 
     const $ = id => document.getElementById(id);
     const drops = [['ahbell', 'ahnotes'], ['ahme', 'ahmenu']];
@@ -205,14 +244,14 @@
       const b = $('ahbadge'); b.textContent = a.total > 99 ? '99+' : a.total; b.hidden = !a.total;
       notes.innerHTML = a.groups.length ? a.groups.map(g => `<h6>${esc(g.title)} (${g.count})</h6>` + g.items.map(i =>
         `<a href="${i.href}"><span class="dot" style="background:${g.color}">${icon(g.icon)}</span><span class="t"><b>${esc(i.label)}</b><span>${esc(i.sub)}</span></span></a>`).join('')).join('')
-        : '<div class="none">Sab theek hai. Koi notification nahi.</div>';
-    }).catch(() => { notes.innerHTML = '<div class="none">Notifications load nahi hui.</div>'; });
+        : '<div class="none">All clear. No notifications.</div>';
+    }).catch(() => { notes.innerHTML = '<div class="none">Could not load notifications.</div>'; });
 
     // search
     const q = $('ahq'), res = $('ahres');
     let timer, seq = 0, sel = -1, results = [];
     const draw = () => {
-      if (!results.length) { res.innerHTML = '<div class="none">Kuch nahi mila.</div>'; return; }
+      if (!results.length) { res.innerHTML = '<div class="none">Nothing found.</div>'; return; }
       let g = '';
       res.innerHTML = results.map((r, i) => (r.g !== g ? `<h6>${esc(g = r.g)}</h6>` : '') +
         `<a href="${r.href}" class="${i === sel ? 'act' : ''}" role="option"><span class="dot" style="background:${r.color}">${icon(r.icon)}</span><span class="t"><b>${esc(r.label)}</b><span>${esc(r.sub)}</span></span></a>`).join('');
