@@ -6,8 +6,14 @@
 <title>Documents | Al Hyakel Portal</title>
 <link rel="icon" href="assets/favicon.png">
 <link rel="stylesheet" href="assets/portal.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>/* QR Code Generator for JavaScript, (c) 2009 Kazuhiko Arase, MIT license (qrcode-generator 1.4.4) */
+var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],f={},c=function(t,r){o=function(t){for(var r=new Array(t),e=0;e<t;e+=1){r[e]=new Array(t);for(var n=0;n<t;n+=1)r[e][n]=null}return r}(i=4*e+17),l(0,0),l(i-7,0),l(0,i-7),s(),h(),d(t,r),e>=7&&v(t),null==a&&(a=p(e,n,u)),w(a,r)},l=function(t,r){for(var e=-1;e<=7;e+=1)if(!(t+e<=-1||i<=t+e))for(var n=-1;n<=7;n+=1)r+n<=-1||i<=r+n||(o[t+e][r+n]=0<=e&&e<=6&&(0==n||6==n)||0<=n&&n<=6&&(0==e||6==e)||2<=e&&e<=4&&2<=n&&n<=4)},h=function(){for(var t=8;t<i-8;t+=1)null==o[t][6]&&(o[t][6]=t%2==0);for(var r=8;r<i-8;r+=1)null==o[6][r]&&(o[6][r]=r%2==0)},s=function(){for(var t=B.getPatternPosition(e),r=0;r<t.length;r+=1)for(var n=0;n<t.length;n+=1){var i=t[r],a=t[n];if(null==o[i][a])for(var u=-2;u<=2;u+=1)for(var f=-2;f<=2;f+=1)o[i+u][a+f]=-2==u||2==u||-2==f||2==f||0==u&&0==f}},v=function(t){for(var r=B.getBCHTypeNumber(e),n=0;n<18;n+=1){var a=!t&&1==(r>>n&1);o[Math.floor(n/3)][n%3+i-8-3]=a}for(n=0;n<18;n+=1){a=!t&&1==(r>>n&1);o[n%3+i-8-3][Math.floor(n/3)]=a}},d=function(t,r){for(var e=n<<3|r,a=B.getBCHTypeInfo(e),u=0;u<15;u+=1){var f=!t&&1==(a>>u&1);u<6?o[u][8]=f:u<8?o[u+1][8]=f:o[i-15+u][8]=f}for(u=0;u<15;u+=1){f=!t&&1==(a>>u&1);u<8?o[8][i-u-1]=f:u<9?o[8][15-u-1+1]=f:o[8][15-u-1]=f}o[i-8][8]=!t},w=function(t,r){for(var e=-1,n=i-1,a=7,u=0,f=B.getMaskFunction(r),c=i-1;c>0;c-=2)for(6==c&&(c-=1);;){for(var g=0;g<2;g+=1)if(null==o[n][c-g]){var l=!1;u<t.length&&(l=1==(t[u]>>>a&1)),f(n,c-g)&&(l=!l),o[n][c-g]=l,-1==(a-=1)&&(u+=1,a=7)}if((n+=e)<0||i<=n){n-=e,e=-e;break}}},p=function(t,r,e){for(var n=A.getRSBlocks(t,r),o=b(),i=0;i<e.length;i+=1){var a=e[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var u=0;for(i=0;i<n.length;i+=1)u+=n[i].dataCount;if(o.getLengthInBits()>8*u)throw"code length overflow. ("+o.getLengthInBits()+">"+8*u+")";for(o.getLengthInBits()+4<=8*u&&o.put(0,4);o.getLengthInBits()%8!=0;)o.putBit(!1);for(;!(o.getLengthInBits()>=8*u||(o.put(236,8),o.getLengthInBits()>=8*u));)o.put(17,8);return function(t,r){for(var e=0,n=0,o=0,i=new Array(r.length),a=new Array(r.length),u=0;u<r.length;u+=1){var f=r[u].dataCount,c=r[u].totalCount-f;n=Math.max(n,f),o=Math.max(o,c),i[u]=new Array(f);for(var g=0;g<i[u].length;g+=1)i[u][g]=255&t.getBuffer()[g+e];e+=f;var l=B.getErrorCorrectPolynomial(c),h=k(i[u],l.getLength()-1).mod(l);for(a[u]=new Array(l.getLength()-1),g=0;g<a[u].length;g+=1){var s=g+h.getLength()-a[u].length;a[u][g]=s>=0?h.getAt(s):0}}var v=0;for(g=0;g<r.length;g+=1)v+=r[g].totalCount;var d=new Array(v),w=0;for(g=0;g<n;g+=1)for(u=0;u<r.length;u+=1)g<i[u].length&&(d[w]=i[u][g],w+=1);for(g=0;g<o;g+=1)for(u=0;u<r.length;u+=1)g<a[u].length&&(d[w]=a[u][g],w+=1);return d}(o,n)};f.addData=function(t,r){var e=null;switch(r=r||"Byte"){case"Numeric":e=M(t);break;case"Alphanumeric":e=x(t);break;case"Byte":e=m(t);break;case"Kanji":e=L(t);break;default:throw"mode:"+r}u.push(e),a=null},f.isDark=function(t,r){if(t<0||i<=t||r<0||i<=r)throw t+","+r;return o[t][r]},f.getModuleCount=function(){return i},f.make=function(){if(e<1){for(var t=1;t<40;t++){for(var r=A.getRSBlocks(t,n),o=b(),i=0;i<u.length;i++){var a=u[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var g=0;for(i=0;i<r.length;i++)g+=r[i].dataCount;if(o.getLengthInBits()<=8*g)break}e=t}c(!1,function(){for(var t=0,r=0,e=0;e<8;e+=1){c(!0,e);var n=B.getLostPoint(f);(0==e||t>n)&&(t=n,r=e)}return r}())},f.createTableTag=function(t,r){t=t||2;var e="";e+='<table style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: "+(r=void 0===r?4*t:r)+"px;",e+='">',e+="<tbody>";for(var n=0;n<f.getModuleCount();n+=1){e+="<tr>";for(var o=0;o<f.getModuleCount();o+=1)e+='<td style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: 0px;",e+=" width: "+t+"px;",e+=" height: "+t+"px;",e+=" background-color: ",e+=f.isDark(n,o)?"#000000":"#ffffff",e+=";",e+='"/>';e+="</tr>"}return e+="</tbody>",e+="</table>"},f.createSvgTag=function(t,r,e,n){var o={};"object"==typeof arguments[0]&&(t=(o=arguments[0]).cellSize,r=o.margin,e=o.alt,n=o.title),t=t||2,r=void 0===r?4*t:r,(e="string"==typeof e?{text:e}:e||{}).text=e.text||null,e.id=e.text?e.id||"qrcode-description":null,(n="string"==typeof n?{text:n}:n||{}).text=n.text||null,n.id=n.text?n.id||"qrcode-title":null;var i,a,u,c,g=f.getModuleCount()*t+2*r,l="";for(c="l"+t+",0 0,"+t+" -"+t+",0 0,-"+t+"z ",l+='<svg version="1.1" xmlns="http://www.w3.org/2000/svg"',l+=o.scalable?"":' width="'+g+'px" height="'+g+'px"',l+=' viewBox="0 0 '+g+" "+g+'" ',l+=' preserveAspectRatio="xMinYMin meet"',l+=n.text||e.text?' role="img" aria-labelledby="'+y([n.id,e.id].join(" ").trim())+'"':"",l+=">",l+=n.text?'<title id="'+y(n.id)+'">'+y(n.text)+"</title>":"",l+=e.text?'<description id="'+y(e.id)+'">'+y(e.text)+"</description>":"",l+='<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>',l+='<path d="',a=0;a<f.getModuleCount();a+=1)for(u=a*t+r,i=0;i<f.getModuleCount();i+=1)f.isDark(a,i)&&(l+="M"+(i*t+r)+","+u+c);return l+='" stroke="transparent" fill="black"/>',l+="</svg>"},f.createDataURL=function(t,r){t=t||2,r=void 0===r?4*t:r;var e=f.getModuleCount()*t+2*r,n=r,o=e-r;return I(e,e,function(r,e){if(n<=r&&r<o&&n<=e&&e<o){var i=Math.floor((r-n)/t),a=Math.floor((e-n)/t);return f.isDark(a,i)?0:1}return 1})},f.createImgTag=function(t,r,e){t=t||2,r=void 0===r?4*t:r;var n=f.getModuleCount()*t+2*r,o="";return o+="<img",o+=' src="',o+=f.createDataURL(t,r),o+='"',o+=' width="',o+=n,o+='"',o+=' height="',o+=n,o+='"',e&&(o+=' alt="',o+=y(e),o+='"'),o+="/>"};var y=function(t){for(var r="",e=0;e<t.length;e+=1){var n=t.charAt(e);switch(n){case"<":r+="&lt;";break;case">":r+="&gt;";break;case"&":r+="&amp;";break;case'"':r+="&quot;";break;default:r+=n}}return r};return f.createASCII=function(t,r){if((t=t||1)<2)return function(t){t=void 0===t?2:t;var r,e,n,o,i,a=1*f.getModuleCount()+2*t,u=t,c=a-t,g={"██":"█","█ ":"▀"," █":"▄","  ":" "},l={"██":"▀","█ ":"▀"," █":" ","  ":" "},h="";for(r=0;r<a;r+=2){for(n=Math.floor((r-u)/1),o=Math.floor((r+1-u)/1),e=0;e<a;e+=1)i="█",u<=e&&e<c&&u<=r&&r<c&&f.isDark(n,Math.floor((e-u)/1))&&(i=" "),u<=e&&e<c&&u<=r+1&&r+1<c&&f.isDark(o,Math.floor((e-u)/1))?i+=" ":i+="█",h+=t<1&&r+1>=c?l[i]:g[i];h+="\n"}return a%2&&t>0?h.substring(0,h.length-a-1)+Array(a+1).join("▀"):h.substring(0,h.length-1)}(r);t-=1,r=void 0===r?2*t:r;var e,n,o,i,a=f.getModuleCount()*t+2*r,u=r,c=a-r,g=Array(t+1).join("██"),l=Array(t+1).join("  "),h="",s="";for(e=0;e<a;e+=1){for(o=Math.floor((e-u)/t),s="",n=0;n<a;n+=1)i=1,u<=n&&n<c&&u<=e&&e<c&&f.isDark(o,Math.floor((n-u)/t))&&(i=0),s+=i?g:l;for(o=0;o<t;o+=1)h+=s+"\n"}return h.substring(0,h.length-1)},f.renderTo2dContext=function(t,r){r=r||2;for(var e=f.getModuleCount(),n=0;n<e;n++)for(var o=0;o<e;o++)t.fillStyle=f.isDark(n,o)?"black":"white",t.fillRect(n*r,o*r,r,r)},f};t.stringToBytes=(t.stringToBytesFuncs={default:function(t){for(var r=[],e=0;e<t.length;e+=1){var n=t.charCodeAt(e);r.push(255&n)}return r}}).default,t.createStringToBytes=function(t,r){var e=function(){for(var e=S(t),n=function(){var t=e.read();if(-1==t)throw"eof";return t},o=0,i={};;){var a=e.read();if(-1==a)break;var u=n(),f=n()<<8|n();i[String.fromCharCode(a<<8|u)]=f,o+=1}if(o!=r)throw o+" != "+r;return i}(),n="?".charCodeAt(0);return function(t){for(var r=[],o=0;o<t.length;o+=1){var i=t.charCodeAt(o);if(i<128)r.push(i);else{var a=e[t.charAt(o)];"number"==typeof a?(255&a)==a?r.push(a):(r.push(a>>>8),r.push(255&a)):r.push(n)}}return r}};var r,e,n,o,i,a=1,u=2,f=4,c=8,g={L:1,M:0,Q:3,H:2},l=0,h=1,s=2,v=3,d=4,w=5,p=6,y=7,B=(r=[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],e=1335,n=7973,i=function(t){for(var r=0;0!=t;)r+=1,t>>>=1;return r},(o={}).getBCHTypeInfo=function(t){for(var r=t<<10;i(r)-i(e)>=0;)r^=e<<i(r)-i(e);return 21522^(t<<10|r)},o.getBCHTypeNumber=function(t){for(var r=t<<12;i(r)-i(n)>=0;)r^=n<<i(r)-i(n);return t<<12|r},o.getPatternPosition=function(t){return r[t-1]},o.getMaskFunction=function(t){switch(t){case l:return function(t,r){return(t+r)%2==0};case h:return function(t,r){return t%2==0};case s:return function(t,r){return r%3==0};case v:return function(t,r){return(t+r)%3==0};case d:return function(t,r){return(Math.floor(t/2)+Math.floor(r/3))%2==0};case w:return function(t,r){return t*r%2+t*r%3==0};case p:return function(t,r){return(t*r%2+t*r%3)%2==0};case y:return function(t,r){return(t*r%3+(t+r)%2)%2==0};default:throw"bad maskPattern:"+t}},o.getErrorCorrectPolynomial=function(t){for(var r=k([1],0),e=0;e<t;e+=1)r=r.multiply(k([1,C.gexp(e)],0));return r},o.getLengthInBits=function(t,r){if(1<=r&&r<10)switch(t){case a:return 10;case u:return 9;case f:case c:return 8;default:throw"mode:"+t}else if(r<27)switch(t){case a:return 12;case u:return 11;case f:return 16;case c:return 10;default:throw"mode:"+t}else{if(!(r<41))throw"type:"+r;switch(t){case a:return 14;case u:return 13;case f:return 16;case c:return 12;default:throw"mode:"+t}}},o.getLostPoint=function(t){for(var r=t.getModuleCount(),e=0,n=0;n<r;n+=1)for(var o=0;o<r;o+=1){for(var i=0,a=t.isDark(n,o),u=-1;u<=1;u+=1)if(!(n+u<0||r<=n+u))for(var f=-1;f<=1;f+=1)o+f<0||r<=o+f||0==u&&0==f||a==t.isDark(n+u,o+f)&&(i+=1);i>5&&(e+=3+i-5)}for(n=0;n<r-1;n+=1)for(o=0;o<r-1;o+=1){var c=0;t.isDark(n,o)&&(c+=1),t.isDark(n+1,o)&&(c+=1),t.isDark(n,o+1)&&(c+=1),t.isDark(n+1,o+1)&&(c+=1),0!=c&&4!=c||(e+=3)}for(n=0;n<r;n+=1)for(o=0;o<r-6;o+=1)t.isDark(n,o)&&!t.isDark(n,o+1)&&t.isDark(n,o+2)&&t.isDark(n,o+3)&&t.isDark(n,o+4)&&!t.isDark(n,o+5)&&t.isDark(n,o+6)&&(e+=40);for(o=0;o<r;o+=1)for(n=0;n<r-6;n+=1)t.isDark(n,o)&&!t.isDark(n+1,o)&&t.isDark(n+2,o)&&t.isDark(n+3,o)&&t.isDark(n+4,o)&&!t.isDark(n+5,o)&&t.isDark(n+6,o)&&(e+=40);var g=0;for(o=0;o<r;o+=1)for(n=0;n<r;n+=1)t.isDark(n,o)&&(g+=1);return e+=Math.abs(100*g/r/r-50)/5*10},o),C=function(){for(var t=new Array(256),r=new Array(256),e=0;e<8;e+=1)t[e]=1<<e;for(e=8;e<256;e+=1)t[e]=t[e-4]^t[e-5]^t[e-6]^t[e-8];for(e=0;e<255;e+=1)r[t[e]]=e;var n={glog:function(t){if(t<1)throw"glog("+t+")";return r[t]},gexp:function(r){for(;r<0;)r+=255;for(;r>=256;)r-=255;return t[r]}};return n}();function k(t,r){if(void 0===t.length)throw t.length+"/"+r;var e=function(){for(var e=0;e<t.length&&0==t[e];)e+=1;for(var n=new Array(t.length-e+r),o=0;o<t.length-e;o+=1)n[o]=t[o+e];return n}(),n={getAt:function(t){return e[t]},getLength:function(){return e.length},multiply:function(t){for(var r=new Array(n.getLength()+t.getLength()-1),e=0;e<n.getLength();e+=1)for(var o=0;o<t.getLength();o+=1)r[e+o]^=C.gexp(C.glog(n.getAt(e))+C.glog(t.getAt(o)));return k(r,0)},mod:function(t){if(n.getLength()-t.getLength()<0)return n;for(var r=C.glog(n.getAt(0))-C.glog(t.getAt(0)),e=new Array(n.getLength()),o=0;o<n.getLength();o+=1)e[o]=n.getAt(o);for(o=0;o<t.getLength();o+=1)e[o]^=C.gexp(C.glog(t.getAt(o))+r);return k(e,0).mod(t)}};return n}var A=function(){var t=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12,7,37,13],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]],r=function(t,r){var e={};return e.totalCount=t,e.dataCount=r,e},e={};return e.getRSBlocks=function(e,n){var o=function(r,e){switch(e){case g.L:return t[4*(r-1)+0];case g.M:return t[4*(r-1)+1];case g.Q:return t[4*(r-1)+2];case g.H:return t[4*(r-1)+3];default:return}}(e,n);if(void 0===o)throw"bad rs block @ typeNumber:"+e+"/errorCorrectionLevel:"+n;for(var i=o.length/3,a=[],u=0;u<i;u+=1)for(var f=o[3*u+0],c=o[3*u+1],l=o[3*u+2],h=0;h<f;h+=1)a.push(r(c,l));return a},e}(),b=function(){var t=[],r=0,e={getBuffer:function(){return t},getAt:function(r){var e=Math.floor(r/8);return 1==(t[e]>>>7-r%8&1)},put:function(t,r){for(var n=0;n<r;n+=1)e.putBit(1==(t>>>r-n-1&1))},getLengthInBits:function(){return r},putBit:function(e){var n=Math.floor(r/8);t.length<=n&&t.push(0),e&&(t[n]|=128>>>r%8),r+=1}};return e},M=function(t){var r=a,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+2<r.length;)t.put(o(r.substring(n,n+3)),10),n+=3;n<r.length&&(r.length-n==1?t.put(o(r.substring(n,n+1)),4):r.length-n==2&&t.put(o(r.substring(n,n+2)),7))}},o=function(t){for(var r=0,e=0;e<t.length;e+=1)r=10*r+i(t.charAt(e));return r},i=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);throw"illegal char :"+t};return n},x=function(t){var r=u,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+1<r.length;)t.put(45*o(r.charAt(n))+o(r.charAt(n+1)),11),n+=2;n<r.length&&t.put(o(r.charAt(n)),6)}},o=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);if("A"<=t&&t<="Z")return t.charCodeAt(0)-"A".charCodeAt(0)+10;switch(t){case" ":return 36;case"$":return 37;case"%":return 38;case"*":return 39;case"+":return 40;case"-":return 41;case".":return 42;case"/":return 43;case":":return 44;default:throw"illegal char :"+t}};return n},m=function(r){var e=f,n=t.stringToBytes(r),o={getMode:function(){return e},getLength:function(t){return n.length},write:function(t){for(var r=0;r<n.length;r+=1)t.put(n[r],8)}};return o},L=function(r){var e=c,n=t.stringToBytesFuncs.SJIS;if(!n)throw"sjis not supported.";!function(){var t=n("友");if(2!=t.length||38726!=(t[0]<<8|t[1]))throw"sjis not supported."}();var o=n(r),i={getMode:function(){return e},getLength:function(t){return~~(o.length/2)},write:function(t){for(var r=o,e=0;e+1<r.length;){var n=(255&r[e])<<8|255&r[e+1];if(33088<=n&&n<=40956)n-=33088;else{if(!(57408<=n&&n<=60351))throw"illegal char at "+(e+1)+"/"+n;n-=49472}n=192*(n>>>8&255)+(255&n),t.put(n,13),e+=2}if(e<r.length)throw"illegal char at "+(e+1)}};return i},D=function(){var t=[],r={writeByte:function(r){t.push(255&r)},writeShort:function(t){r.writeByte(t),r.writeByte(t>>>8)},writeBytes:function(t,e,n){e=e||0,n=n||t.length;for(var o=0;o<n;o+=1)r.writeByte(t[o+e])},writeString:function(t){for(var e=0;e<t.length;e+=1)r.writeByte(t.charCodeAt(e))},toByteArray:function(){return t},toString:function(){var r="";r+="[";for(var e=0;e<t.length;e+=1)e>0&&(r+=","),r+=t[e];return r+="]"}};return r},S=function(t){var r=t,e=0,n=0,o=0,i={read:function(){for(;o<8;){if(e>=r.length){if(0==o)return-1;throw"unexpected end of file./"+o}var t=r.charAt(e);if(e+=1,"="==t)return o=0,-1;t.match(/^\s$/)||(n=n<<6|a(t.charCodeAt(0)),o+=6)}var i=n>>>o-8&255;return o-=8,i}},a=function(t){if(65<=t&&t<=90)return t-65;if(97<=t&&t<=122)return t-97+26;if(48<=t&&t<=57)return t-48+52;if(43==t)return 62;if(47==t)return 63;throw"c:"+t};return i},I=function(t,r,e){for(var n=function(t,r){var e=t,n=r,o=new Array(t*r),i={setPixel:function(t,r,n){o[r*e+t]=n},write:function(t){t.writeString("GIF87a"),t.writeShort(e),t.writeShort(n),t.writeByte(128),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(255),t.writeByte(255),t.writeByte(255),t.writeString(","),t.writeShort(0),t.writeShort(0),t.writeShort(e),t.writeShort(n),t.writeByte(0);var r=a(2);t.writeByte(2);for(var o=0;r.length-o>255;)t.writeByte(255),t.writeBytes(r,o,255),o+=255;t.writeByte(r.length-o),t.writeBytes(r,o,r.length-o),t.writeByte(0),t.writeString(";")}},a=function(t){for(var r=1<<t,e=1+(1<<t),n=t+1,i=u(),a=0;a<r;a+=1)i.add(String.fromCharCode(a));i.add(String.fromCharCode(r)),i.add(String.fromCharCode(e));var f,c,g,l=D(),h=(f=l,c=0,g=0,{write:function(t,r){if(t>>>r!=0)throw"length over";for(;c+r>=8;)f.writeByte(255&(t<<c|g)),r-=8-c,t>>>=8-c,g=0,c=0;g|=t<<c,c+=r},flush:function(){c>0&&f.writeByte(g)}});h.write(r,n);var s=0,v=String.fromCharCode(o[s]);for(s+=1;s<o.length;){var d=String.fromCharCode(o[s]);s+=1,i.contains(v+d)?v+=d:(h.write(i.indexOf(v),n),i.size()<4095&&(i.size()==1<<n&&(n+=1),i.add(v+d)),v=d)}return h.write(i.indexOf(v),n),h.write(e,n),h.flush(),l.toByteArray()},u=function(){var t={},r=0,e={add:function(n){if(e.contains(n))throw"dup key:"+n;t[n]=r,r+=1},size:function(){return r},indexOf:function(r){return t[r]},contains:function(r){return void 0!==t[r]}};return e};return i}(t,r),o=0;o<r;o+=1)for(var i=0;i<t;i+=1)n.setPixel(i,o,e(i,o));var a=D();n.write(a);for(var u=function(){var t=0,r=0,e=0,n="",o={},i=function(t){n+=String.fromCharCode(a(63&t))},a=function(t){if(t<0);else{if(t<26)return 65+t;if(t<52)return t-26+97;if(t<62)return t-52+48;if(62==t)return 43;if(63==t)return 47}throw"n:"+t};return o.writeByte=function(n){for(t=t<<8|255&n,r+=8,e+=1;r>=6;)i(t>>>r-6),r-=6},o.flush=function(){if(r>0&&(i(t<<6-r),t=0,r=0),e%3!=0)for(var o=3-e%3,a=0;a<o;a+=1)n+="="},o.toString=function(){return n},o}(),f=a.toByteArray(),c=0;c<f.length;c+=1)u.writeByte(f[c]);return u.flush(),"data:image/gif;base64,"+u};return t}();qrcode.stringToBytesFuncs["UTF-8"]=function(t){return function(t){for(var r=[],e=0;e<t.length;e++){var n=t.charCodeAt(e);n<128?r.push(n):n<2048?r.push(192|n>>6,128|63&n):n<55296||n>=57344?r.push(224|n>>12,128|n>>6&63,128|63&n):(e++,n=65536+((1023&n)<<10|1023&t.charCodeAt(e)),r.push(240|n>>18,128|n>>12&63,128|n>>6&63,128|63&n))}return r}(t)},function(t){"function"==typeof define&&define.amd?define([],t):"object"==typeof exports&&(module.exports=t())}(function(){return qrcode});
+</script>
 <script src="assets/config.js"></script>
 <script src="assets/portal.js" data-module="docs"></script>
 <style>
@@ -88,8 +94,8 @@ td.money{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
     <a href="#leak" data-t="leak">Leak Test Certificate</a>
     <a href="#dn" data-t="dn">Delivery Note</a>
     <a href="#quotation" data-t="quotation">Quotation</a>
-    <span title="Agle phase mein">Purchase Order <small>(jaldi)</small></span>
-    <span title="Agle phase mein">Tank Certificate <small>(jaldi)</small></span>
+    <a href="#po" data-t="po">Purchase Order</a>
+    <a href="#tank" data-t="tank">Tank Certificate</a>
   </nav>
   <div id="view"></div>
 </main>
@@ -232,6 +238,7 @@ function leakPdf(r, img) {
     if (opts.draw) return opts.draw(x, y, w, h);
     pdf.setTextColor(...C.ink); pdf.setFont('helvetica', 'normal');
     const v = String(value ?? '').trim() || '-';
+    if (hasAr(v)) { const a = arImg(v, 10, {maxW: w - 5}); const k = Math.min(1, (h - 1) / a.h); pdf.addImage(a.dataUrl, 'PNG', x + 2, y + (h - a.h * k) / 2, a.w * k, a.h * k); return; }
     pdf.setFontSize(10);
     let lines = pdf.splitTextToSize(v, w - 5);
     if (lines.length > 1) { pdf.setFontSize(9); lines = pdf.splitTextToSize(v, w - 5).slice(0, Math.max(1, Math.floor((h - 2) / 4))); }
@@ -333,13 +340,16 @@ function leakPdf(r, img) {
 }
 
 async function pdfFor(rec, photos, qr) {
+  await arabicReady();
   return leakPdf(rec, {...await assets(), photos, qr});
 }
 
 /* ============================== list ============================== */
 async function showList() {
+  const seq = ROUTE_SEQ;
   view.innerHTML = '<p class="muted">Load ho raha hai…</p>';
   try { await loadList(true); } catch (e) { view.innerHTML = `<p class="flash">Database error: ${esc(nice(e))}. Kya <b>supabase_docs.sql</b> chal chuki hai?</p>`; return; }
+  if (seq !== ROUTE_SEQ) return;   // user already moved to another page
   view.innerHTML = `
     <div class="tools">
       <div class="field"><label for="q">Search</label><input id="q" type="search" placeholder="Test no, project, client, equipment"></div>
@@ -387,6 +397,7 @@ let dirty = false;
 window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
 
 async function showForm(id, copyFrom) {
+  const seq = ROUTE_SEQ;
   view.innerHTML = '<p class="muted">Load ho raha hai…</p>';
   try { await loadList(); } catch (e) { view.innerHTML = `<p class="flash">Database error: ${esc(nice(e))}</p>`; return; }
   let rec = null;
@@ -419,6 +430,7 @@ async function showForm(id, copyFrom) {
   const dis = ro ? 'disabled' : '';
   const clients = [...new Set(LIST.map(r => r.party_name).filter(Boolean))].sort();
 
+  if (seq !== ROUTE_SEQ) return;   // user already moved to another page
   view.innerHTML = `
     <p style="margin:0 0 10px"><a href="#leak">&larr; Leak Test Certificates</a></p>
     <h2>${rec ? `Leak Test Certificate <span class="mono" style="font-size:1.1rem">${esc(rec.doc_no)}</span>` : 'New Leak Test Certificate'}</h2>
@@ -622,7 +634,8 @@ const maxNo = (list, re) => Math.max(0, ...list.map(r => (String(r.doc_no).match
 
 const IDOCS = {
   dn: {
-    title: 'Delivery Note', plural: 'Delivery Notes', pdfTitle: 'DELIVERY NOTE',
+    title: 'Delivery Note', plural: 'Delivery Notes', pdfTitle: 'DELIVERY NOTE', group: 'customer',
+    noLabel: 'Delivery Note #', dateLabel: 'Date', partyTitle: 'Customer', partyLabel: 'Customer Name',
     nextNo: (list, date) => { const y = (date || today()).slice(0, 4); return `AH-${y}-${String(maxNo(list, new RegExp(`^AH-${y}-(\\d+)$`)) + 1).padStart(3, '0')}`; },
     head: [['invoice_no', 'Invoice No.'], ['po_no', 'PO No.']],
     party: [['customer_address', 'Address'], ['customer_id', 'Customer ID']],
@@ -634,7 +647,8 @@ const IDOCS = {
     search: r => [r.data?.po_no, r.data?.invoice_no, r.data?.truck_no, r.data?.driver_name]
   },
   quotation: {
-    title: 'Quotation', plural: 'Quotations', pdfTitle: 'QUOTATION', money: true,
+    title: 'Quotation', plural: 'Quotations', pdfTitle: 'QUOTATION', money: true, group: 'customer',
+    noLabel: 'Quote No.', dateLabel: 'Quote Date', partyTitle: 'Customer', partyLabel: 'Customer Name',
     nextNo: list => 'QT-AL' + String(maxNo(list, /^QT-AL(\d+)$/) + 1).padStart(6, '0'),
     head: [],
     party: [['customer_address', 'Address'], ['customer_trn', 'TRN / VAT No.']],
@@ -644,8 +658,22 @@ const IDOCS = {
     notes: [['notes', 'Notes']],
     listCols: [['Customer', r => esc(r.party_name)], ['Total (SAR)', r => money(r.data?.grand_total), 'money']],
     search: r => [r.data?.customer_trn]
+  },
+  po: {
+    title: 'Purchase Order', plural: 'Purchase Orders', pdfTitle: 'PURCHASE ORDER', money: true, group: 'vendor',
+    noLabel: 'PO Number', dateLabel: 'Date', partyTitle: 'Vendor', partyLabel: 'Vendor Name',
+    nextNo: list => 'PO-' + String(maxNo(list, /^PO-(\d+)$/) + 1).padStart(5, '0'),
+    head: [['ref_number', 'Ref #']],
+    party: [['vendor_address', 'Address'], ['vendor_trn', 'Vendor TRN / VAT No.']],
+    items: [{k: 'description', label: 'Description', wide: true}, {k: 'qty', label: 'Qty', num: true},
+            {k: 'rate', label: 'Rate (SAR)', num: true}, {k: 'tax_pct', label: 'Tax %', num: true, def: '15'}],
+    extra: [{title: 'Terms', optional: true, fields: [['delivery_date', 'Delivery Date'], ['delivery_terms', 'Delivery Terms'], ['payment_terms', 'Payment Terms']]}],
+    notes: [['notes', 'Notes']],
+    listCols: [['Vendor', r => esc(r.party_name)], ['Ref #', r => esc(r.data?.ref_number)], ['Total (SAR)', r => money(r.data?.grand_total), 'money']],
+    search: r => [r.data?.ref_number, r.data?.vendor_trn]
   }
 };
+const GROUP_TYPES = g => Object.keys(IDOCS).filter(k => IDOCS[k].group === g);
 
 const ILIST = {};
 async function loadIList(type, force) {
@@ -690,15 +718,16 @@ function itemsPdf(type, r, img) {
     for (let i = 0; i < pairs.length; i += cols) {
       const row = pairs.slice(i, i + cols);
       pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
-      const lines = row.map(([, v]) => pdf.splitTextToSize(String(v ?? '').trim() || '-', colW - LW - 3));
-      const h = Math.max(7, Math.max(...lines.map(l => l.length)) * 4.1 + 3);
+      const lines = row.map(([, v]) => hasAr(v) ? arImg(String(v).trim(), 9, {maxW: colW - LW - 3}) : pdf.splitTextToSize(String(v ?? '').trim() || '-', colW - LW - 3));
+      const h = Math.max(7, Math.max(...lines.map(l => l.dataUrl ? (l.h + 2) / 4.1 : l.length)) * 4.1 + 3);
       need(h);
       row.forEach(([l], j) => {
         const x = M + j * colW;
         pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.5); pdf.setTextColor(...C.ink);
         pdf.text(l, x, y + 4.6);
         pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
-        pdf.text(lines[j], x + LW, y + 4.6, {lineHeightFactor: 1.15});
+        if (lines[j].dataUrl) pdf.addImage(lines[j].dataUrl, 'PNG', x + LW - 0.3, y + 1.2, lines[j].w, lines[j].h);
+        else pdf.text(lines[j], x + LW, y + 4.6, {lineHeightFactor: 1.15});
       });
       pdf.setDrawColor(...C.line); pdf.setLineWidth(0.2); pdf.line(M, y + h, M + width, y + h);
       y += h;
@@ -722,14 +751,15 @@ function itemsPdf(type, r, img) {
     need(16); head();
     rows.forEach(row => {
       pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.8);
-      const lines = row.map((v, i) => pdf.splitTextToSize(String(v ?? ''), cols[i].w - 4));
-      const h = Math.max(7, Math.max(...lines.map(l => l.length)) * 3.9 + 3.2);
+      const lines = row.map((v, i) => hasAr(v) ? arImg(String(v).trim(), 8.8, {maxW: cols[i].w - 4}) : pdf.splitTextToSize(String(v ?? ''), cols[i].w - 4));
+      const h = Math.max(7, Math.max(...lines.map(l => l.dataUrl ? (l.h + 2) / 3.9 : l.length)) * 3.9 + 3.2);
       if (need(h)) head();
       let x = M;
       cols.forEach((c, i) => {
         pdf.setDrawColor(...C.line); pdf.setLineWidth(0.2); pdf.rect(x, y, c.w, h, 'S');
         pdf.setTextColor(...C.ink); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.8);
-        pdf.text(lines[i], c.align === 'right' ? x + c.w - 2 : x + 2, y + 4.6, {align: c.align === 'right' ? 'right' : 'left', lineHeightFactor: 1.15});
+        if (lines[i].dataUrl) pdf.addImage(lines[i].dataUrl, 'PNG', c.align === 'right' ? x + c.w - 1.5 - lines[i].w : x + 1.5, y + 1.3, lines[i].w, lines[i].h);
+        else pdf.text(lines[i], c.align === 'right' ? x + c.w - 2 : x + 2, y + 4.6, {align: c.align === 'right' ? 'right' : 'left', lineHeightFactor: 1.15});
         x += c.w;
       });
       y += h;
@@ -738,11 +768,11 @@ function itemsPdf(type, r, img) {
   };
 
   frame();
-  const top = [[type === 'dn' ? 'Delivery Note #' : 'Quote No.', r.doc_no || '(on save)'], [type === 'dn' ? 'Date' : 'Quote Date', fmtDate(r.doc_date)],
+  const top = [[T.noLabel, r.doc_no || '(on save)'], [T.dateLabel, fmtDate(r.doc_date)],
                ...T.head.map(([k, l]) => [l, d[k]])];
   kv(top);
-  section('Customer');
-  kv([['Customer Name', r.party_name], ...T.party.map(([k, l]) => [l, d[k]])], 1);
+  section(T.partyTitle);
+  kv([[T.partyLabel, r.party_name], ...T.party.map(([k, l]) => [l, d[k]])], 1);
   const items = (d.items || []);
   if (type === 'dn') {
     table([{label: 'Sr.#', w: 12}, {label: 'Description'}, {label: 'Qty', w: 22, align: 'right'}, {label: 'Qty Delivered', w: 28, align: 'right'}, {label: 'Qty Received', w: 28, align: 'right'}],
@@ -767,13 +797,14 @@ function itemsPdf(type, r, img) {
     const wl = pdf.splitTextToSize('Total In Words: ' + sarWords(q.total), CW);
     need(wl.length * 4 + 4); pdf.text(wl, M, y + 3); y += wl.length * 4 + 5;
   }
-  T.extra.forEach(s => { section(s.title); kv(s.fields.map(([k, l]) => [l, d[k]]), 1); });
+  T.extra.forEach(s => { if (s.optional && !s.fields.some(([k]) => String(d[k] || '').trim())) return;
+    section(s.title); kv(s.fields.filter(([k]) => !s.optional || String(d[k] || '').trim()).map(([k, l]) => [l, d[k]]), 1); });
   T.notes.forEach(([k, l]) => { if (String(d[k] || '').trim()) { section(l); kv([[l === 'Notes' ? 'Notes' : 'Remarks', d[k]]], 1); } });
-  if (type === 'quotation') {
-    // bank details on the left, stamp + signature on the right of the same band
+  if (T.money) {
+    // quotation: bank details on the left, stamp + signature on the right of the same band
     need(40);
     const y0 = y;
-    section('Bank Details', 112); kv(BANK, 1, 112);
+    if (type === 'quotation') { section('Bank Details', 112); kv(BANK, 1, 112); }
     const sw = 50, sk = Math.min(sw / img.stamp.w, 25 / img.stamp.h), x = W - M - 62;
     const sy = Math.max(y, y0 + 36);
     pdf.addImage(img.stamp.dataUrl, 'PNG', x + (62 - img.stamp.w * sk) / 2, sy - 4 - img.stamp.h * sk, img.stamp.w * sk, img.stamp.h * sk, 'stamp');
@@ -803,14 +834,16 @@ function itemsPdf(type, r, img) {
   }
   return pdf;
 }
-const iPdf = async (type, r) => itemsPdf(type, r, await assets());
+const iPdf = async (type, r) => { await arabicReady(); return type === 'tank' ? tankPdf(r, await assets()) : itemsPdf(type, r, await assets()); };
 
 /* ---------- list ---------- */
 async function showIList(type) {
+  const seq = ROUTE_SEQ;
   const T = IDOCS[type];
   view.innerHTML = '<p class="muted">Load ho raha hai…</p>';
   let list;
   try { list = await loadIList(type, true); } catch (e) { view.innerHTML = `<p class="flash">Database error: ${esc(nice(e))}</p>`; return; }
+  if (seq !== ROUTE_SEQ) return;   // user already moved to another page
   view.innerHTML = `
     <div class="tools">
       <div class="field"><label for="q">Search</label><input id="q" type="search" placeholder="Number, customer, PO…"></div>
@@ -844,10 +877,11 @@ async function showIList(type) {
 
 /* ---------- form ---------- */
 async function showIForm(type, id, copyFrom) {
+  const seq = ROUTE_SEQ;
   const T = IDOCS[type];
   view.innerHTML = '<p class="muted">Load ho raha hai…</p>';
   let list, others;
-  try { [list, others] = await Promise.all([loadIList(type, true), loadIList(type === 'dn' ? 'quotation' : 'dn')]); }
+  try { [list, ...others] = await Promise.all([loadIList(type, true), ...GROUP_TYPES(T.group).filter(t => t !== type).map(t => loadIList(t))]); others = others.flat(); }
   catch (e) { view.innerHTML = `<p class="flash">Database error: ${esc(nice(e))}</p>`; return; }
   let rec = null, src = null;
   if (id || copyFrom) {
@@ -867,6 +901,7 @@ async function showIForm(type, id, copyFrom) {
   const fld = ([k, l, t], val) => `<div class="field"><label for="f_${k}">${esc(l)}</label><input id="f_${k}" ${t ? `type="${t}"` : ''} value="${esc(val)}" ${dis}></div>`;
   const dateNow = rec?.doc_date || today();
 
+  if (seq !== ROUTE_SEQ) return;   // user already moved to another page
   view.innerHTML = `
     <p style="margin:0 0 10px"><a href="#${type}">&larr; ${esc(T.plural)}</a></p>
     <h2>${rec ? `${esc(T.title)} <span class="mono" style="font-size:1.1rem">${esc(rec.doc_no)}</span>` : 'New ' + esc(T.title)}</h2>
@@ -875,19 +910,19 @@ async function showIForm(type, id, copyFrom) {
       <div class="sheet">
         <h3>${esc(T.title)} details</h3>
         <div class="grid">
-          <div class="field"><label for="f_no">${type === 'dn' ? 'Delivery Note #' : 'Quote No.'}</label>
+          <div class="field"><label for="f_no">${esc(T.noLabel)}</label>
             ${rec ? `<div class="fixed">${esc(rec.doc_no)}</div>` : `<input id="f_no" placeholder="Auto: ${esc(T.nextNo(list, dateNow))}" ${dis}>`}</div>
           <div class="field"><label for="f_date">Date</label><input id="f_date" type="date" required value="${esc(dateNow)}" ${dis}></div>
           ${T.head.map(f => fld(f, d[f[0]])).join('')}
         </div>
         ${rec ? '' : '<p class="hint">Number khaali chhorein to agla number khud lag jayega.</p>'}
-        <h3>Customer</h3>
+        <h3>${esc(T.partyTitle)}</h3>
         <div class="grid">
-          <div class="field"><label for="f_party">Customer Name</label><input id="f_party" list="names" required value="${esc(src?.party_name)}" ${dis}>
+          <div class="field"><label for="f_party">${esc(T.partyLabel)}</label><input id="f_party" list="names" required value="${esc(src?.party_name)}" ${dis}>
             <datalist id="names">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
           ${T.party.map(f => fld(f, d[f[0]])).join('')}
         </div>
-        ${ro ? '' : '<p class="hint">Purana customer chunein to uska address waghera khud bhar jayega.</p>'}
+        ${ro ? '' : `<p class="hint">Purana ${T.group === 'vendor' ? 'vendor' : 'customer'} chunein to uska address waghera khud bhar jayega.</p>`}
       </div>
       <div class="sheet">
         <h3>Items</h3>
@@ -946,7 +981,7 @@ async function showIForm(type, id, copyFrom) {
     const n = $('#f_party').value.trim().toLowerCase(); if (!n) return;
     const last = people.filter(r => (r.party_name || '').trim().toLowerCase() === n).sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
     if (!last) return;
-    ['customer_address', 'customer_id', 'customer_trn'].forEach(k => { const el = $('#f_' + k); if (el && !el.value.trim() && last.data?.[k]) el.value = last.data[k]; });
+    T.party.map(([k]) => k).forEach(k => { const el = $('#f_' + k); if (el && !el.value.trim() && last.data?.[k]) el.value = last.data[k]; });
   });
 
   const collect = () => {
@@ -974,7 +1009,7 @@ async function showIForm(type, id, copyFrom) {
   form.addEventListener('submit', e => { e.preventDefault(); if (!ro) run($('#save'), async () => {
     const v = collect();
     if (!v.doc_date) throw new Error('Date daalein.');
-    if (!v.party_name) { $('#f_party').focus(); throw new Error('Customer name daalein.'); }
+    if (!v.party_name) { $('#f_party').focus(); throw new Error(T.partyLabel + ' daalein.'); }
     if (!v.data.items.length) throw new Error('Kam az kam ek item daalein.');
     let res;
     if (rec) res = await sb.from('docs_documents').update(v).eq('id', rec.id).select().single();
@@ -989,17 +1024,260 @@ async function showIForm(type, id, copyFrom) {
   }); });
 }
 
+/* ===================== TANK INSPECTION CERTIFICATE (English + Arabic) ===================== */
+const BLUE = [31, 90, 166], RED = [192, 0, 0], SILVER = [217, 217, 217], LIGHT = [244, 247, 247];
+const fullDate = v => { if (!v) return '-'; const d = new Date(v + 'T00:00:00'); if (isNaN(d)) return v;
+  return `${d.toLocaleDateString('en-GB', {weekday: 'long'})}, ${d.getDate()} ${d.toLocaleDateString('en-GB', {month: 'long'})} ${d.getFullYear()}`; };
+const addMonths = (v, m) => { const d = new Date(v + 'T00:00:00'); d.setMonth(d.getMonth() + m);
+  return new Intl.DateTimeFormat('en-CA').format(d); };
+const TANK = {
+  noteEn: valid => `We inform you that the Tank Trailer has completed the periodic maintenance work for all the axles of the Tank Trailer in the workshop, valid for 6 months until ${fullDate(valid)}, subject to no accidents or damages occurring.`,
+  noteAr: 'نحيط سعادتكم علما بأنه قد تم صيانة تانكي\nمحروقات محاورقاعدة وبذالك تكون صالحة لمدة\nستة شهور'
+};
+IDOCS.tank = {
+  title: 'Tank Certificate', plural: 'Tank Certificates', group: 'customer', custom: true,
+  nextNo: (list, date) => { const y = (date || today()).slice(0, 4); return `HMI-${y}-${String(maxNo(list, new RegExp(`^HMI-${y}-(\\d+)$`)) + 1).padStart(3, '0')}`; },
+  party: [['customer_address', 'Address']],
+  listCols: [['Customer', r => esc(r.party_name)], ['Tank No.', r => esc(r.data?.tank_no)], ['Truck Plate', r => esc(r.data?.truck_plate)], ['Valid Until', r => esc(fmtDate(r.data?.valid_until))]],
+  search: r => [r.data?.tank_no, r.data?.truck_plate, r.data?.serial_no]
+};
+
+/* Arabic is drawn by the browser (correct joining + right-to-left) onto a canvas, then placed in the PDF as an image */
+const AR_FONT = '"Noto Naskh Arabic", "Segoe UI", Tahoma, Arial, sans-serif';
+async function arabicReady() { try { await Promise.all([document.fonts.load(`400 20px ${AR_FONT}`, 'شركة'), document.fonts.load(`700 20px ${AR_FONT}`, 'شركة')]); } catch (e) {} }
+const hasAr = v => /[\u0600-\u06FF]/.test(String(v ?? ''));
+function arImg(text, pt, {color = '#000', bold = false, maxW = null} = {}) {
+  const rtl = !/^[^\u0600-\u06FFA-Za-z]*[A-Za-z]/.test(String(text || ''));   // first letter decides direction
+  const S = 12, px = pt * 0.3528 * S;                       // 12 px per mm
+  const c = document.createElement('canvas'), g = c.getContext('2d');
+  const font = `${bold ? 700 : 400} ${px}px ${AR_FONT}`;
+  g.font = font;
+  const lines = [];
+  String(text || '').split('\n').forEach(par => {
+    if (!maxW) { lines.push(par); return; }
+    let cur = '';
+    par.split(/\s+/).forEach(w => { const t = cur ? cur + ' ' + w : w; if (cur && g.measureText(t).width > maxW * S) { lines.push(cur); cur = w; } else cur = t; });
+    lines.push(cur);
+  });
+  const lh = px * 1.55;
+  c.width = Math.ceil(Math.max(1, ...lines.map(l => g.measureText(l).width))) + 6;
+  c.height = Math.ceil(lines.length * lh) + 4;
+  g.font = font; g.fillStyle = color; g.direction = rtl ? 'rtl' : 'ltr'; g.textAlign = rtl ? 'right' : 'left'; g.textBaseline = 'middle';
+  lines.forEach((l, i) => g.fillText(l, rtl ? c.width - 3 : 3, 2 + lh * (i + 0.5)));
+  return {dataUrl: c.toDataURL('image/png'), w: c.width / S, h: c.height / S};
+}
+function drawQr(pdf, text, x, y, size) {
+  const q = qrcode(0, 'M'); q.addData(unescape(encodeURIComponent(text))); q.make();
+  const n = q.getModuleCount(), m = size / (n + 2);
+  pdf.setFillColor(255, 255, 255); pdf.rect(x, y, size, size, 'F'); pdf.setFillColor(0, 0, 0);
+  for (let r = 0; r < n; r++) for (let col = 0; col < n; col++) if (q.isDark(r, col)) pdf.rect(x + (col + 1) * m, y + (r + 1) * m, m + 0.02, m + 0.02, 'F');
+}
+
+function tankPdf(r, img) {
+  const d = r.data || {};
+  const {jsPDF} = window.jspdf;
+  const pdf = new jsPDF({unit: 'mm', format: 'a4', compress: true});
+  const W = 210, H = 297, M = 12, CW = W - 2 * M;
+  const hdrH = CW * img.header.h / img.header.w, ftrH = CW * img.footer.h / img.footer.w;
+  const TOP = 5 + hdrH;
+  pdf.addImage(img.header.dataUrl, 'JPEG', M, 5, CW, hdrH, 'hdr');
+  pdf.addImage(img.footer.dataUrl, 'JPEG', M, H - 5 - ftrH, CW, ftrH, 'ftr');
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); pdf.setTextColor(...C.slate);
+  pdf.text(`VAT NO: ${VAT_NO}`, W - M, TOP + 4, {align: 'right'});
+  pdf.setDrawColor(...C.slate); pdf.setLineWidth(0.5); pdf.line(M, TOP + 7, W - M, TOP + 7); pdf.line(M, TOP + 17, W - M, TOP + 17);
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(13.5);
+  pdf.text('TANK INSPECTION CERTIFICATE', W / 2, TOP + 12.2, {align: 'center', baseline: 'middle'});
+  const ar = (t, x, y, pt, o = {}) => {             // x = right edge (or centre when o.center)
+    const a = arImg(t, pt, o);
+    const left = o.center ? x - a.w / 2 : x - a.w;
+    pdf.addImage(a.dataUrl, 'PNG', left, y - a.h / 2, a.w, a.h);
+    return a;
+  };
+  let y = TOP + 26;
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(13); pdf.setTextColor(...BLUE);
+  pdf.text('Aramco Certificate for Tank Trailer Axles', W / 2, y, {align: 'center'});
+  ar('شهادة أرامكو لمحاورالخزان', W / 2, y + 7, 13, {color: '#1F5AA6', center: true});
+  y += 15;
+
+  // three rows of paired fields: English label : Arabic label | red value
+  const LW = 52, VW = CW / 2 - LW, RH = 12;
+  const lab = (en, arTxt, x, yy) => {
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.2); pdf.setTextColor(...C.ink);
+    pdf.text(en + ' :', x + 1.5, yy, {baseline: 'middle'});
+    ar(arTxt, x + LW - 1.5, yy, 8.5);
+  };
+  const val = (v, x, yy, w, color = RED, size = 9.5) => {
+    if (hasAr(v)) { const a = arImg(String(v).trim(), size, {bold: true, color: `rgb(${color.join(',')})`, maxW: w - 3});
+      pdf.addImage(a.dataUrl, 'PNG', x + (w - a.w) / 2, yy - a.h / 2, a.w, a.h); return; }
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(size); pdf.setTextColor(...color);
+    const lines = pdf.splitTextToSize(String(v ?? '').trim() || '-', w - 3);
+    pdf.text(lines, x + w / 2, yy - (lines.length - 1) * 2, {align: 'center', baseline: 'middle'});
+  };
+  [[['Date', 'التاريخ', fullDate(r.doc_date)], ['Certificate No', 'رقم الشهادة', r.doc_no || '(on save)']],
+   [['Serial No', 'الرقم التسلسلي', d.serial_no], ['Tank No', 'رقم الخزان', d.tank_no]],
+   [['Truck Plate Number', 'رقم لوحة السيارة', d.truck_plate], ['Tank Capacity', 'سعة التانكي', d.tank_capacity]]].forEach(row => {
+    row.forEach(([en, a, v], i) => { const x = M + i * (CW / 2); lab(en, a, x, y + RH / 2); val(v, x + LW, y + RH / 2, VW); });
+    pdf.setDrawColor(...C.line); pdf.setLineWidth(0.25); pdf.line(M, y + RH, W - M, y + RH);
+    y += RH;
+  });
+  y += 5;
+
+  // customer block
+  pdf.setFillColor(...LIGHT); pdf.rect(M, y, CW, 22, 'F');
+  [['Customer\'s Name', 'اسم العميل', r.party_name], ['Customer\'s Address', 'عنوان العميل', d.customer_address]].forEach(([en, a, v], i) => {
+    const yy = y + 5.5 + i * 11;
+    lab(en, a, M + 1, yy);
+    val(v, M + LW + 2, yy, CW - LW - 2, C.ink, 9.5);
+  });
+  y += 28;
+
+  // addressed to
+  pdf.setFillColor(...SILVER); pdf.rect(M, y, CW, 11, 'F');
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10.5); pdf.setTextColor(...C.ink);
+  pdf.text('SAUDI ARAMCO', M + 4, y + 5.5, {baseline: 'middle'});
+  ar('أرامكو السعودية', W - M - 4, y + 5.5, 11, {color: '#1F5AA6'});
+  y += 11;
+  pdf.setFillColor(...LIGHT); pdf.rect(M, y, CW, 10, 'F');
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9.5); pdf.setTextColor(...C.ink);
+  pdf.text('Respected', M + 4, y + 5, {baseline: 'middle'});
+  ar('المحترمين', W - M - 4, y + 5, 10);
+  y += 10;
+
+  // certification text, English left | Arabic right
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9.5);
+  const enLines = pdf.splitTextToSize(d.note_en || TANK.noteEn(d.valid_until), CW / 2 - 8);
+  const arBlock = arImg(d.note_ar ?? TANK.noteAr, 10.5, {maxW: CW / 2 - 8});
+  const bh = Math.max(enLines.length * 4.9, arBlock.h) + 10;
+  pdf.setFillColor(...LIGHT); pdf.rect(M, y, CW, bh, 'F');
+  pdf.setTextColor(...C.ink); pdf.text(enLines, M + 4, y + 7, {lineHeightFactor: 1.45});
+  pdf.addImage(arBlock.dataUrl, 'PNG', W - M - 4 - arBlock.w, y + 4, arBlock.w, arBlock.h);
+  y += bh + 10;
+
+  // QR (left) and company stamp (right)
+  const qrText = `Al Hyakel Metal Industries | Certificate ${r.doc_no || 'DRAFT'} | Tank ${d.tank_no || '-'} | Truck ${d.truck_plate || '-'} | Valid until ${d.valid_until || '-'}`;
+  drawQr(pdf, qrText, M + 2, y, 32);
+  const sk = Math.min(50 / img.stamp.w, 25 / img.stamp.h), sw = img.stamp.w * sk, sh = img.stamp.h * sk;
+  pdf.addImage(img.stamp.dataUrl, 'PNG', W - M - 6 - sw, y + 32 - sh, sw, sh, 'stamp');
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); pdf.setTextColor(...C.muted);
+  pdf.text(`${r.doc_no || 'DRAFT'}   |   Page 1 of 1`, W - M, H - 5 - ftrH - 2.5, {align: 'right'});
+  return pdf;
+}
+
+async function showTankForm(id, copyFrom) {
+  const seq = ROUTE_SEQ;
+  const type = 'tank', T = IDOCS.tank;
+  view.innerHTML = '<p class="muted">Load ho raha hai…</p>';
+  let list, others;
+  try { [list, ...others] = await Promise.all([loadIList(type, true), ...GROUP_TYPES('customer').filter(t => t !== type).map(t => loadIList(t))]); others = others.flat(); }
+  catch (e) { view.innerHTML = `<p class="flash">Database error: ${esc(nice(e))}</p>`; return; }
+  let rec = null, src = null;
+  if (id || copyFrom) {
+    const {data} = await sb.from('docs_documents').select('*').eq('id', id || copyFrom).eq('doc_type', type).maybeSingle();
+    if (!data) { view.innerHTML = `<p class="flash">Certificate nahi mila. <a href="#tank">Wapas list par</a></p>`; return; }
+    src = data; if (id) rec = data;
+  }
+  const ro = !CAN_EDIT, dis = ro ? 'disabled' : '';
+  const dateNow = rec?.doc_date || today();
+  const d = {valid_until: addMonths(dateNow, 6), ...(src?.data || {})};
+  if (!rec) d.valid_until = addMonths(dateNow, 6);
+  if (!d.note_en) d.note_en = TANK.noteEn(d.valid_until);
+  if (d.note_ar == null) d.note_ar = TANK.noteAr;
+  let enAuto = d.note_en === TANK.noteEn(d.valid_until);
+  const people = [...list, ...others];
+  const names = [...new Set(people.map(x => x.party_name).filter(Boolean))].sort();
+  const who = rec ? `Banaya: ${esc(await nameOf(rec.created_by))} · ${new Date(rec.created_at).toLocaleString('en-GB', {dateStyle: 'medium', timeStyle: 'short'})}` +
+    (rec.updated_at ? ` &nbsp;|&nbsp; Akhri tabdeeli: ${esc(await nameOf(rec.updated_by))} · ${new Date(rec.updated_at).toLocaleString('en-GB', {dateStyle: 'medium', timeStyle: 'short'})}` : '') : '';
+  const fld = (k, l, v, extra = '') => `<div class="field"><label for="f_${k}">${l}</label><input id="f_${k}" value="${esc(v)}" ${extra} ${dis}></div>`;
+  if (seq !== ROUTE_SEQ) return;   // user already moved to another page
+  view.innerHTML = `
+    <p style="margin:0 0 10px"><a href="#tank">&larr; Tank Certificates</a></p>
+    <h2>${rec ? `Tank Certificate <span class="mono" style="font-size:1.1rem">${esc(rec.doc_no)}</span>` : 'New Tank Certificate'}</h2>
+    ${who ? `<p class="meta">${who}</p>` : ''}
+    <form id="f" autocomplete="off">
+      <div class="sheet">
+        <h3>Certificate</h3>
+        <div class="grid">
+          <div class="field"><label for="f_no">Certificate No.</label>${rec ? `<div class="fixed">${esc(rec.doc_no)}</div>` : `<input id="f_no" placeholder="Auto: ${esc(T.nextNo(list, dateNow))}" ${dis}>`}</div>
+          <div class="field"><label for="f_date">Date</label><input id="f_date" type="date" required value="${esc(dateNow)}" ${dis}></div>
+          <div class="field"><label for="f_valid_until">Valid Until</label><input id="f_valid_until" type="date" value="${esc(d.valid_until)}" ${dis}></div>
+          ${fld('serial_no', 'Serial No.', d.serial_no)}${fld('tank_no', 'Tank No.', d.tank_no)}
+          ${fld('truck_plate', 'Truck Plate Number', d.truck_plate)}${fld('tank_capacity', 'Tank Capacity', d.tank_capacity, 'placeholder="e.g. 20 Ton"')}
+        </div>
+        ${rec ? '' : '<p class="hint">Number khaali chhorein to agla number khud lag jayega. Valid Until khud 6 mahine baad ki date leta hai.</p>'}
+        <h3>Customer</h3>
+        <div class="grid">
+          <div class="field"><label for="f_party">Customer Name</label><input id="f_party" list="names" required value="${esc(src?.party_name)}" ${dis}>
+            <datalist id="names">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
+          ${fld('customer_address', 'Customer Address', d.customer_address)}
+        </div>
+        <h3>Certificate text</h3>
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))">
+          <div class="field"><label for="f_note_en">English</label><textarea id="f_note_en" rows="5" ${dis}>${esc(d.note_en)}</textarea></div>
+          <div class="field"><label for="f_note_ar">Arabic</label><textarea id="f_note_ar" rows="5" dir="rtl" lang="ar" style="font-family:${esc(AR_FONT)};font-size:16px" ${dis}>${esc(d.note_ar)}</textarea></div>
+        </div>
+        ${ro ? '' : '<p class="hint">English text "Valid Until" ki date ke saath khud badalta hai. QR code PDF mein khud banta hai.</p>'}
+      </div>
+      <p class="err" id="err" role="alert"></p>
+      <div class="bar">
+        ${ro ? '' : '<button class="btn" id="save" type="submit">Save</button>'}
+        <button class="btn sec" type="button" id="dl">Download PDF</button>
+        <button class="btn sec" type="button" id="pv">Preview</button>
+        ${rec && CAN_EDIT ? `<a class="btn sec" href="#tank/copy/${rec.id}">Copy as new</a>` : ''}
+        <span class="grow"></span>
+        ${rec && CAN_DELETE ? '<button class="btn danger" type="button" id="del">Delete</button>' : ''}
+      </div>
+    </form>`;
+  const form = $('#f');
+  form.addEventListener('input', e => {
+    dirty = true;
+    if (e.target.id === 'f_note_en') enAuto = false;
+    if (e.target.id === 'f_date' && !rec && e.target.value) $('#f_valid_until').value = addMonths(e.target.value, 6);
+    if ((e.target.id === 'f_valid_until' || e.target.id === 'f_date') && enAuto) $('#f_note_en').value = TANK.noteEn($('#f_valid_until').value);
+  });
+  $('#f_party').addEventListener('change', () => {
+    const n = $('#f_party').value.trim().toLowerCase(); if (!n) return;
+    const last = people.filter(x => (x.party_name || '').trim().toLowerCase() === n).sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+    const el = $('#f_customer_address'); if (last && !el.value.trim() && last.data?.customer_address) el.value = last.data.customer_address;
+  });
+  const collect = () => ({doc_date: $('#f_date').value, party_name: $('#f_party').value.trim(), data: Object.fromEntries(
+    ['valid_until', 'serial_no', 'tank_no', 'truck_plate', 'tank_capacity', 'customer_address', 'note_en', 'note_ar'].map(k => [k, $('#f_' + k).value.trim()]))});
+  const draft = () => ({...collect(), doc_no: rec?.doc_no || ($('#f_no')?.value.trim() || '')});
+  const run = async (btn, fn) => { const t = btn.textContent; btn.disabled = true; btn.textContent = 'Ruko…'; $('#err').textContent = '';
+    try { await fn(); } catch (e) { $('#err').textContent = nice(e); } btn.disabled = false; btn.textContent = t; };
+  $('#dl').onclick = e => run(e.target, async () => (await iPdf(type, draft())).save((draft().doc_no || 'Tank-Certificate-DRAFT') + '.pdf'));
+  $('#pv').onclick = e => run(e.target, async () => { const w = window.open('', '_blank'); const url = (await iPdf(type, draft())).output('bloburl'); if (w) w.location = url; else location.href = url; });
+  $('#del')?.addEventListener('click', e => run(e.target, async () => {
+    if (!confirm(`${rec.doc_no} ko hamesha ke liye delete karna hai?`)) return;
+    const {error} = await sb.from('docs_documents').delete().eq('id', rec.id); if (error) throw error;
+    dirty = false; toast(rec.doc_no + ' delete ho gaya'); location.hash = '#tank';
+  }));
+  form.addEventListener('submit', e => { e.preventDefault(); if (!ro) run($('#save'), async () => {
+    const v = collect();
+    if (!v.doc_date) throw new Error('Date daalein.');
+    if (!v.party_name) { $('#f_party').focus(); throw new Error('Customer name daalein.'); }
+    let res;
+    if (rec) res = await sb.from('docs_documents').update(v).eq('id', rec.id).select().single();
+    else { const manual = $('#f_no').value.trim(); res = await sb.from('docs_documents').insert({doc_type: type, ...v, ...(manual ? {doc_no: manual} : {})}).select().single(); }
+    if (res.error) throw new Error(res.error.code === '23505' ? 'Yeh number pehle se maujood hai. Number khaali chhor dein ya doosra likhein.' : nice(res.error));
+    rec = res.data; dirty = false; toast(`${rec.doc_no} save ho gaya`);
+    if (location.hash !== `#tank/${rec.id}`) location.hash = `#tank/${rec.id}`; else route();
+  }); });
+}
+
 /* ============================== routing ============================== */
+let ROUTE_SEQ = 0;
 async function route() {
+  ROUTE_SEQ++;
   const h = location.hash.replace(/^#/, '') || 'leak';
   const [type, a, b] = h.split('/');
-  if (!['leak', 'dn', 'quotation'].includes(type)) { location.hash = '#leak'; return; }
+  if (!['leak', 'dn', 'quotation', 'po', 'tank'].includes(type)) { location.hash = '#leak'; return; }
   $$('#tabs a').forEach(x => x.classList.toggle('on', x.dataset.t === type));
   if (type !== 'leak') {
+    const form = type === 'tank' ? (i, c) => showTankForm(i, c) : (i, c) => showIForm(type, i, c);
     if (!a) return showIList(type);
-    if (a === 'new') return CAN_EDIT ? showIForm(type) : (location.hash = '#' + type);
-    if (a === 'copy') return CAN_EDIT ? showIForm(type, null, b) : (location.hash = '#' + type);
-    return showIForm(type, a);
+    if (a === 'new') return CAN_EDIT ? form(null) : (location.hash = '#' + type);
+    if (a === 'copy') return CAN_EDIT ? form(null, b) : (location.hash = '#' + type);
+    return form(a);
   }
   if (!a) return showList();
   if (a === 'new') return CAN_EDIT ? showForm(null) : (location.hash = '#leak');

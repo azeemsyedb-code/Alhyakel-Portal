@@ -61,7 +61,7 @@ async function call(body) {
   if (error) {
     let m = error.message;
     try { const j = await error.context.json(); m = j.error || m; } catch (e) {}
-    if (/Failed to send|fetch/i.test(m)) m = 'Edge Function "admin-users" nahi mila. README ka step 3 dekhein.';
+    if (/Failed to send|fetch/i.test(m)) m = 'Edge Function "admin-users" se rabta nahi ho saka. Supabase > Edge Functions > admin-users > Logs mein asli wajah dekhein (README step 3).';
     throw new Error(m);
   }
   if (data && data.error) throw new Error(data.error);
