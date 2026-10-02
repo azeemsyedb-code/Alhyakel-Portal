@@ -226,6 +226,18 @@ function coverCrop(p, aspect) {            // crop a photo to fill a box (like C
 const LK = {bar: [44, 86, 102], sec: [62, 118, 135], lbl: [248, 250, 252], line: [218, 221, 228], lt: [84, 100, 112], ink: [33, 37, 41],
   passF: [232, 245, 236], passB: [29, 122, 75], failF: [252, 235, 233], failB: [179, 38, 30], card: [225, 228, 232]};
 const dmy = d => d ? d.split('-').reverse().join('/') : '';
+// up to 4 photos in a 2 x 2 grid of cards (photos fill each card, like CSS object-fit: cover)
+function drawPhotoGrid(pdf, list, x0, y0, w, h) {
+  const photos = (list || []).filter(Boolean).slice(0, 4), G = 3.2, IN = 2.1, cw = (w - G) / 2, chh = (h - G) / 2;
+  photos.forEach((p, i) => {
+    const x = x0 + (i % 2) * (cw + G), yy = y0 + Math.floor(i / 2) * (chh + G);
+    pdf.setDrawColor(...LK.card); pdf.setLineWidth(0.3); pdf.roundedRect(x, yy, cw, chh, 1, 1, 'S');
+    const iw = cw - 2 * IN, ih = chh - 2 * IN;
+    try { pdf.addImage(p.el ? coverCrop(p, iw / ih) : p.dataUrl, 'JPEG', x + IN, yy + IN, iw, ih, 'ph' + i + '_' + Math.round(y0)); } catch (e) {}
+  });
+  return photos.length;
+}
+const withEl = photos => Promise.all((photos || []).map(async p => p ? {...p, el: p.el || await loadImg(p.dataUrl).catch(() => null)} : null));
 function leakPdf(r, img) {
   const {jsPDF} = window.jspdf;
   const pdf = new jsPDF({unit: 'mm', format: 'a4', compress: true});
@@ -317,18 +329,11 @@ function leakPdf(r, img) {
 
   /* ---------------- page 2 ---------------- */
   pdf.addPage(); frame();
-  const photos = (img.photos || []).filter(Boolean).slice(0, 4);
-  const cw = 96.5, chh = 78.5, gx = 3.2, gy = 3.3, cx0 = 6.9, cy0 = 44.8, IN = 2.1;
-  photos.forEach((p, i) => {
-    const x = cx0 + (i % 2) * (cw + gx), yy = cy0 + Math.floor(i / 2) * (chh + gy);
-    pdf.setDrawColor(...LK.card); pdf.setLineWidth(0.3); pdf.roundedRect(x, yy, cw, chh, 1, 1, 'S');
-    const iw = cw - 2 * IN, ih = chh - 2 * IN;
-    try { pdf.addImage(p.el ? coverCrop(p, iw / ih) : p.dataUrl, 'JPEG', x + IN, yy + IN, iw, ih, 'ph' + i); } catch (e) {}
-  });
+  drawPhotoGrid(pdf, img.photos, 6.9, 44.8, 196.2, 160.4);
   const SW = 38.1, sk = SW / img.stamp.w, sh = img.stamp.h * sk;
   pdf.addImage(img.stamp.dataUrl, 'PNG', 109.6, 236.6 + (16 - sh) / 2, SW, sh, 'stamp');
   if (img.qrUrl) {
-    const Q = 24, qx = 70, qy = 232.4;
+    const Q = 31, qx = 68, qy = 229;
     drawQr(pdf, img.qrUrl, qx, qy, Q);
     pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6.5); pdf.setTextColor(110, 122, 128);
     pdf.text('Scan to verify this certificate', qx + Q / 2, qy + Q + 2.6, {align: 'center'});
@@ -338,8 +343,7 @@ function leakPdf(r, img) {
 
 async function pdfFor(rec, photos, token) {
   await arabicReady();
-  const ph = await Promise.all((photos || []).map(async p => p ? {...p, el: await loadImg(p.dataUrl).catch(() => null)} : null));
-  return leakPdf(rec, {...await assets(), photos: ph, qrUrl: token ? certUrl(token) : null});
+  return leakPdf(rec, {...await assets(), photos: await withEl(photos), qrUrl: token ? certUrl(token) : null});
 }
 
 /* ============================== certificate QR -> public PDF ============================== */
@@ -1014,7 +1018,12 @@ function zatcaQr(r) {
   fields.forEach((v, i) => { const b = enc.encode(v); bytes.push(i + 1, b.length, ...b); });
   return btoa(String.fromCharCode(...bytes));
 }
-const iPdf = async (type, r) => { await arabicReady(); return type === 'tank' ? tankPdf(r, await assets()) : itemsPdf(type, r, await assets()); };
+const iPdf = async (type, r, photos) => {
+  await arabicReady();
+  if (type !== 'tank') return itemsPdf(type, r, await assets());
+  if (!photos) photos = r.files?.photos?.some(Boolean) ? (await recordFiles(r)).photos : [];
+  return tankPdf(r, {...await assets(), photos: await withEl(photos)});
+};
 
 /* ---------- list ---------- */
 async function showIList(type) {
@@ -1235,8 +1244,11 @@ const addMonths = (v, m) => { const d = new Date(v + 'T00:00:00'); d.setMonth(d.
   return new Intl.DateTimeFormat('en-CA').format(d); };
 const TANK = {
   noteEn: valid => `We inform you that the Tank Trailer has completed the periodic maintenance work for all the axles of the Tank Trailer in the workshop, valid for 6 months until ${fullDate(valid)}, subject to no accidents or damages occurring.`,
-  noteAr: 'نحيط سعادتكم علما بأنه قد تم صيانة تانكي\nمحروقات محاورقاعدة وبذالك تكون صالحة لمدة\nستة شهور'
+  noteAr: valid => `نحيط سعادتكم علماً بأنه تم الانتهاء من الصيانة الدورية لمقطورة الصهريج لجميع المحاور في الورشة، وهي صالحة لمدة ستة أشهر حتى تاريخ ${arDate(valid)}م، ما لم يتعرض لحادث أو ضرر.`,
+  oldAr: 'نحيط سعادتكم علما بأنه قد تم صيانة تانكي\nمحروقات محاورقاعدة وبذالك تكون صالحة لمدة\nستة شهور'
 };
+const AR_MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+function arDate(d) { if (!d) return '…'; const [y, m, day] = d.split('-').map(Number); return `${day} ${AR_MONTHS[m - 1]} ${y}`; }
 IDOCS.tank = {
   title: 'Tank Certificate', plural: 'Tank Certificates', group: 'customer', custom: true,
   nextNo: (list, date) => { const y = (date || today()).slice(0, 4); return `HMI-${y}-${String(maxNo(list, new RegExp(`^HMI-${y}-(\\d+)$`)) + 1).padStart(3, '0')}`; },
@@ -1346,7 +1358,7 @@ function tankPdf(r, img) {
   // certification text, English left | Arabic right
   pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9.5);
   const enLines = pdf.splitTextToSize(d.note_en || TANK.noteEn(d.valid_until), CW / 2 - 8);
-  const arBlock = arImg(d.note_ar ?? TANK.noteAr, 10.5, {maxW: CW / 2 - 8});
+  const arBlock = arImg(d.note_ar || TANK.noteAr(d.valid_until), 10.5, {maxW: CW / 2 - 8});
   const bh = Math.max(enLines.length * 4.9, arBlock.h) + 10;
   pdf.setFillColor(...LIGHT); pdf.rect(M, y, CW, bh, 'F');
   pdf.setTextColor(...C.ink); pdf.text(enLines, M + 4, y + 7, {lineHeightFactor: 1.45});
@@ -1356,13 +1368,26 @@ function tankPdf(r, img) {
   // QR (left) and company stamp (right)
   const qrText = r.files?.qr_token ? certUrl(r.files.qr_token)
     : `Al Hyakel Metal Industries | Certificate ${r.doc_no || 'DRAFT'} | Tank ${d.tank_no || '-'} | Truck ${d.truck_plate || '-'} | Valid until ${d.valid_until || '-'}`;
-  drawQr(pdf, qrText, M + 2, y, 32);
+  const QR = 40;
+  drawQr(pdf, qrText, M + 2, y, QR);
   pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6.5); pdf.setTextColor(...C.muted);
-  pdf.text('Scan to view this certificate', M + 18, y + 35, {align: 'center'});
+  pdf.text('Scan to view this certificate', M + 2 + QR / 2, y + QR + 3, {align: 'center'});
   const sk = Math.min(50 / img.stamp.w, 25 / img.stamp.h), sw = img.stamp.w * sk, sh = img.stamp.h * sk;
-  pdf.addImage(img.stamp.dataUrl, 'PNG', W - M - 6 - sw, y + 32 - sh, sw, sh, 'stamp');
-  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); pdf.setTextColor(...C.muted);
-  pdf.text(`${r.doc_no || 'DRAFT'}   |   Page 1 of 1`, W - M, H - 5 - ftrH - 2.5, {align: 'right'});
+  pdf.addImage(img.stamp.dataUrl, 'PNG', W - M - 6 - sw, y + QR - sh, sw, sh, 'stamp');
+  const hasPhotos = (img.photos || []).some(Boolean), pages = hasPhotos ? 2 : 1;
+  const foot = n => { pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); pdf.setTextColor(...C.muted);
+    pdf.text(`${r.doc_no || 'DRAFT'}   |   Page ${n} of ${pages}`, W - M, H - 5 - ftrH - 2.5, {align: 'right'}); };
+  foot(1);
+  if (hasPhotos) {            // page 2: photos of the tank / trailer, same layout as the Leak Test
+    pdf.addPage();
+    pdf.addImage(img.header.dataUrl, 'JPEG', M, 5, CW, hdrH, 'hdr');
+    pdf.addImage(img.footer.dataUrl, 'JPEG', M, H - 5 - ftrH, CW, ftrH, 'ftr');
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9); pdf.setTextColor(...C.slate);
+    pdf.text([r.doc_no, d.tank_no && `Tank ${d.tank_no}`, d.truck_plate && `Truck ${d.truck_plate}`].filter(Boolean).join('   |   '), W / 2, TOP + 7, {align: 'center'});
+    drawPhotoGrid(pdf, img.photos, M, TOP + 12, CW, 156);               // same card shape as the Leak Test photos page
+    pdf.addImage(img.stamp.dataUrl, 'PNG', W / 2 - sw / 2, TOP + 12 + 156 + (H - 5 - ftrH - 6 - (TOP + 168) - sh) / 2, sw, sh, 'stamp');
+    foot(2);
+  }
   return pdf;
 }
 
@@ -1381,12 +1406,15 @@ async function showTankForm(id, copyFrom) {
   }
   const ro = !CAN_EDIT || locked(rec), dis = ro ? 'disabled' : '';
   const qrToken = rec?.files?.qr_token || newToken();
+  const slots = [null, null, null, null], removed = new Set();    // photos for page 2
+  if (rec?.files?.photos?.some(Boolean)) (await recordFiles(rec)).photos.forEach((p, i) => { if (p) slots[i] = {...p, path: rec.files.photos[i]}; });
   const dateNow = rec?.doc_date || today();
   const stLine = await approvalLine(rec);
   const d = {valid_until: addMonths(dateNow, 6), ...(src?.data || {})};
   if (!rec) d.valid_until = addMonths(dateNow, 6);
   if (!d.note_en) d.note_en = TANK.noteEn(d.valid_until);
-  if (d.note_ar == null) d.note_ar = TANK.noteAr;
+  let arAuto = !d.note_ar || d.note_ar === TANK.oldAr || d.note_ar === TANK.noteAr(d.valid_until);
+  if (arAuto) d.note_ar = TANK.noteAr(d.valid_until);
   let enAuto = d.note_en === TANK.noteEn(d.valid_until);
   const people = [...list, ...others];
   const names = [...new Set(people.map(x => x.party_name).filter(Boolean))].sort();
@@ -1421,7 +1449,12 @@ async function showTankForm(id, copyFrom) {
           <div class="field"><label for="f_note_en">English</label><textarea id="f_note_en" rows="5" ${dis}>${esc(d.note_en)}</textarea></div>
           <div class="field"><label for="f_note_ar">Arabic</label><textarea id="f_note_ar" rows="5" dir="rtl" lang="ar" style="font-family:${esc(AR_FONT)};font-size:16px" ${dis}>${esc(d.note_ar)}</textarea></div>
         </div>
-        ${ro ? '' : '<p class="hint">The English text updates automatically with the "Valid Until" date. The QR code is generated automatically; after saving, scanning it opens the PDF of this certificate.</p>'}
+        ${ro ? '' : '<p class="hint">The English and Arabic texts update automatically with the "Valid Until" date. The QR code is generated automatically; after saving, scanning it opens the PDF of this certificate.</p>'}
+      </div>
+      <div class="sheet">
+        <h3>Photos (page 2)</h3>
+        <div class="photos" id="photos"></div>
+        <p class="hint" style="margin-top:14px">Add up to 4 photos of the tank / trailer. Page 2 is added to the PDF only when there is at least one photo.</p>
       </div>
       <p class="err" id="err" role="alert"></p>
       <div class="bar">
@@ -1437,11 +1470,27 @@ async function showTankForm(id, copyFrom) {
     </form>`;
   wireApproval(rec, 'tank');
   const form = $('#f');
+  const drawSlots = () => { $('#photos').innerHTML = slots.map((sl, i) => `<div class="slot ${sl ? 'filled' : ''} ${ro ? 'ro' : ''}" data-i="${i}">
+      ${sl ? `<img src="${sl.dataUrl}" alt="Photo ${i + 1}">` : `<span class="lbl">${ro ? 'No image' : `+ Photo ${i + 1}<br><small>click to choose</small>`}</span>`}
+      ${sl && !ro ? `<button type="button" class="x" data-x="${i}" aria-label="Remove photo ${i + 1}">Remove</button>` : ''}
+      <input type="file" accept="image/*" aria-label="Photo ${i + 1}" ${ro ? 'disabled' : ''}></div>`).join(''); };
+  drawSlots();
+  form.addEventListener('change', async e => {
+    if (e.target.type !== 'file' || !e.target.closest('#photos')) return;
+    const file = e.target.files[0]; if (!file) return;
+    const i = e.target.closest('.slot').dataset.i;
+    try { const im = await shrink(file, 1000, 'image/jpeg', 0.7); if (slots[i]?.path) removed.add(slots[i].path); slots[i] = {...im, changed: true}; dirty = true; drawSlots(); }
+    catch (err) { toast('This image could not be opened: ' + nice(err), true); }
+  });
+  form.addEventListener('click', e => { const x = e.target.closest('[data-x]'); if (!x || !x.closest('#photos')) return;
+    const i = x.dataset.x; if (slots[i]?.path) removed.add(slots[i].path); slots[i] = null; dirty = true; drawSlots(); });
   form.addEventListener('input', e => {
     dirty = true;
     if (e.target.id === 'f_note_en') enAuto = false;
+    if (e.target.id === 'f_note_ar') arAuto = false;
     if (e.target.id === 'f_date' && !rec && e.target.value) $('#f_valid_until').value = addMonths(e.target.value, 6);
     if ((e.target.id === 'f_valid_until' || e.target.id === 'f_date') && enAuto) $('#f_note_en').value = TANK.noteEn($('#f_valid_until').value);
+    if ((e.target.id === 'f_valid_until' || e.target.id === 'f_date') && arAuto) $('#f_note_ar').value = TANK.noteAr($('#f_valid_until').value);
   });
   $('#f_party').addEventListener('change', () => {
     const n = $('#f_party').value.trim().toLowerCase(); if (!n) return;
@@ -1453,13 +1502,14 @@ async function showTankForm(id, copyFrom) {
   const draft = () => ({...collect(), doc_no: rec?.doc_no || ($('#f_no')?.value.trim() || ''), files: {...(rec?.files || {}), qr_token: qrToken}});
   const run = async (btn, fn) => { const t = btn.textContent; btn.disabled = true; btn.textContent = 'Please wait…'; $('#err').textContent = '';
     try { await fn(); } catch (e) { $('#err').textContent = nice(e); } btn.disabled = false; btn.textContent = t; };
-  $('#dl').onclick = e => run(e.target, async () => (await iPdf(type, draft())).save((draft().doc_no || 'Tank-Certificate-DRAFT') + '.pdf'));
-  wireShare($('#sh'), () => iPdf(type, draft()), () => (draft().doc_no || 'Tank-Certificate-DRAFT') + '.pdf',
+  $('#dl').onclick = e => run(e.target, async () => (await iPdf(type, draft(), slots)).save((draft().doc_no || 'Tank-Certificate-DRAFT') + '.pdf'));
+  wireShare($('#sh'), () => iPdf(type, draft(), slots), () => (draft().doc_no || 'Tank-Certificate-DRAFT') + '.pdf',
     () => { const v = draft(); return `Tank Inspection Certificate ${v.doc_no || ''} - ${v.party_name} - Tank ${v.data.tank_no || '-'}, valid until ${fmtDate(v.data.valid_until)}`; });
-  $('#pv').onclick = e => run(e.target, async () => { const w = window.open('', '_blank'); const url = (await iPdf(type, draft())).output('bloburl'); if (w) w.location = url; else location.href = url; });
+  $('#pv').onclick = e => run(e.target, async () => { const w = window.open('', '_blank'); const url = (await iPdf(type, draft(), slots)).output('bloburl'); if (w) w.location = url; else location.href = url; });
   $('#del')?.addEventListener('click', e => run(e.target, async () => {
     if (!confirm(`Permanently delete ${rec.doc_no}?`)) return;
     const {error} = await sb.from('docs_documents').delete().eq('id', rec.id); if (error) throw error;
+    const ph = (rec.files?.photos || []).filter(Boolean); if (ph.length) await sb.storage.from(BUCKET).remove(ph);
     if (rec.files?.qr_token) await sb.storage.from(CERT_BUCKET).remove([rec.files.qr_token + '.pdf']);
     dirty = false; toast(rec.doc_no + ' deleted'); location.hash = '#tank';
   }));
@@ -1472,7 +1522,26 @@ async function showTankForm(id, copyFrom) {
     if (rec) res = await sb.from('docs_documents').update(v).eq('id', rec.id).select().single();
     else { const manual = $('#f_no').value.trim(); res = await sb.from('docs_documents').insert({doc_type: type, ...v, ...(manual ? {doc_no: manual} : {})}).select().single(); }
     if (res.error) throw new Error(res.error.code === '23505' ? 'This number already exists. Leave it blank or enter a different one.' : nice(res.error));
-    rec = res.data; dirty = false; await uploadCert(qrToken, await iPdf(type, rec)); toast(`${rec.doc_no} saved`);
+    rec = res.data;
+    // upload new photos, then store their paths
+    const stamp = Date.now(), photos = [];
+    for (let i = 0; i < 4; i++) {
+      const sl = slots[i];
+      if (!sl) { photos.push(null); continue; }
+      if (sl.changed) {
+        const path = `tank/${rec.id}/photo${i + 1}-${stamp}.jpg`;
+        const {error} = await sb.storage.from(BUCKET).upload(path, sl.blob, {contentType: 'image/jpeg', upsert: true});
+        if (error) throw new Error('Image upload failed: ' + nice(error) + '. Please click Save again.');
+        sl.path = path; sl.changed = false;
+      }
+      photos.push(sl.path);
+    }
+    const up = await sb.from('docs_documents').update({files: {...(rec.files || {}), qr_token: qrToken, photos}}).eq('id', rec.id).select().single();
+    if (up.error) throw up.error;
+    rec = up.data; dirty = false;
+    await uploadCert(qrToken, await iPdf(type, rec, slots));
+    if (removed.size) { await sb.storage.from(BUCKET).remove([...removed]); removed.clear(); }
+    toast(`${rec.doc_no} saved`);
     goAfterSave('tank', rec.id);
   }); });
 }

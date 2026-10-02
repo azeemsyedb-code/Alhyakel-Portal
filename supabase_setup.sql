@@ -429,11 +429,11 @@ grant execute on function public.kiosk_punch(uuid, text)        to anon, authent
 
 -- starting employee list (from the salary Excel). Safe to re-run.
 insert into public.hr_employees (emp_code, name) values
-  ('EMP-01','AHSAN'),('EMP-02','NASIR'),('EMP-03','SHAKIR'),('EMP-04','BURHAN'),('EMP-05','ABDUL MALIK'),
-  ('EMP-06','SHAREEF'),('EMP-07','QASIM'),('EMP-08','SHEHROZE'),('EMP-09','RAKIB'),('EMP-10','ARZ'),
-  ('EMP-11','WAZEER'),('EMP-12','IBRAHIM'),('EMP-13','ROOH UL AMIN'),('EMP-14','SAJID'),('EMP-15','KHALIQ'),
-  ('EMP-16','AMJAD'),('EMP-17','KHALID'),('EMP-18','NADEEM'),('EMP-19','YASIR'),('EMP-20','WASEEM'),
-  ('EMP-21','IRFAN'),('EMP-22','WAQAS'),('EMP-23','KAREEM'),('EMP-24','OWAIS'),('EMP-25','FAISAL'),
-  ('EMP-26','SHEHZAD')
+  ('EMP-01','Sajid'),   ('EMP-02','Khaliq'),  ('EMP-03','Waseem'),   ('EMP-04','Ahsan'),
+  ('EMP-05','Shareef'), ('EMP-06','Madni'),   ('EMP-07','Shehroze'), ('EMP-08','Qasim'),
+  ('EMP-09','Shakir'),  ('EMP-10','Rakib'),   ('EMP-11','Malik'),    ('EMP-12','Khalid'),
+  ('EMP-13','Nasir'),   ('EMP-14','Faisal'),  ('EMP-15','Yasir'),    ('EMP-16','Arfat'),
+  ('EMP-17','Muzammil'),('EMP-18','Naheed'),  ('EMP-19','Wazeer'),   ('EMP-20','Owais'),
+  ('EMP-21','Bilal'),   ('EMP-22','Burhan'),  ('EMP-23','Ibrahim')
 on conflict (emp_code) do nothing;
 insert into public.hr_pay (employee_id) select id from public.hr_employees on conflict do nothing;

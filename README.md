@@ -134,6 +134,7 @@ window.PORTAL_CONFIG = {
 
 - **Price List (Documents → Price List):** enter each product once with its category and sub-category (rate, unit, description). When creating a Quotation / Invoice, choose **Category → Sub-category → Product** at the top, enter the qty and click **+ Add**; the line fills in automatically with the rate and 15% VAT. Only manager / staff can edit; only manager can delete.
 - **QR on Leak Test and Tank certificates:** the QR is now generated automatically. As soon as a certificate is **saved**, its PDF goes to the `certs` folder in Supabase and the QR is a link to that PDF; no third-party QR service. Scanning it opens the PDF directly (no login). If you change a certificate and **Save** again, the same QR shows the new PDF. For **old certificates**, open each one once and click **Save** to create its QR.
+- **Tank Certificate photos:** add up to 4 photos in the **Photos (page 2)** box. The PDF then gets a second page with the photos and the company stamp, just like the Leak Test. Without photos the certificate stays one page. The Arabic certificate text fills in the "Valid Until" date automatically.
 - **Working kit (Employees → Working kit):** separate from inventory (you take items out of the store in bulk).
   - **Standard kit** (HR admin only): what the kit contains (coverall, shoes, gloves…) and how often a new kit is issued (every 3 or 4 months).
   - **Issue kit round:** give the full kit to selected employees in one click, e.g. `KIT-2026-10`. Employees whose kit is due are ticked already. Items from the previous kit are marked "Replaced" automatically. Shoe / coverall sizes are filled in from the previous record.
@@ -194,6 +195,15 @@ A free Supabase project is paused if it is not used at all for **7 days**. With 
 - **Access:** the `portal_users` table. The database's RLS rules enforce each role. Hiding menu items is only cosmetic; the real restriction is in the database.
 - **Salary:** `hr_pay` is a separate table that only the HR admin can read. The kiosk PIN is stored as a bcrypt hash. After 5 wrong PINs, the employee is locked for 10 minutes.
 - **Creating users, passwords, blocking / deleting:** Edge Function `admin-users`. It checks on every request that the caller is a portal admin.
+
+## Fresh start (delete all data)
+
+`supabase_reset.sql` wipes all business data and loads the current employee list (23 employees, EMP-01 … EMP-23). **It cannot be undone.**
+
+1. Supabase → **SQL Editor → New query** → paste all of `supabase_reset.sql` → **Run**. The last line should show `employees 23, documents 0, products 0`.
+2. Supabase → **Storage** → open the **docs** bucket → select everything → **Delete**. Do the same in the **certs** bucket. (Photos and certificate PDFs are files, so SQL cannot remove them.)
+
+Kept: logins and roles (Users & Access) and HR settings. Document numbers start again from 1 (TS-001, HMI-2026-001, QT-AL000001 …). After the reset, add each employee's salary and kiosk PIN in **Employees → Employees**.
 
 ## Working faster
 
