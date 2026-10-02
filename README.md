@@ -31,7 +31,10 @@ supabase_setup.sql    database (run once)
 supabase_docs.sql     Documents database, price list, storage for photos and certificates
 supabase_hr.sql       Employees: working kit, paid tasks, deductions, advances, payslips
 manifest.webmanifest, sw.js   for installing on a phone like an app
-assets/export.js      Data export to Excel (Users & Access page)
+assets/export.js      Data export to Excel and backups (Users & Access page)
+verify.html           public page the certificate QR codes open
+supabase_extras.sql   stock count, kiosk photo, weekly backup, phone notifications
+supabase/functions/notify/index.ts   Edge Function that sends phone notifications
 assets/shell.css      top bar and design (applied to every page automatically)
 assets/icon-192.png, icon-512.png   app icon
 supabase/functions/admin-users/index.ts   Edge Function that creates users
@@ -44,7 +47,7 @@ supabase/functions/admin-users/index.ts   Edge Function that creates users
 1. Open your new project → left menu **SQL Editor** → **New query**.
 2. Paste the full content of `supabase_setup.sql` → **Run**.
    - If a "destructive operation" warning appears, click **Run this query**. It is only because of `drop policy if exists`; nothing is deleted.
-   - You should see **Success** at the bottom. This file also adds the 26 employees.
+   - You should see **Success** at the bottom. This file also adds the 23 employees.
 
 ### Step 1b — Documents (phase 2)
 
@@ -53,6 +56,10 @@ In the same way, open **SQL Editor → New query**, paste the full content of `s
 ### Step 1c — Employees: kit and payroll
 
 Then **Run** `supabase_hr.sql` the same way. This creates the tables for working kit (rounds and standard kit), paid tasks, deductions / violations, advances and payslips. It is also safe to run again.
+
+### Step 1d — Extras (stock count, kiosk photo, backups, notifications)
+
+Run `supabase_extras.sql` the same way. If the result says **"Weekly backup NOT scheduled"**, open Supabase → **Integrations → Cron** → enable it, then run the file again.
 
 ## Step 2 — Supabase: login settings
 
@@ -134,7 +141,7 @@ window.PORTAL_CONFIG = {
 ## Price list, QR certificates, kit and payroll
 
 - **Price List (Documents → Price List):** enter each product once with its category and sub-category (rate, unit, description). When creating a Quotation / Invoice, choose **Category → Sub-category → Product** at the top, enter the qty and click **+ Add**; the line fills in automatically with the rate and 15% VAT. Only manager / staff can edit; only manager can delete.
-- **QR on Leak Test and Tank certificates:** the QR is now generated automatically. As soon as a certificate is **saved**, its PDF goes to the `certs` folder in Supabase and the QR is a link to that PDF; no third-party QR service. Scanning it opens the PDF directly (no login). If you change a certificate and **Save** again, the same QR shows the new PDF. For **old certificates**, open each one once and click **Save** to create its QR.
+- **QR on Leak Test and Tank certificates:** generated automatically when a certificate is **saved** (no third-party QR service). Scanning it opens the portal's public **Verified** page (`verify.html`, no login): Al Hyakel's name, a big green **Valid** (or red **Expired** / **Test failed**), the main details, and a button to open the PDF. If you change a certificate and **Save** again, the same QR shows the new details and PDF. Save certificates after the custom domain is set up, so the QR uses the new address.
 - **Tank Certificate photos:** add up to 4 photos in the **Photos (page 2)** box. The PDF then gets a second page with the photos and the company stamp, just like the Leak Test. Without photos the certificate stays one page. The Arabic certificate text fills in the "Valid Until" date automatically.
 - **Working kit (Employees → Working kit):** separate from inventory (you take items out of the store in bulk).
   - **Standard kit** (HR admin only): what the kit contains (coverall, shoes, gloves…) and how often a new kit is issued (every 3 or 4 months).
@@ -217,6 +224,33 @@ A free Supabase project is paused if it is not used at all for **7 days**. With 
 2. Supabase → **Storage** → open the **docs** bucket → select everything → **Delete**. Do the same in the **certs** bucket. (Photos and certificate PDFs are files, so SQL cannot remove them.)
 
 Kept: logins and roles (Users & Access) and HR settings. Document numbers start again from 1 (TS-001, HMI-2026-001, QT-AL000001 …). After the reset, add each employee's salary and kiosk PIN in **Employees → Employees**.
+
+## Stock count (Inventory → Stock count)
+
+1. **Start a new count**: give it a name and choose all products or one category.
+2. Walk the store with a phone: scan each barcode (camera or a USB/Bluetooth scanner) or type the SKU, and enter how many there are. Tick **Each scan adds 1** for things you count one by one. Several people can count the same list at once.
+3. Storekeepers do not see the system quantity while counting (a blind count, so the count is honest).
+4. The inventory admin opens the count, checks **Differences only**, then clicks **Apply count to stock**. Each counted product's stock becomes the counted quantity (shown in Movements as ADJUST "Stock count: …"). Products not counted do not change. **Export CSV** gives the full count sheet.
+
+## Kiosk photo
+
+The gate kiosk now takes a small photo when someone presses OK to check in or out, so nobody can punch in for someone else. The tablet asks once for camera permission: tap **Allow**. HR admin and supervisors see a camera icon next to the name in **Today** and **Attendance**; click it to see the photos. Photos are deleted automatically after 60 days. If the camera is off, the punch still works without a photo.
+
+## Backups (Users & Access → Backups)
+
+Every Friday at 23:00 a full copy of all portal data is saved automatically (the last 8 are kept), plus up to 5 copies made with **Back up now**. Download any copy as **Excel** (one sheet per table) or **JSON** (complete, for restoring). Kiosk PINs and passwords are never included. These copies live inside Supabase, so also download one now and then and keep it on your computer or Google Drive.
+
+## Phone notifications
+
+What you get: a new document **waiting for approval** (managers), your document **approved** (whoever made it), **low stock** the moment an item goes below its minimum (inventory admin + storekeeper), and a **7:30 morning summary** (overdue invoices, tank certificates expiring in 14 days, items to approve, low stock, kit due, overdue tasks), each person only for the parts they use.
+
+One-time setup (about 10 minutes). The private values are in the `PRIVATE-do-not-upload` folder; never put them on GitHub.
+1. Supabase → **Edge Functions → Deploy a new function → Via Editor**, name it exactly **`notify`**, paste all of `supabase/functions/notify/index.ts`, **Deploy**. Then turn **Verify JWT off** for this function (same as `admin-users`).
+2. Supabase → **Edge Functions → Secrets** → add the four secrets from `push-secrets.txt`: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `NOTIFY_SECRET`.
+3. Supabase → **SQL Editor** → run `push-secrets.sql` (from the private folder). It tells the database where the function is.
+4. Make sure `supabase_extras.sql` has been run (Step 1d).
+
+Each person then turns notifications on for each phone / computer: tap the avatar (top right) → **Notifications on this device** → Allow, then **Send a test notification**. On iPhone this only works in the installed app (Safari → Share → **Add to Home Screen**, then open it from the home screen). To stop, tap the same item again.
 
 ## Working faster
 

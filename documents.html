@@ -343,13 +343,15 @@ function leakPdf(r, img) {
 
 async function pdfFor(rec, photos, token) {
   await arabicReady();
-  return leakPdf(rec, {...await assets(), photos: await withEl(photos), qrUrl: token ? certUrl(token) : null});
+  return leakPdf(rec, {...await assets(), photos: await withEl(photos), qrUrl: token ? verifyUrl(token) : null});
 }
 
 /* ============================== certificate QR -> public PDF ============================== */
 const CERT_BUCKET = 'certs';
 const newToken = () => [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, '0')).join('');   // 128-bit, unguessable
 const certUrl = t => `${String(PORTAL_CONFIG.SUPABASE_URL).replace(/\/+$/, '')}/storage/v1/object/public/${CERT_BUCKET}/${t}.pdf`;
+// what the QR code opens: the portal's public "Verified" page for this certificate (it links on to the PDF)
+const verifyUrl = t => new URL(`verify.html?c=${t}`, location.href.split('#')[0]).href;
 async function uploadCert(token, pdf) {
   const {error} = await sb.storage.from(CERT_BUCKET).upload(`${token}.pdf`, pdf.output('blob'), {contentType: 'application/pdf', upsert: true, cacheControl: '60'});
   if (error) toast('Certificate saved, but the QR PDF could not be uploaded: ' + nice(error) + '. Run the latest supabase_docs.sql in Supabase, then click Save again.', true);
@@ -1366,12 +1368,12 @@ function tankPdf(r, img) {
   y += bh + 10;
 
   // QR (left) and company stamp (right)
-  const qrText = r.files?.qr_token ? certUrl(r.files.qr_token)
+  const qrText = r.files?.qr_token ? verifyUrl(r.files.qr_token)
     : `Al Hyakel Metal Industries | Certificate ${r.doc_no || 'DRAFT'} | Tank ${d.tank_no || '-'} | Truck ${d.truck_plate || '-'} | Valid until ${d.valid_until || '-'}`;
   const QR = 40;
   drawQr(pdf, qrText, M + 2, y, QR);
   pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6.5); pdf.setTextColor(...C.muted);
-  pdf.text('Scan to view this certificate', M + 2 + QR / 2, y + QR + 3, {align: 'center'});
+  pdf.text('Scan to verify this certificate', M + 2 + QR / 2, y + QR + 3, {align: 'center'});
   const sk = Math.min(50 / img.stamp.w, 25 / img.stamp.h), sw = img.stamp.w * sk, sh = img.stamp.h * sk;
   pdf.addImage(img.stamp.dataUrl, 'PNG', W - M - 6 - sw, y + QR - sh, sw, sh, 'stamp');
   const hasPhotos = (img.photos || []).some(Boolean), pages = hasPhotos ? 2 : 1;

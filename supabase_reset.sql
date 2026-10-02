@@ -8,7 +8,7 @@
 --           employees + attendance, overtime, tasks, pay, working kit,
 --           deductions, advances, payslips
 -- Kept    : logins (Users & Access), roles, HR settings (shift hours,
---           overtime rate, standard kit)
+--           overtime rate, standard kit), backups, notification devices
 -- Numbering starts again from 1 (TS-001, QT-AL000001, INV-AL00001 …)
 --
 -- Photos and certificate PDFs live in Storage, not in these tables:
@@ -22,6 +22,13 @@ truncate table
   public.hr_payslips, public.hr_adjustments, public.hr_advances, public.hr_kit,
   public.hr_tasks, public.hr_attendance, public.hr_pay, public.hr_employees
 restart identity cascade;
+
+-- tables from supabase_extras.sql (only if that file has been run); backups are kept on purpose
+do $$ begin
+  if to_regclass('public.inv_counts') is not null then truncate table public.inv_counts restart identity; end if;
+  if to_regclass('public.hr_punch_photos') is not null then truncate table public.hr_punch_photos restart identity; end if;
+  if to_regclass('public.push_log') is not null then truncate table public.push_log restart identity; end if;
+end $$;
 
 insert into public.hr_employees (emp_code, name) values
   ('EMP-01','Sajid'),   ('EMP-02','Khaliq'),  ('EMP-03','Waseem'),   ('EMP-04','Ahsan'),

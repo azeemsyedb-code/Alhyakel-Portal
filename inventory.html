@@ -182,6 +182,7 @@ tr.low td{background:#FFF5F6}
       <button data-v="scan">Scan</button>
       <button data-v="products">Products</button>
       <button data-v="movements">Movements</button>
+      <button data-v="counts">Stock count</button>
       <button data-v="suppliers">Suppliers</button>
       
     </nav>
@@ -345,7 +346,7 @@ async function boot(){
   $("#login").classList.add("hidden"); $("#app").classList.remove("hidden");
   await loadAll();
   const [hv, ...hq] = decodeURIComponent(location.hash.slice(1)).split(':');
-  if (["dashboard","scan","products","movements","suppliers"].includes(hv)) S.view = hv;
+  if (["dashboard","scan","products","movements","suppliers","counts"].includes(hv)) S.view = hv;
   go(S.view);
   if (hv === "scan" && hq.length) scan(hq.join(':'));
 }
@@ -375,7 +376,7 @@ function go(v){
   S.view = v;
   history.replaceState(null, "", "#" + v);
   document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("active", b.dataset.v === v));
-  ({dashboard, scan, products, movements, suppliers, users})[v]();
+  ({dashboard, scan, products, movements, suppliers, users, counts})[v]();
 }
 
 /* ---------------- Dashboard ---------------- */
@@ -680,6 +681,139 @@ function supplierForm(s){
     if (res.error) { $("#sfErr").textContent = niceErr(res.error); return; }
     $("#modalRoot").innerHTML = ""; await loadAll(); suppliers(); toast("Supplier saved");
   };
+}
+
+
+/* ---------------- Stock count ---------------- */
+// Walk the store with a phone, scan each item and type how many there are. The inventory admin then
+// applies the count: every counted product's stock becomes the counted quantity (ADJUST movement).
+const CNT = {id: null, filter: "todo", addOne: false, last: {code: "", t: 0}};
+async function counts(){
+  stopCamera(); CNT.id = null;
+  $("#view").innerHTML = `<div class="page-head"><h2>Stock count</h2></div><div class="empty">Loading…</div>`;
+  const { data, error } = await sb.from("inv_counts").select("id,name,category,status,lines,created_by,created_at,applied_at").order("created_at",{ascending:false}).limit(60);
+  if (error) { $("#view").innerHTML = `<div class="page-head"><h2>Stock count</h2></div><div class="panel">Stock count is not set up yet. Run <b>supabase_extras.sql</b> in Supabase (README).<br><span style="color:var(--muted)">${h(niceErr(error))}</span></div>`; return; }
+  const open = data.filter(c => c.status === "open"), done = data.filter(c => c.status !== "open");
+  const cats = [...new Set(S.products.map(p => p.category).filter(Boolean))].sort();
+  const n = c => Object.keys(c.lines || {}).length, scope = c => S.products.filter(p => !c.category || p.category === c.category).length;
+  $("#view").innerHTML = `
+    <div class="page-head"><h2>Stock count</h2></div>
+    ${canWrite() ? `<form class="panel" id="newCount"><h3>Start a new count</h3>
+      <div class="grid2"><div><label for="cn">Name</label><input id="cn" required value="Stock count ${new Date().toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}"></div>
+      <div><label for="cc">Products</label><select id="cc"><option value="">All products (${S.products.length})</option>${cats.map(c=>`<option>${h(c)}</option>`).join("")}</select></div></div>
+      <button class="btn primary" style="margin-top:12px">Start counting</button>
+      <p style="color:var(--muted);font-size:13px;margin:10px 0 0">Several people can count the same list at the same time from their phones. Only the inventory admin can apply the result to stock.</p></form>` : ""}
+    <div class="panel"><h3>Open counts</h3>${open.length ? table(["Name","Products","Counted","Started",""], open.map(c => [`<b>${h(c.name)}</b>`, h(c.category || "All"),
+        `${n(c)} / ${scope(c)}`, new Date(c.created_at).toLocaleDateString("en-GB"), `<button class="btn small" data-open="${c.id}">Open</button>`]), [2])
+      : `<div class="empty">No open counts.</div>`}</div>
+    <div class="panel"><h3>Finished counts</h3>${done.length ? table(["Name","Products","Counted","Status","Date",""], done.map(c => [h(c.name), h(c.category || "All"), n(c),
+        c.status === "applied" ? `<span class="tag IN">Applied</span>` : `<span class="tag">Cancelled</span>`, new Date(c.applied_at || c.created_at).toLocaleDateString("en-GB"),
+        `<button class="btn small" data-open="${c.id}">View</button>`]), [2]) : `<div class="empty">None yet.</div>`}</div>`;
+  $("#newCount")?.addEventListener("submit", async e => {
+    e.preventDefault();
+    const { data: row, error: err } = await sb.from("inv_counts").insert({ name: $("#cn").value.trim(), category: $("#cc").value || null }).select().single();
+    if (err) { toast(niceErr(err)); return; }
+    countView(row.id);
+  });
+  document.querySelectorAll("[data-open]").forEach(b => b.onclick = () => countView(+b.dataset.open));
+}
+async function countView(id){
+  CNT.id = id;
+  const { data: c, error } = await sb.from("inv_counts").select("*").eq("id", id).maybeSingle();
+  if (error || !c) { toast("Count not found"); return counts(); }
+  const open = c.status === "open", editable = open && canWrite(), blind = !isAdmin();   // counters don't see system stock
+  const list = S.products.filter(p => !c.category || p.category === c.category || (c.lines || {})[p.id]);
+  const L = () => c.lines || {};
+  const cnt = p => L()[p.id] ? Number(L()[p.id].qty) : null;
+  $("#view").innerHTML = `
+    <div class="page-head"><h2>${h(c.name)}</h2><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="back">All counts</button><button class="btn" id="csvC">Export CSV</button>
+      ${open ? `<button class="btn" id="reload">Refresh</button>` : ""}</div></div>
+    ${c.status !== "open" ? `<div class="panel">${c.status === "applied" ? `Applied on ${new Date(c.applied_at).toLocaleString("en-GB",{dateStyle:"medium",timeStyle:"short"})}: ${(c.summary?.changed || []).length} product(s) changed.` : "This count was cancelled."}</div>` : ""}
+    <div class="stats" id="cstats"></div>
+    ${editable ? `<div class="panel">
+      <label for="ccode">Scan a barcode or type the SKU, then press Enter</label>
+      <div class="scanbar"><input id="ccode" autocomplete="off" placeholder="Scan or type SKU"><button class="btn" id="ccam">Use camera</button></div>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-weight:500"><input type="checkbox" id="addOne" style="width:auto"${CNT.addOne ? " checked" : ""}> Each scan adds 1 (for items counted one by one)</label>
+      <div id="reader"></div><div id="centry"></div></div>` : ""}
+    <div class="row" style="margin:6px 0 10px"><div><label for="cf">Show</label><select id="cf"><option value="todo">Not counted yet</option><option value="done">Counted</option>${blind ? "" : `<option value="diff">Differences only</option>`}<option value="all">All</option></select></div>
+      <div><label for="cq">Search</label><input id="cq" placeholder="SKU, name, location"></div></div>
+    <div id="clist"></div>
+    ${open && isAdmin() ? `<div class="panel" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><button class="btn primary" id="apply">Apply count to stock</button>
+      <button class="btn danger" id="cancelC">Cancel this count</button><span style="color:var(--muted);font-size:13px">Apply sets each counted product's stock to the counted quantity. Products not counted are not changed.</span></div>` : ""}`;
+  $("#cf").value = blind && CNT.filter === "diff" ? "todo" : CNT.filter;
+  const draw = () => {
+    const f = $("#cf").value, q = $("#cq").value.trim().toLowerCase(); CNT.filter = f;
+    const rows = list.filter(p => { const k = cnt(p); return (f === "all" || (f === "todo" ? k === null : f === "done" ? k !== null : k !== null && k !== Number(p.qty))) &&
+      (!q || [p.sku, p.name, p.location].join(" ").toLowerCase().includes(q)); });
+    const counted = list.filter(p => cnt(p) !== null), diffs = counted.filter(p => cnt(p) !== Number(p.qty));
+    $("#cstats").innerHTML = `<div class="stat"><b>${counted.length} / ${list.length}</b><span>Counted</span></div>` +
+      (blind ? "" : `<div class="stat ${diffs.length ? "alert" : ""}"><b>${diffs.length}</b><span>Differences</span></div>`);
+    $("#clist").innerHTML = rows.length ? table(blind ? ["SKU","Product","Location","Counted",""] : ["SKU","Product","Location","System","Counted","Difference",""],
+      rows.map(p => { const k = cnt(p), d = k === null ? null : k - Number(p.qty);
+        const base = [`<span class="sku">${h(p.sku)}</span>`, h(p.name), h(p.location)];
+        const edit = editable ? `<button class="btn small" data-cnt="${p.id}">${k === null ? "Count" : "Edit"}</button>` : "";
+        return blind ? [...base, k === null ? "" : `<b>${fmt(k)}</b> ${h(p.unit)}`, edit]
+          : [...base, `${fmt(p.qty)} ${h(p.unit)}`, k === null ? "" : `<b>${fmt(k)}</b>`, d === null ? "" : `<b style="color:${d === 0 ? "var(--ok)" : "var(--danger)"}">${d > 0 ? "+" : ""}${fmt(d)}</b>`, edit]; }),
+      blind ? [3] : [3,4,5]) : `<div class="tablewrap"><div class="empty">${$("#cf").value === "todo" ? "Everything in this list has been counted." : "Nothing to show."}</div></div>`;
+    document.querySelectorAll("[data-cnt]").forEach(b => b.onclick = () => entry(S.products.find(p => p.id === +b.dataset.cnt)));
+  };
+  const save = async (p, qty) => {
+    const { data, error: e } = await sb.rpc("inv_count_set", { p_count: id, p_product: p.id, p_qty: qty });
+    if (e) { toast(niceErr(e)); return false; }
+    c.lines = data; draw(); return true;
+  };
+  const entry = p => {
+    const box = $("#centry"); if (!box) return;
+    const k = cnt(p);
+    box.innerHTML = `<div class="found" style="margin-top:12px;padding:14px;border-radius:12px;background:#fff">
+      <span class="sku">${h(p.sku)}</span><h3 style="margin:2px 0 4px">${h(p.name)}</h3><div style="color:var(--muted);margin-bottom:10px">${h(p.location || "")}${blind ? "" : ` · system ${fmt(p.qty)} ${h(p.unit)}`}</div>
+      <div class="scanbar"><input id="cqty" type="number" step="any" min="0" inputmode="decimal" placeholder="Counted ${h(p.unit)}" value="${k ?? ""}">
+      <button class="btn primary" id="csave">Save</button>${k !== null ? `<button class="btn" id="cclear">Remove</button>` : ""}</div></div>`;
+    const qi = $("#cqty"); qi.focus(); qi.select();
+    const done = async v => { if (await save(p, v)) { box.innerHTML = ""; toast(v === null ? `${p.sku} removed from the count` : `${p.sku}: ${fmt(v)} ${p.unit}`); $("#ccode")?.focus(); } };
+    $("#csave").onclick = () => { if (qi.value === "") { qi.focus(); return; } done(Number(qi.value)); };
+    qi.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); $("#csave").click(); } };
+    $("#cclear")?.addEventListener("click", () => done(null));
+  };
+  const onCode = async code => {
+    code = String(code || "").trim(); if (!code) return;
+    const now = Date.now(); if (code === CNT.last.code && now - CNT.last.t < 1500) return;   // same label read twice by the camera
+    CNT.last = { code, t: now };
+    const p = S.products.find(x => x.sku.toLowerCase() === code.toLowerCase());
+    if (!p) { toast(`No product has the barcode ${code}`); return; }
+    if (!list.includes(p)) list.push(p);
+    if ($("#addOne")?.checked) { const v = (cnt(p) || 0) + 1; if (await save(p, v)) toast(`${p.sku}: ${fmt(v)}`); }
+    else entry(p);
+  };
+  $("#back").onclick = counts;
+  $("#reload")?.addEventListener("click", () => countView(id));
+  $("#cf").onchange = draw; $("#cq").oninput = draw;
+  $("#addOne")?.addEventListener("change", e => CNT.addOne = e.target.checked);
+  const ci = $("#ccode");
+  ci?.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); onCode(ci.value); ci.value = ""; } });
+  $("#ccam")?.addEventListener("click", () => {
+    if (camera) { stopCamera(); $("#ccam").textContent = "Use camera"; return; }
+    camera = new Html5Qrcode("reader");
+    camera.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 280, height: 140 } }, text => onCode(text))
+      .then(() => $("#ccam").textContent = "Stop camera")
+      .catch(() => { camera = null; toast("Camera not available. Allow camera access or type the SKU."); });
+  });
+  $("#csvC").onclick = () => csv(`${c.name.replace(/[^\w-]+/g, "-")}.csv`, ["SKU","Product","Location","Unit","System qty","Counted","Difference","Counted by","Counted at"],
+    list.map(p => { const l = L()[p.id]; const k = l ? Number(l.qty) : ""; return [p.sku, p.name, p.location, p.unit, p.qty, k, l ? k - Number(p.qty) : "", l ? userName(l.by) : "", l ? l.at : ""]; }));
+  $("#apply")?.addEventListener("click", async () => {
+    const counted = list.filter(p => cnt(p) !== null), diffs = counted.filter(p => cnt(p) !== Number(p.qty));
+    if (!counted.length) { toast("Nothing has been counted yet."); return; }
+    if (!confirm(`Apply "${c.name}"?\n\n${counted.length} product(s) counted, ${diffs.length} will change.\nProducts not counted stay as they are.`)) return;
+    const { data, error: e } = await sb.rpc("inv_count_apply", { p_count: id });
+    if (e) { toast(niceErr(e)); return; }
+    await loadAll(); toast(`Count applied: ${data.changed} product(s) changed`); countView(id);
+  });
+  $("#cancelC")?.addEventListener("click", async () => {
+    if (!confirm(`Cancel "${c.name}"? Nothing will change in stock.`)) return;
+    const { error: e } = await sb.from("inv_counts").update({ status: "cancelled" }).eq("id", id);
+    if (e) { toast(niceErr(e)); return; } counts();
+  });
+  draw(); ci?.focus();
 }
 
 /* ---------------- Users (admin) ---------------- */

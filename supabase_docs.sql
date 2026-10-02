@@ -266,3 +266,23 @@ create policy certs_update on storage.objects for update to authenticated
   with check (bucket_id = 'certs' and public.my_role('docs') in ('manager','staff'));
 create policy certs_delete on storage.objects for delete to authenticated
   using (bucket_id = 'certs' and public.my_role('docs') = 'manager');
+
+-- ---------------------------------------------------------------------
+-- 8. Public "Verified" page (verify.html): scanning a certificate's QR shows
+--    whether it is genuine and still valid. Only the certificate with that
+--    exact (random, unguessable) code is returned, and only a few fields.
+-- ---------------------------------------------------------------------
+create or replace function public.cert_verify(p_token text)
+returns json language sql stable security definer set search_path = public as $$
+  select json_build_object(
+    'type', d.doc_type, 'doc_no', d.doc_no, 'doc_date', d.doc_date, 'party_name', d.party_name,
+    'approved', d.status = 'approved',
+    'valid_until', d.data->>'valid_until', 'result', d.data->>'result',
+    'tank_no', d.data->>'tank_no', 'truck_plate', d.data->>'truck_plate', 'serial_no', d.data->>'serial_no',
+    'chassis_no', d.data->>'chassis_no', 'tank_serial', d.data->>'tank_serial', 'capacity', coalesce(d.data->>'capacity', d.data->>'tank_capacity'))
+  from public.docs_documents d
+  where p_token ~ '^[0-9a-f]{32}$' and d.doc_type in ('leak', 'tank') and d.files->>'qr_token' = p_token
+  limit 1;
+$$;
+revoke all on function public.cert_verify(text) from public;
+grant execute on function public.cert_verify(text) to anon, authenticated;

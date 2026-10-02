@@ -371,6 +371,7 @@ async function viewToday() {
     sb.from('hr_tasks').select('id,employee_id,title,due_date,priority,status').in('status', ['pending', 'in_progress'])
   ]);
   const att = must(ra), tasks = must(rt);
+  await loadPhotos(att);
   const byEmp = Object.fromEntries(att.map(a => [a.employee_id, a]));
   const openBy = {};
   tasks.forEach(t => { if (t.employee_id) openBy[t.employee_id] = (openBy[t.employee_id] || 0) + 1; });
@@ -391,7 +392,7 @@ async function viewToday() {
       ot += Number(a.ot_hours || 0);
     }
     const hrs = a ? hoursBetween(a.check_in, a.check_out) : null;
-    return `<tr><td class="muted">${esc(e.emp_code)}</td><td>${esc(e.name)}</td><td>${st}</td>
+    return `<tr><td class="muted">${esc(e.emp_code)}</td><td>${esc(e.name)}${photoBtn(a, e)}</td><td>${st}</td>
       <td>${timeOf(a && a.check_in)}</td><td>${timeOf(a && a.check_out)}</td>
       <td class="r">${fmtH(hrs)}</td><td class="r">${a && Number(a.ot_hours) ? fmtH(Number(a.ot_hours)) : ''}</td>
       <td class="r">${openBy[e.id] || ''}</td></tr>`;
@@ -453,6 +454,7 @@ async function renderDay() {
   $('#dayPick').onchange = ev => { if (ev.target.value) { attState.date = ev.target.value; renderDay(); } };
 
   const att = must(await sb.from('hr_attendance').select('*').eq('work_date', d));
+  await loadPhotos(att);
   const byEmp = Object.fromEntries(att.map(a => [a.employee_id, a]));
   const emps = activeEmps();
   $('#attBody').innerHTML = `<div class="wrap"><table>
@@ -481,11 +483,32 @@ async function renderDay() {
   };
 }
 
+/* kiosk photos (taken at check-in / check-out) */
+let PHOTOS = {};      // attendance id -> [{id, kind, taken_at}]
+async function loadPhotos(att) {
+  PHOTOS = {};
+  if (!canEdit() || !att.length) return;
+  const {data, error} = await sb.from('hr_punch_photos').select('id,attendance_id,kind,taken_at').in('attendance_id', att.map(a => a.id));
+  if (!error) (data || []).forEach(p => (PHOTOS[p.attendance_id] = PHOTOS[p.attendance_id] || []).push(p));
+}
+const camIcon = '<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="13" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>';
+const photoBtn = (a, e) => a && PHOTOS[a.id] ? ` <button type="button" class="link phbtn" data-att="${a.id}" data-name="${esc(e.name)}" title="Kiosk photos">${camIcon}</button>` : '';
+document.addEventListener('click', async ev => {
+  const b = ev.target.closest('.phbtn'); if (!b) return;
+  ev.preventDefault();
+  const list = PHOTOS[b.dataset.att] || [];
+  const {data} = await sb.from('hr_punch_photos').select('id,kind,taken_at,photo').in('id', list.map(x => x.id));
+  const rows = (data || []).sort((x, y) => x.taken_at.localeCompare(y.taken_at));
+  openDialog({title: `Kiosk photos: ${b.dataset.name}`, submit: 'Close', onSubmit: async () => {}, body: `<div class="full" style="display:flex;gap:14px;flex-wrap:wrap">${rows.map(r =>
+    `<figure style="margin:0"><img src="${r.photo}" alt="" style="width:200px;height:200px;object-fit:cover;border-radius:12px;background:#eee"><figcaption class="muted" style="font-size:13px;margin-top:4px">${r.kind === 'in' ? 'Check in' : 'Check out'} · ${timeOf(r.taken_at)}</figcaption></figure>`).join('') || '<p class="muted">No photos.</p>'}</div>
+    <p class="full hint">Photos are deleted automatically after 60 days.</p>`});
+});
+
 function dayRow(e, a) {
   const hrs = a ? hoursBetween(a.check_in, a.check_out) : null;
   return `<tr data-emp="${e.id}" data-has="${a ? 1 : ''}" data-manual="${a && a.ot_manual ? 1 : ''}">
     <td class="muted">${esc(e.emp_code)}</td>
-    <td>${esc(e.name)}${a && a.source === 'kiosk' ? ' <small class="muted" title="Punched at the kiosk">kiosk</small>' : ''}</td>
+    <td>${esc(e.name)}${a && a.source === 'kiosk' ? ' <small class="muted" title="Punched at the kiosk">kiosk</small>' : ''}${photoBtn(a, e)}</td>
     <td><select class="st" aria-label="Status">${opts(STATUS, a ? a.status : '', 'No entry')}</select></td>
     <td><input type="time" class="tin" aria-label="Check in" value="${timeOf(a && a.check_in)}"></td>
     <td><input type="time" class="tout" aria-label="Check out" value="${timeOf(a && a.check_out)}"></td>

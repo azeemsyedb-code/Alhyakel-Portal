@@ -89,6 +89,9 @@ body{font-family:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;font-variant-nu
 .done-card{background:#fff}
 .done-card .hd.in{background:#2E9E6A}.done-card .hd.out{background:#1D6E80}
 .ok{font:600 20px 'IBM Plex Sans',system-ui,sans-serif;background:#1D6E80}
+.cam{display:flex;align-items:center;gap:12px;margin:14px 0 0;color:#4A5B68;font-size:14px}
+.cam video{width:76px;height:76px;border-radius:50%;object-fit:cover;background:#E6EBEE;transform:scaleX(-1);flex:none}
+.cam.off video{display:none}
 </style>
 </head>
 <body>
@@ -104,6 +107,7 @@ body{font-family:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;font-variant-nu
   <div class="pad" id="pad" role="dialog" aria-modal="true" aria-labelledby="padName">
     <h2 id="padName"></h2>
     <p class="act" id="padAct"></p>
+    <div class="cam" id="cam" hidden><video id="camV" playsinline muted autoplay></video><span id="camT">A photo is taken when you press OK</span></div>
     <div class="dots" id="dots" aria-hidden="true"></div>
     <p class="err" id="padErr" role="alert"></p>
     <div class="keys" id="keys">
@@ -169,6 +173,29 @@ grid.addEventListener('click', ev => {
   openPad(e);
 });
 
+/* camera: a small photo is taken with each check-in / check-out */
+let camStream = null, camStopT;
+async function camStart() {
+  clearTimeout(camStopT);
+  const box = $('#cam'), v = $('#camV');
+  if (!navigator.mediaDevices?.getUserMedia || !window.isSecureContext) { box.hidden = true; return; }
+  box.hidden = false; box.classList.remove('off');
+  if (camStream) { v.srcObject = camStream; v.play().catch(() => {}); return; }
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'user', width: {ideal: 480}, height: {ideal: 480}}, audio: false});
+    v.srcObject = camStream; await v.play().catch(() => {});
+  } catch (e) { camStream = null; box.classList.add('off'); $('#camT').textContent = 'Camera is off (allow camera access on this tablet)'; }
+}
+function camStopLater() { clearTimeout(camStopT); camStopT = setTimeout(() => { if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; } }, 120000); }
+function snap() {
+  const v = $('#camV');
+  if (!camStream || !v.videoWidth) return null;
+  const S = 240, c = document.createElement('canvas'); c.width = S; c.height = S;
+  const side = Math.min(v.videoWidth, v.videoHeight);
+  c.getContext('2d').drawImage(v, (v.videoWidth - side) / 2, (v.videoHeight - side) / 2, side, side, 0, 0, S, S);
+  return c.toDataURL('image/jpeg', 0.6);
+}
+
 /* PIN pad */
 function drawDots() { $('#dots').innerHTML = Array.from({length: Math.max(4, pin.length)}, (_, i) => `<i class="${i < pin.length ? 'f' : ''}"></i>`).join(''); }
 function resetIdle() { clearTimeout(idleT); idleT = setTimeout(closeAll, 30000); }
@@ -177,12 +204,12 @@ function openPad(e) {
   $('#padName').textContent = e.name;
   $('#padAct').innerHTML = e.state === 'in' ? 'Enter your PIN to check out<span class="ur" lang="ur">چھٹی کے لیے اپنا پن درج کریں</span>'
                                              : 'Enter your PIN to check in<span class="ur" lang="ur">حاضری کے لیے اپنا پن درج کریں</span>';
-  drawDots(); $('#padOv').hidden = false; resetIdle();
+  drawDots(); $('#padOv').hidden = false; resetIdle(); camStart();
 }
 function closeAll() {
   clearTimeout(idleT); clearTimeout(backT);
   $('#padOv').hidden = true; $('#doneOv').hidden = true;
-  cur = null; pin = ''; search.value = ''; render();
+  cur = null; pin = ''; search.value = ''; render(); camStopLater();
 }
 function press(k) {
   if (busy || !cur) return; resetIdle(); $('#padErr').textContent = '';
@@ -209,7 +236,9 @@ function fail(msg) {
 async function submit() {
   if (pin.length < 4) { fail('PIN has at least 4 digits'); return; }
   busy = true; $('#goBtn').textContent = '…';
-  const {data, error} = await sb.rpc('kiosk_punch', {p_employee: cur.id, p_pin: pin});
+  const photo = snap();
+  let {data, error} = await sb.rpc('kiosk_punch', photo ? {p_employee: cur.id, p_pin: pin, p_photo: photo} : {p_employee: cur.id, p_pin: pin});
+  if (error && photo && /function|p_photo|schema cache/i.test(error.message || '')) ({data, error} = await sb.rpc('kiosk_punch', {p_employee: cur.id, p_pin: pin}));   // database not updated yet
   busy = false; $('#goBtn').textContent = 'OK';
   if (error) { fail('Could not save. Check the internet and try again.'); return; }
   if (!data || !data.ok) { fail(data && data.error ? data.error : 'Something went wrong'); load(); return; }

@@ -319,7 +319,23 @@ language sql stable security definer set search_path = public as $$
    order by e.emp_code;
 $$;
 
-create or replace function public.kiosk_punch(p_employee uuid, p_pin text)
+-- photos the kiosk takes at check-in / check-out (deleted automatically after 60 days)
+create table if not exists public.hr_punch_photos (
+  id            bigint generated always as identity primary key,
+  attendance_id uuid references public.hr_attendance(id) on delete cascade,
+  employee_id   uuid references public.hr_employees(id) on delete cascade,
+  kind          text not null check (kind in ('in','out')),
+  taken_at      timestamptz not null default now(),
+  photo         text not null
+);
+create index if not exists hr_punch_photos_att_idx on public.hr_punch_photos (attendance_id);
+alter table public.hr_punch_photos enable row level security;
+drop policy if exists hr_punch_photos_read on public.hr_punch_photos;
+create policy hr_punch_photos_read on public.hr_punch_photos for select to authenticated using (public.my_role('hr') in ('admin','supervisor'));
+revoke all on public.hr_punch_photos from anon;
+
+drop function if exists public.kiosk_punch(uuid, text);
+create or replace function public.kiosk_punch(p_employee uuid, p_pin text, p_photo text default null)
 returns json language plpgsql security definer set search_path = public, extensions as $$
 declare
   e       public.hr_employees%rowtype;
@@ -327,6 +343,7 @@ declare
   v_today date := (now() at time zone 'Asia/Riyadh')::date;
   v_act   text;
   v_tasks json;
+  v_att   uuid;
 begin
   select * into e from public.hr_employees where id = p_employee and active for update;
   if not found then
@@ -362,6 +379,16 @@ begin
     v_act := 'out';
   else
     return json_build_object('ok', false, 'error', 'Already checked out today');
+  end if;
+
+  -- photo taken by the kiosk camera (small JPEG), kept for 60 days
+  if p_photo is not null and length(p_photo) < 300000 and p_photo like 'data:image/jpeg;base64,%' then
+    begin
+      select id into v_att from public.hr_attendance where employee_id = e.id and work_date = v_today;
+      insert into public.hr_punch_photos (attendance_id, employee_id, kind, photo) values (v_att, e.id, v_act, p_photo);
+      delete from public.hr_punch_photos where taken_at < now() - interval '60 days';
+    exception when undefined_table then null;
+    end;
   end if;
 
   select coalesce(json_agg(json_build_object('title', t.title, 'details', t.details, 'due', t.due_date,
@@ -421,11 +448,11 @@ grant delete on public.hr_employees to authenticated;
 revoke all on function public.hr_ot_hours(timestamptz, timestamptz) from public, anon;
 revoke all on function public.set_employee_pin(uuid, text)   from public, anon;
 revoke all on function public.kiosk_employees()              from public;
-revoke all on function public.kiosk_punch(uuid, text)        from public;
+revoke all on function public.kiosk_punch(uuid, text, text)  from public;
 grant execute on function public.hr_ot_hours(timestamptz, timestamptz) to authenticated;
 grant execute on function public.set_employee_pin(uuid, text)   to authenticated;
 grant execute on function public.kiosk_employees()              to anon, authenticated;
-grant execute on function public.kiosk_punch(uuid, text)        to anon, authenticated;
+grant execute on function public.kiosk_punch(uuid, text, text)  to anon, authenticated;
 
 -- starting employee list (from the salary Excel). Safe to re-run.
 insert into public.hr_employees (emp_code, name) values
