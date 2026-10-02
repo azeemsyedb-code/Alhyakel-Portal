@@ -184,6 +184,7 @@ th,td{padding:10px 14px;border-bottom-color:#EEF2F4}
 .panel{border:0;border-radius:12px;box-shadow:0 2px 10px rgba(30,60,80,.06)}
 .chip{font-weight:600;font-size:12px;padding:3px 10px}
 .chip.onshift{background:#FFF1E6;color:#B5591A}
+.offnote{background:#EEF4FF;border:1px solid #CFDDF5;color:#24467A;border-radius:10px;padding:10px 14px;margin:0 0 14px;font-size:14px}
 .seg{border-color:var(--line);border-radius:99px}.seg button+button{border-left-color:var(--line)}
 dialog{border-radius:14px}
 .dlg-h{border-top:0;font-size:19px}
@@ -303,6 +304,13 @@ async function loadBase() {
 const activeEmps = () => S.employees.filter(e => e.active);
 const empById = id => S.employees.find(e => e.id === id);
 const rateOf = e => Number(e && e.ot_rate != null ? e.ot_rate : S.settings.default_ot_rate);
+// weekly off day (Friday by default): every hour worked that day is overtime, at the off-day rate when one is set
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const offDay = () => S.settings.off_day === undefined ? 5 : S.settings.off_day;
+const isOff = d => offDay() != null && d && new Date(d + 'T00:00:00Z').getUTCDay() === Number(offDay());
+const offName = () => offDay() == null ? '' : DAY_NAMES[offDay()];
+const offRateOf = e => S.settings.offday_ot_rate != null && S.settings.offday_ot_rate !== '' ? Number(S.settings.offday_ot_rate) : rateOf(e);
+const otRateFor = (e, d) => isOff(d) ? offRateOf(e) : rateOf(e);
 const empOpts = (sel, blank) => (blank != null ? `<option value="">${blank}</option>` : '') +
   S.employees.filter(e => e.active || e.id === sel)
     .map(e => `<option value="${e.id}"${e.id === sel ? ' selected' : ''}>${esc(e.emp_code)}  ${esc(e.name)}</option>`).join('');
@@ -372,7 +380,7 @@ async function viewToday() {
   const rows = activeEmps().map(e => {
     const a = byEmp[e.id];
     let st;
-    if (!a) { notIn++; st = chip('', 'Not in yet'); }
+    if (!a) { if (isOff(d)) st = chip('off', 'Off day'); else { notIn++; st = chip('', 'Not in yet'); } }
     else {
       if (a.status === 'present' || a.status === 'half_day') {
         present++;
@@ -392,6 +400,7 @@ async function viewToday() {
   main.innerHTML = `
     <div class="head"><div><h1>Today</h1><p>${longDate(d)}</p></div>
       <div class="tools"><button class="btn" id="refresh">Refresh</button><a class="btn" href="#attendance">Edit attendance</a></div></div>
+    ${isOff(d) ? `<div class="offnote">${offName()} is the weekly off day. Anyone who works today gets all their hours as overtime${S.settings.offday_ot_rate != null ? ` at SAR ${money(S.settings.offday_ot_rate)} per hour` : ''}.</div>` : ''}
     <div class="figs">
       <div class="fig"><div class="num">${present}</div><span>Present</span></div>
       <div class="fig"><div class="num">${onShift}</div><span>On shift now</span></div>
@@ -437,7 +446,7 @@ async function renderDay() {
     <button class="btn" id="todayBtn">Today</button>
     <strong style="margin-left:6px">${longDate(d)}</strong>
     <span style="flex:1"></span>
-    <button class="btn" id="markAbsent">Mark everyone not in as absent</button>`;
+    <button class="btn" id="markAbsent">${isOff(d) ? `Mark everyone not in as off (${offName()})` : 'Mark everyone not in as absent'}</button>`;
   $('#prev').onclick = () => { attState.date = addDays(d, -1); renderDay(); };
   $('#next').onclick = () => { attState.date = addDays(d, 1); renderDay(); };
   $('#todayBtn').onclick = () => { attState.date = todayStr(); renderDay(); };
@@ -449,7 +458,8 @@ async function renderDay() {
   $('#attBody').innerHTML = `<div class="wrap"><table>
     <thead><tr><th>Code</th><th>Name</th><th>Status</th><th>In</th><th>Out</th><th class="r">Hours</th><th class="r">OT hours</th><th>Note</th><th></th></tr></thead>
     <tbody id="dayRows">${emps.map(e => dayRow(e, byEmp[e.id])).join('') || '<tr><td colspan="9" class="empty">No active employees.</td></tr>'}</tbody></table></div>
-    <p class="muted" style="font-size:13px">OT is calculated automatically: worked hours minus ${S.settings.shift_hours} shift hours, rounded down to the half hour. Type a number in OT to override it; "auto" switches back.</p>`;
+    ${isOff(d) ? `<div class="offnote" style="margin-top:12px">${offName()} is the weekly off day: all hours worked today count as overtime${S.settings.offday_ot_rate != null ? ` (SAR ${money(S.settings.offday_ot_rate)} per hour)` : ''}. You can still type a different number of OT hours for anyone.</div>` : ''}
+    <p class="muted" style="font-size:13px">OT is calculated automatically: worked hours minus ${S.settings.shift_hours} shift hours${offDay() != null ? ` (on ${offName()}s: all worked hours)` : ''}, rounded down to the half hour. Type a number in OT to override it; "auto" switches back.</p>`;
 
   const tb = $('#dayRows');
   if (!canEdit()) { tb.querySelectorAll('input,select,button').forEach(el => el.disabled = true); $('#markAbsent').hidden = true; }
@@ -462,10 +472,11 @@ async function renderDay() {
     if (d > todayStr()) { toast('That day has not happened yet.', true); return; }
     const missing = emps.filter(e => !byEmp[e.id]);
     if (!missing.length) { toast('Everyone already has an entry for this day.'); return; }
-    if (!confirm(`Mark ${missing.length} employee(s) as absent on ${longDate(d)}?`)) return;
+    const st = isOff(d) ? 'off' : 'absent';
+    if (!confirm(`Mark ${missing.length} employee(s) as ${st === 'off' ? 'off day' : 'absent'} on ${longDate(d)}?`)) return;
     try {
-      must(await sb.from('hr_attendance').insert(missing.map(e => ({employee_id: e.id, work_date: d, status: 'absent', source: 'admin'}))));
-      toast(`${missing.length} marked absent`); renderDay();
+      must(await sb.from('hr_attendance').insert(missing.map(e => ({employee_id: e.id, work_date: d, status: st, source: 'admin'}))));
+      toast(`${missing.length} marked ${st === 'off' ? 'off day' : 'absent'}`); renderDay();
     } catch (e) { toast(e.message, true); }
   };
 }
@@ -526,7 +537,7 @@ async function renderMonth() {
   const att = must(await sb.from('hr_attendance').select('employee_id,work_date,status,ot_hours').gte('work_date', start).lte('work_date', end));
   const key = {}; att.forEach(a => key[a.employee_id + '|' + a.work_date] = a);
   const dates = Array.from({length: days}, (_, i) => `${ym}-${String(i + 1).padStart(2, '0')}`);
-  const fri = d => new Date(d + 'T00:00:00Z').getUTCDay() === 5;
+  const fri = isOff;
   const emps = S.employees.filter(e => e.active || att.some(a => a.employee_id === e.id));
 
   const data = emps.map(e => {
@@ -548,7 +559,7 @@ async function renderMonth() {
   </table></div>
   <div class="legend"><span><b class="P" style="background:#DCEFE3">P</b>Present</span><span><b style="background:#F8EACB">H</b>Half day</span>
     <span><b style="background:#F7DEDC">A</b>Absent</span><span><b style="background:#DDE8F3">L</b>Leave</span><span><b style="background:#ECEEF0">O</b>Off day</span>
-    <span>Shaded columns are Fridays. Click any cell to edit that day.</span></div>`;
+    <span>${offDay() != null ? `Shaded columns are ${offName()}s (weekly off). ` : ''}Click any cell to edit that day.</span></div>`;
 
   $('#attBody').querySelectorAll('td.d').forEach(td => td.onclick = () => { attState.mode = 'day'; attState.date = td.dataset.d; viewAttendance(); });
   $('#exp').onclick = () => csvDownload(`attendance-${ym}.csv`, [
@@ -567,8 +578,9 @@ async function viewOvertime() {
   rows.forEach(r => (by[r.employee_id] = by[r.employee_id] || []).push(r));
   const list = Object.keys(by).map(id => {
     const e = empById(id) || {emp_code: '', name: '(deleted)'}, days = by[id];
-    const hrs = days.reduce((s, r) => s + Number(r.ot_hours), 0);
-    return {id, e, days, hrs, rate: rateOf(e), amt: hrs * rateOf(e)};
+    const hrs = days.reduce((s, r) => s + Number(r.ot_hours), 0), offH = days.filter(r => isOff(r.work_date)).reduce((s, r) => s + Number(r.ot_hours), 0);
+    const amt = days.reduce((s, r) => s + Number(r.ot_hours) * otRateFor(e, r.work_date), 0);
+    return {id, e, days, hrs, offH, rate: rateOf(e), amt};
   }).sort((a, b) => a.e.emp_code.localeCompare(b.e.emp_code));
   const tH = list.reduce((s, r) => s + r.hrs, 0), tA = list.reduce((s, r) => s + r.amt, 0);
 
@@ -578,25 +590,25 @@ async function viewOvertime() {
         <button class="btn" id="expSum">Export summary</button>
         <button class="btn primary" id="expXl" title="Rows in the same order as the Data Entry sheet: Date, Employee, Category, OT Hours">Export for salary sheet</button></div></div>
     <div class="wrap"><table>
-      <thead><tr><th>Code</th><th>Name</th><th class="r">OT days</th><th class="r">OT hours</th>${isAdmin() ? '<th class="r">Rate (SAR/h)</th><th class="r">Amount (SAR)</th>' : ''}</tr></thead>
+      <thead><tr><th>Code</th><th>Name</th><th class="r">OT days</th><th class="r">OT hours</th><th class="r">of which ${esc(offName() || 'off day')}</th>${isAdmin() ? '<th class="r">Rate (SAR/h)</th><th class="r">Amount (SAR)</th>' : ''}</tr></thead>
       <tbody>${list.map(r => `<tr class="click" data-id="${r.id}"><td class="muted">${esc(r.e.emp_code)}</td><td>${esc(r.e.name)}</td>
-        <td class="r">${r.days.length}</td><td class="r">${fmtH(r.hrs)}</td>${isAdmin() ? `<td class="r">${money(r.rate)}</td><td class="r">${money(r.amt)}</td>` : ''}</tr>
-        <tr class="det" data-for="${r.id}" hidden><td></td><td colspan="5" class="muted">${r.days.map(x => `${shortDate(x.work_date)}: ${fmtH(Number(x.ot_hours))} h (${timeOf(x.check_in)}–${timeOf(x.check_out)})`).join('<br>')}</td></tr>`).join('')
-        || '<tr><td colspan="6" class="empty">No overtime recorded in this month.</td></tr>'}</tbody>
-      ${list.length ? `<tfoot><tr><td></td><td>Total</td><td></td><td class="r">${fmtH(tH)}</td>${isAdmin() ? `<td></td><td class="r">${money(tA)}</td>` : ''}</tr></tfoot>` : ''}
+        <td class="r">${r.days.length}</td><td class="r">${fmtH(r.hrs)}</td><td class="r">${r.offH ? fmtH(r.offH) : ''}</td>${isAdmin() ? `<td class="r">${money(r.rate)}</td><td class="r">${money(r.amt)}</td>` : ''}</tr>
+        <tr class="det" data-for="${r.id}" hidden><td></td><td colspan="6" class="muted">${r.days.map(x => `${shortDate(x.work_date)}${isOff(x.work_date) ? ` (${offName()})` : ''}: ${fmtH(Number(x.ot_hours))} h (${timeOf(x.check_in)}–${timeOf(x.check_out)})`).join('<br>')}</td></tr>`).join('')
+        || '<tr><td colspan="7" class="empty">No overtime recorded in this month.</td></tr>'}</tbody>
+      ${list.length ? `<tfoot><tr><td></td><td>Total</td><td></td><td class="r">${fmtH(tH)}</td><td></td>${isAdmin() ? `<td></td><td class="r">${money(tA)}</td>` : ''}</tr></tfoot>` : ''}
     </table></div>`;
 
   $('#otPick').onchange = ev => { if (ev.target.value) { otMonth = ev.target.value; route(); } };
   main.querySelectorAll('tr.click').forEach(tr => tr.onclick = () => { const d = main.querySelector(`tr.det[data-for="${tr.dataset.id}"]`); d.hidden = !d.hidden; });
   $('#expSum').onclick = () => csvDownload(`overtime-${otMonth}.csv`, [
-    isAdmin() ? ['Code', 'Name', 'OT days', 'OT hours', 'Rate (SAR/h)', 'Amount (SAR)'] : ['Code', 'Name', 'OT days', 'OT hours'],
-    ...list.map(r => isAdmin() ? [r.e.emp_code, r.e.name, r.days.length, fmtH(r.hrs), r.rate, r.amt.toFixed(2)]
-                               : [r.e.emp_code, r.e.name, r.days.length, fmtH(r.hrs)])]);
+    isAdmin() ? ['Code', 'Name', 'OT days', 'OT hours', `OT hours on ${offName() || 'off day'}`, 'Rate (SAR/h)', 'Amount (SAR)'] : ['Code', 'Name', 'OT days', 'OT hours', `OT hours on ${offName() || 'off day'}`],
+    ...list.map(r => isAdmin() ? [r.e.emp_code, r.e.name, r.days.length, fmtH(r.hrs), fmtH(r.offH), r.rate, r.amt.toFixed(2)]
+                               : [r.e.emp_code, r.e.name, r.days.length, fmtH(r.hrs), fmtH(r.offH)])]);
   $('#expXl').onclick = () => csvDownload(`overtime-for-salary-sheet-${otMonth}.csv`, [
     isAdmin() ? ['Date', 'Employee Name', 'Category', 'OT Hours', 'Amount (SAR)'] : ['Date', 'Employee Name', 'Category', 'OT Hours'],
     ...rows.map(r => { const e = empById(r.employee_id) || {};
-      const base = [r.work_date, e.name || '', 'Overtime', Number(r.ot_hours)];
-      return isAdmin() ? [...base, (Number(r.ot_hours) * rateOf(e)).toFixed(2)] : base; })]);
+      const base = [r.work_date, e.name || '', isOff(r.work_date) ? `Overtime (${offName()})` : 'Overtime', Number(r.ot_hours)];
+      return isAdmin() ? [...base, (Number(r.ot_hours) * otRateFor(e, r.work_date)).toFixed(2)] : base; })]);
 }
 
 /* ============ TASKS ============ */
@@ -1037,7 +1049,7 @@ const ADJ = {violation: 'Violation', deduction: 'Deduction', bonus: 'Bonus'};
 async function payrollData(ym) {
   const {start, end} = monthRange(ym), next = addDays(end, 1);
   const [att, tasks, adj, adv, slips] = await Promise.all([
-    sb.from('hr_attendance').select('employee_id,status,ot_hours').gte('work_date', start).lte('work_date', end),
+    sb.from('hr_attendance').select('employee_id,work_date,status,ot_hours').gte('work_date', start).lte('work_date', end),
     sb.from('hr_tasks').select('id,employee_id,title,amount,completed_at').eq('status', 'done').eq('paid', true).gte('completed_at', `${start}T00:00:00+03:00`).lt('completed_at', `${next}T00:00:00+03:00`),
     sb.from('hr_adjustments').select('*').gte('adj_date', start).lte('adj_date', end).order('adj_date'),
     sb.from('hr_advances').select('*').order('given_on'),
@@ -1051,9 +1063,11 @@ function calcSlip(e, ym, D) {
   const dd = {present: cnt('present'), half: cnt('half_day'), absent: cnt('absent'), leave: cnt('leave'), off: cnt('off')};
   dd.unrecorded = Math.max(0, days - att.length);
   const otH = att.reduce((a, r) => a + Number(r.ot_hours || 0), 0), otRate = rateOf(e);
+  const offOtH = att.filter(r => isOff(r.work_date)).reduce((a, r) => a + Number(r.ot_hours || 0), 0), normH = otH - offOtH, offRate = offRateOf(e);
   const r2 = x => Math.round(x * 100) / 100;
   const earn = [{label: 'Basic salary', amount: basic}];
-  if (otH) earn.push({label: `Overtime (${fmtH(otH)} h x ${money(otRate)})`, amount: r2(otH * otRate)});
+  if (normH) earn.push({label: `Overtime (${fmtH(normH)} h x ${money(otRate)})`, amount: r2(normH * otRate)});
+  if (offOtH) earn.push({label: `Overtime on ${offName()} (${fmtH(offOtH)} h x ${money(offRate)})`, amount: r2(offOtH * offRate)});
   D.tasks.filter(t => t.employee_id === e.id).forEach(t => earn.push({label: `Task: ${t.title}`, amount: Number(t.amount)}));
   D.adj.filter(a => a.employee_id === e.id && a.kind === 'bonus').forEach(a => earn.push({label: `Bonus: ${a.reason}`, amount: Number(a.amount)}));
   const ded = [];
@@ -1121,7 +1135,7 @@ async function viewPayroll() {
     <div class="tools" style="margin-bottom:12px"><button class="btn primary" id="saveAll">Save all payslips</button><button class="btn" id="pdfAll">All payslips (PDF)</button>
       <span class="muted">Net total: <b>SAR ${money(tot)}</b></span></div>
     <div class="wrap"><table><thead><tr><th>Code</th><th>Name</th><th class="r">Basic</th><th class="r">Overtime</th><th class="r">Tasks + bonus</th><th class="r">Absent</th><th class="r">Other ded.</th><th class="r">Advance</th><th class="r">Net (SAR)</th><th>Status</th><th></th></tr></thead>
-    <tbody>${rows.map(r => { const s = shown(r), ot = s.earn.find(x => x.label.startsWith('Overtime'))?.amount || 0, extra = s.gross - s.basic - ot;
+    <tbody>${rows.map(r => { const s = shown(r), ot = s.earn.filter(x => x.label.startsWith('Overtime')).reduce((a, x) => a + x.amount, 0), extra = s.gross - s.basic - ot;
       const changed = r.saved && Math.abs(Number(r.saved.net) - r.calc.net) > 0.005;
       return `<tr data-id="${r.e.id}"><td class="muted">${esc(r.e.emp_code)}</td><td>${esc(r.e.name)}</td><td class="r">${money(s.basic)}</td><td class="r">${money(ot)}</td><td class="r">${money(extra)}</td>
         <td class="r">${money(sumBy(s, x => x.kind === 'absent'))}</td><td class="r">${money(sumBy(s, x => x.kind === 'violation' || x.kind === 'deduction'))}</td><td class="r">${money(sumBy(s, x => x.kind === 'advance'))}</td>
@@ -1193,6 +1207,9 @@ async function viewSettings() {
       <label>Company name<input name="company_name" required value="${esc(s.company_name)}"></label>
       <label>Shift hours per day <span class="hint">Time worked above this counts as overtime.</span><input name="shift_hours" type="number" min="1" max="24" step="0.25" required value="${s.shift_hours}"></label>
       <label>Default overtime rate (SAR per hour) <span class="hint">Used for anyone without their own rate.</span><input name="default_ot_rate" type="number" min="0" step="0.01" required value="${s.default_ot_rate}"></label>
+      <label>Weekly off day <span class="hint">All hours worked on this day count as overtime. Not-in employees are marked "Off day", not absent.</span>
+        <select name="off_day"><option value="">No weekly off day</option>${DAY_NAMES.map((n, i) => `<option value="${i}"${offDay() != null && Number(offDay()) === i ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
+      <label>Overtime rate on the off day (SAR per hour) <span class="hint">Leave empty to use each employee's normal overtime rate.</span><input name="offday_ot_rate" type="number" min="0" step="0.01" value="${s.offday_ot_rate ?? ''}" placeholder="Same as normal rate"></label>
       <button class="btn primary">Save settings</button>
     </form>
     <h2>Check-in kiosk</h2>
@@ -1202,7 +1219,8 @@ async function viewSettings() {
     ev.preventDefault();
     const fd = Object.fromEntries(new FormData(ev.target));
     try {
-      S.settings = must(await sb.from('hr_settings').update({company_name: fd.company_name.trim(), shift_hours: Number(fd.shift_hours), default_ot_rate: Number(fd.default_ot_rate)}).eq('id', 1).select().single());
+      S.settings = must(await sb.from('hr_settings').update({company_name: fd.company_name.trim(), shift_hours: Number(fd.shift_hours), default_ot_rate: Number(fd.default_ot_rate),
+        off_day: fd.off_day === '' ? null : Number(fd.off_day), offday_ot_rate: fd.offday_ot_rate === '' ? null : Number(fd.offday_ot_rate)}).eq('id', 1).select().single());
       toast('Settings saved');
     } catch (e) { toast(e.message, true); }
   };

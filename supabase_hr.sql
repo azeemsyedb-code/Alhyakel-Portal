@@ -121,3 +121,29 @@ alter table public.hr_settings drop constraint if exists hr_settings_kit_cycle_c
 alter table public.hr_settings add constraint hr_settings_kit_cycle_check check (kit_cycle_months between 1 and 12);
 alter table public.hr_settings add column if not exists kit_template jsonb not null default
   '[{"item":"Coverall","qty":2},{"item":"Safety shoes","qty":1},{"item":"Safety helmet","qty":1},{"item":"Safety goggles","qty":1},{"item":"Welding gloves","qty":2},{"item":"Cotton gloves","qty":6},{"item":"Ear plugs","qty":2},{"item":"Dust mask","qty":4}]'::jsonb;
+
+-- ---------- weekly off day (Friday) ----------
+-- off_day: 0 = Sunday … 5 = Friday … 6 = Saturday, null = no weekly off day.
+-- On the off day every hour worked is overtime (not just the hours above the shift),
+-- paid at offday_ot_rate when it is set, otherwise at the normal overtime rate.
+alter table public.hr_settings add column if not exists off_day int default 5;
+alter table public.hr_settings add column if not exists offday_ot_rate numeric(10,2);
+alter table public.hr_settings drop constraint if exists hr_settings_off_day_check;
+alter table public.hr_settings add constraint hr_settings_off_day_check check (off_day is null or off_day between 0 and 6);
+
+create or replace function public.hr_attendance_calc()
+returns trigger language plpgsql as $$
+declare s public.hr_settings;
+begin
+  if not coalesce(new.ot_manual, false) then
+    select * into s from public.hr_settings where id = 1;
+    if s.off_day is not null and extract(dow from new.work_date) = s.off_day then
+      new.ot_hours := case when new.check_in is null or new.check_out is null or new.check_out <= new.check_in then 0
+                           else floor((extract(epoch from (new.check_out - new.check_in)) / 3600.0) * 2) / 2.0 end;
+    else
+      new.ot_hours := coalesce(public.hr_ot_hours(new.check_in, new.check_out), 0);
+    end if;
+  end if;
+  new.updated_at := now();
+  return new;
+end $$;

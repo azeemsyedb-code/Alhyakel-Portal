@@ -10,6 +10,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/config.js"></script>
 <script src="assets/portal.js" data-module="admin"></script>
+<script src="assets/export.js"></script>
 </head>
 <body>
 <div class="ahhead">
@@ -41,6 +42,8 @@
       <tbody id="rows"><tr><td colspan="7" class="muted">Loading…</td></tr></tbody>
     </table>
   </div>
+
+  <div class="card" id="exportBox" style="margin-top:22px"></div>
 
   <div class="card" style="margin-top:22px">
     <h2>What the roles mean</h2>
@@ -89,6 +92,7 @@ async function load() {
 
 (async () => {
   ME = await window.PORTAL_READY;
+  window.portalExport(ME);
   $('#n_docs').outerHTML = sel('docs', '', 'n_docs'); $('#n_inv').outerHTML = sel('inv', '', 'n_inv'); $('#n_hr').outerHTML = sel('hr', '', 'n_hr');
   await load();
   if (USERS.length < 2) $('#newBox').open = true;

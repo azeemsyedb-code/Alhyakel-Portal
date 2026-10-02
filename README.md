@@ -31,6 +31,7 @@ supabase_setup.sql    database (run once)
 supabase_docs.sql     Documents database, price list, storage for photos and certificates
 supabase_hr.sql       Employees: working kit, paid tasks, deductions, advances, payslips
 manifest.webmanifest, sw.js   for installing on a phone like an app
+assets/export.js      Data export to Excel (Users & Access page)
 assets/shell.css      top bar and design (applied to every page automatically)
 assets/icon-192.png, icon-512.png   app icon
 supabase/functions/admin-users/index.ts   Edge Function that creates users
@@ -195,6 +196,18 @@ A free Supabase project is paused if it is not used at all for **7 days**. With 
 - **Access:** the `portal_users` table. The database's RLS rules enforce each role. Hiding menu items is only cosmetic; the real restriction is in the database.
 - **Salary:** `hr_pay` is a separate table that only the HR admin can read. The kiosk PIN is stored as a bcrypt hash. After 5 wrong PINs, the employee is locked for 10 minutes.
 - **Creating users, passwords, blocking / deleting:** Edge Function `admin-users`. It checks on every request that the caller is a portal admin.
+
+## Friday (weekly off day)
+
+- Friday is set as the weekly off day (change it in **Employees → Settings**, or choose "No weekly off day").
+- If someone works on Friday, **all** the hours they work count as overtime (not just the hours above the shift). You can still type a different number of OT hours for that person on that day; "auto" switches back.
+- Optional: **Overtime rate on the off day** in Settings. Leave it empty to use each employee's normal overtime rate.
+- On Friday, "Mark everyone not in" marks people as **Off day**, not absent. The payslip shows Friday overtime as its own line.
+- Needs the latest `supabase_hr.sql` (run it again in the SQL Editor).
+
+## Data export (portal admins)
+
+**Users & Access → Data export**: choose a period (this month, last month, this year, last year, custom dates, or all time) and the sections, then **Download Excel**. You get one `.xlsx` file with a Summary sheet and a separate sheet for each kind of record: every document type, document lines, payments, price list, suppliers, products, stock movements, employees, attendance, tasks, working kit, deductions & bonuses, advances, payslips, and (optional) users & roles. Use **All time** once a month as a backup, since the free Supabase plan has no automatic backups. The export only includes sections the logged-in admin has a role in.
 
 ## Fresh start (delete all data)
 
