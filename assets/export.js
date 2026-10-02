@@ -177,6 +177,48 @@
     XLSX.writeFile(wb, `AlHyakel-Portal-export_${tag}.xlsx`, {compression: true});
   }
 
+  /* ---------- backups (weekly automatic + "Back up now") ---------- */
+  const TABLE_NAMES = {portal_users: 'Users', docs_documents: 'Documents', docs_payments: 'Payments', docs_catalog: 'Price list', inv_suppliers: 'Suppliers',
+    inv_products: 'Products', inv_movements: 'Stock movements', inv_counts: 'Stock counts', hr_settings: 'HR settings', hr_employees: 'Employees', hr_pay: 'Pay',
+    hr_attendance: 'Attendance', hr_tasks: 'Tasks', hr_kit: 'Working kit', hr_adjustments: 'Deductions & bonuses', hr_advances: 'Advances', hr_payslips: 'Payslips'};
+  const kb = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+  window.portalBackups = async () => {
+    const box = $('#backupBox'); if (!box) return;
+    const draw = async () => {
+      const {data, error} = await sb.from('portal_backups').select('id,kind,created_at,size_bytes,tables').order('created_at', {ascending: false});
+      if (error) { box.innerHTML = `<h2>Backups</h2><p class="muted">Backups are not set up yet. Run <b>supabase_extras.sql</b> in Supabase (README).</p>`; return; }
+      const fmt = ts => new Intl.DateTimeFormat('en-GB', {timeZone: TZ, dateStyle: 'medium', timeStyle: 'short'}).format(new Date(ts));
+      const lastAuto = data.find(b => b.kind === 'auto');
+      box.innerHTML = `<h2>Backups</h2>
+        <p class="muted" style="margin-top:0">A full copy of the portal's data is saved automatically every Friday night (the latest 8 are kept). ${lastAuto ? `Last automatic backup: <b>${fmt(lastAuto.created_at)}</b>.` : 'No automatic backup yet; it needs Cron turned on in Supabase (README).'}</p>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><button class="btn" id="b_now">Back up now</button><span class="muted" id="b_status" role="status"></span></div>
+        ${data.length ? `<div class="table-wrap" style="box-shadow:none;border:1px solid var(--border)"><table><thead><tr><th>Date</th><th>Type</th><th>Records</th><th>Size</th><th></th></tr></thead><tbody>
+          ${data.map(b => `<tr><td>${fmt(b.created_at)}</td><td>${b.kind === 'auto' ? 'Weekly' : 'Manual'}</td><td>${Object.values(b.tables || {}).reduce((a, n) => a + n, 0).toLocaleString('en-US')}</td><td>${kb(b.size_bytes || 0)}</td>
+            <td style="white-space:nowrap"><button class="btn sec small" data-xl="${b.id}">Excel</button> <button class="btn sec small" data-js="${b.id}">JSON</button></td></tr>`).join('')}
+          </tbody></table></div>` : '<p class="muted">No backups yet.</p>'}`;
+      const say = t => { $('#b_status').textContent = t; };
+      $('#b_now').onclick = async () => {
+        $('#b_now').disabled = true; say('Saving a backup…');
+        const {error: e} = await sb.rpc('portal_backup_now', {p_kind: 'manual'});
+        if (e) { say('Backup failed: ' + e.message); $('#b_now').disabled = false; return; }
+        await draw(); $('#b_status').textContent = 'Backup saved.';
+      };
+      const get = async id => { const {data: r, error: e} = await sb.from('portal_backups').select('created_at,data').eq('id', Number(id)).single(); if (e) throw e; return r; };
+      const stamp = ts => new Intl.DateTimeFormat('en-CA', {timeZone: TZ}).format(new Date(ts));
+      box.querySelectorAll('[data-js]').forEach(b => b.onclick = async () => { try { say('Preparing…'); const r = await get(b.dataset.js);
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(r.data)], {type: 'application/json'}));
+        a.download = `AlHyakel-Portal-backup_${stamp(r.created_at)}.json`; a.click(); say(''); } catch (e) { say('Download failed: ' + e.message); } });
+      box.querySelectorAll('[data-xl]').forEach(b => b.onclick = async () => { try { say('Preparing…'); await loadXlsx(); const r = await get(b.dataset.xl);
+        const wb = XLSX.utils.book_new();
+        Object.entries(r.data).forEach(([t, rows]) => {
+          const flat = rows.map(x => Object.fromEntries(Object.entries(x).map(([k, v]) => [k, v && typeof v === 'object' ? JSON.stringify(v) : v])));
+          XLSX.utils.book_append_sheet(wb, flat.length ? XLSX.utils.json_to_sheet(flat) : XLSX.utils.aoa_to_sheet([['(empty)']]), (TABLE_NAMES[t] || t).slice(0, 31));
+        });
+        XLSX.writeFile(wb, `AlHyakel-Portal-backup_${stamp(r.created_at)}.xlsx`, {compression: true}); say(''); } catch (e) { say('Download failed: ' + e.message); } });
+    };
+    await draw();
+  };
+
   window.portalExport = me => {
     const box = $('#exportBox'); if (!box) return;
     box.innerHTML = `

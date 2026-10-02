@@ -195,6 +195,59 @@
     });
   }
 
+  /* ---------- phone / computer notifications (Web Push) ---------- */
+  const VAPID_PUBLIC = C.VAPID_PUBLIC_KEY || 'BGCcurK-PCrpP5NzQU-poltUPOCHsw1VKg5cXfCerPPV0qwJQ1HtESH_Kt9FQU35nLD14-NGKhm-X04z4A8RN2I';
+  const b64 = s => { const p = '='.repeat((4 - s.length % 4) % 4), r = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(r, c => c.charCodeAt(0)); };
+  const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  async function pushState() {
+    if (!window.isSecureContext || !('serviceWorker' in navigator)) return 'unsupported';
+    if (!('PushManager' in window) || !('Notification' in window)) return isIos ? 'install' : 'unsupported';
+    if (Notification.permission === 'denied') return 'blocked';
+    const reg = await navigator.serviceWorker.getRegistration();
+    return reg && await reg.pushManager.getSubscription() ? 'on' : 'off';
+  }
+  async function pushOn() {
+    const reg = await navigator.serviceWorker.register('sw.js'); await navigator.serviceWorker.ready;
+    if (await Notification.requestPermission() !== 'granted') throw new Error('Notifications were not allowed on this device.');
+    const save = async sub => { const j = sub.toJSON();
+      return sb.from('push_subscriptions').upsert({endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, device: navigator.userAgent.slice(0, 200)}, {onConflict: 'endpoint'}); };
+    let sub = await reg.pushManager.getSubscription() || await reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: b64(VAPID_PUBLIC)});
+    let {error} = await save(sub);
+    if (error) {            // this device was registered by another login: start fresh for this user
+      await sub.unsubscribe().catch(() => {});
+      sub = await reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: b64(VAPID_PUBLIC)});
+      ({error} = await save(sub));
+      if (error) throw new Error(/relation|does not exist|schema cache/i.test(error.message) ? 'Notifications are not set up in Supabase yet (README).' : error.message);
+    }
+  }
+  async function pushOff() {
+    const reg = await navigator.serviceWorker.getRegistration(), sub = reg && await reg.pushManager.getSubscription();
+    if (!sub) return;
+    await sb.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+    await sub.unsubscribe().catch(() => {});
+  }
+  function wirePush($) {
+    const btn = $('ahpush'), st = $('ahpushst'), test = $('ahpushtest');
+    const TXT = {on: 'On · tap to turn off', off: 'Off · tap to turn on', blocked: 'Blocked in the browser settings for this site',
+      install: 'On iPhone: install the app first (Share → Add to Home Screen)', unsupported: 'Not supported in this browser'};
+    const show = async () => { const s = await pushState().catch(() => 'unsupported'); st.textContent = TXT[s]; btn.dataset.s = s; test.hidden = s !== 'on'; };
+    show();
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const s = btn.dataset.s; if (s !== 'on' && s !== 'off') return;
+      st.textContent = 'Please wait…';
+      try { if (s === 'on') await pushOff(); else await pushOn(); }
+      catch (err) { const m = err.message || String(err); st.textContent = /Registration failed|push service|AbortError/i.test(m) ? 'This browser could not turn notifications on. Try Chrome, or the installed app.' : m; setTimeout(show, 6000); return; }
+      show();
+    });
+    test.addEventListener('click', async e => {
+      e.stopPropagation();
+      const {error} = await sb.rpc('portal_push_test');
+      st.textContent = error ? 'Test failed: ' + error.message : 'Test sent. It should arrive in a few seconds.';
+      setTimeout(show, 5000);
+    });
+  }
+
   /* ---------- top bar ---------- */
   function drawBar() {
     const U = C.user, L = C.links;
@@ -219,6 +272,8 @@
             <div class="ahdrop right" id="ahmenu" hidden>
               <div class="me"><b>${esc(U.full_name)}</b><span>${esc(U.username)}${roles ? ' · ' + esc(roles) : ''}</span></div>
               <a href="${L.home}">${icon('home')}Portal home</a>
+              <button class="item" type="button" id="ahpush">${icon('bell')}<span class="t"><b>Notifications on this device</b><span id="ahpushst">Checking…</span></span></button>
+              <button class="item" type="button" id="ahpushtest" hidden>${icon('check')}<span class="t"><b>Send a test notification</b></span></button>
               <a href="${L.logout}">${icon('out')}Logout</a>
               <div class="none" style="text-align:left;padding:10px 10px 6px;font-size:12.5px;border-top:1px solid var(--ah-line);margin-top:4px">Shortcuts: <kbd>/</kbd> search · <kbd>Ctrl</kbd>+<kbd>S</kbd> save</div></div></div>
         </div>
@@ -236,6 +291,8 @@
     drops.forEach(([b, d]) => $(b).addEventListener('click', e => { e.stopPropagation(); const open = $(d).hidden; closeAll(d); $(d).hidden = !open; $(b).setAttribute('aria-expanded', String(open)); }));
     document.addEventListener('click', e => { if (!bar.contains(e.target)) closeAll(); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAll(); });
+
+    wirePush($);
 
     // notifications
     const notes = $('ahnotes');
