@@ -441,7 +441,7 @@ async function waLink(type, rec, makePdf) {
   return shareUrl(rec.id);
 }
 function waText(type, r, link) {
-  const d = r.data || {}, hi = 'Assalamu alaikum,\n\n', sign = '\n\nRegards,\nAl Hyakel Metal Industries\n0541857480';
+  const d = r.data || {}, hi = '', sign = '\n\nRegards,\nAl Hyakel Metal Industries\n0541857480';
   if (type === 'tank') return hi + `Please find the Tank Trailer Axles Certificate ${r.doc_no}` + (r.party_name ? ` for ${r.party_name}` : '') + '.'
     + (d.tank_no ? `\nTank No.: ${d.tank_no}` : '') + (d.truck_plate ? `\nTruck plate: ${d.truck_plate}` : '') + (d.valid_until ? `\nValid until: ${fmtDate(d.valid_until)}` : '')
     + `\n\nView, verify and download the certificate:\n${link}` + sign;
