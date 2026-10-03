@@ -313,7 +313,7 @@ grant execute on function public.portal_push_test() to authenticated;
 -- documents: waiting for approval / approved
 create or replace function public.docs_notify()
 returns trigger language plpgsql security definer set search_path = public as $$
-declare names jsonb := '{"leak":"Leak Test","tank":"Tank Certificate","quotation":"Quotation","invoice":"Invoice","dn":"Delivery Note","po":"Purchase Order","jobcard":"Job Card","mr":"Material Request","receipt":"Cash Receipt"}';
+declare names jsonb := '{"leak":"Leak Test","tank":"Tank Certificate","quotation":"Quotation","invoice":"Invoice","dn":"Delivery Note","po":"Purchase Order","jobcard":"Job Card","mr":"Material Request","receipt":"Cash Receipt","aramco":"Aramco Inspection Certificate","cow":"Certificate of Origin & Warranty"}';
         nm text := coalesce(names->>new.doc_type, new.doc_type);
 begin
   if tg_op = 'INSERT' and new.status = 'draft' then

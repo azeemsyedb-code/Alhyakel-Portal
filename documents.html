@@ -87,6 +87,14 @@ td.money{text-align:right;white-space:nowrap}
 .payform{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:12px}
 .payform .field{margin:0;flex:1 1 140px}
 .share{position:relative}
+/* certificate checklists in forms */
+table.chk td{vertical-align:middle}
+table.chk input{width:100%;min-width:150px}
+table.chk select{min-width:86px;font-weight:600}
+table.chk .arsub{font-family:"Noto Naskh Arabic","Segoe UI",serif;font-size:13px;color:var(--muted);margin-top:2px}
+select.r-PASS{background:#E5F5EC;color:#23794F;border-color:#BFE3CD}
+select.r-FAIL{background:#FCE8EB;color:#B4283D;border-color:#F1C7CD}
+select.r-NA{background:#EEF1F3;color:#5E6E76}
 /* WhatsApp send */
 .btn.wa{background:#1F9D55;border-color:#1F9D55;color:#fff}
 .btn.wa:hover{background:#188548;border-color:#188548}
@@ -122,6 +130,8 @@ tr.inactive td{opacity:.5}
   <nav class="ahpills" id="tabs" aria-label="Document types">
     <a href="#leak" data-t="leak">Leak Test</a>
     <a href="#tank" data-t="tank">Tank Certificate</a>
+    <a href="#aramco" data-t="aramco">Aramco Inspection</a>
+    <a href="#cow" data-t="cow">Origin &amp; Warranty</a>
     <a href="#quotation" data-t="quotation">Quotation</a>
     <a href="#invoice" data-t="invoice">Invoice</a>
     <a href="#dn" data-t="dn">Delivery Note</a>
@@ -420,7 +430,7 @@ function wireShare(btn, getPdf, getName, getText) {
    Certificates send the public "Verified" page (it opens the PDF).
    Delivery notes and job cards: the current PDF is uploaded to the public certs bucket
    under s/<record id>.pdf. The id is a random UUID, so only people with the link can open it. */
-const WA_TYPES = {leak: 'Leak Test Certificate', tank: 'Tank Certificate', dn: 'Delivery Note', jobcard: 'Job Card'};
+const WA_TYPES = {leak: 'Leak Test Certificate', tank: 'Tank Certificate', aramco: 'Fuel Tanker Inspection Certificate', cow: 'Certificate of Origin & Warranty', dn: 'Delivery Note', jobcard: 'Job Card'};
 const WA_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3 10 14"/><path d="M21 3l-6.5 18-3.5-7-7-3.5z"/></svg>';
 const waNum = s => { let d = String(s || '').replace(/\D/g, ''); if (d.startsWith('00')) d = d.slice(2);
   if (/^05\d{8}$/.test(d)) d = '966' + d.slice(1); else if (/^5\d{8}$/.test(d)) d = '966' + d; return d; };
@@ -430,7 +440,7 @@ const waMemo = {
 };
 const shareUrl = id => certUrl(`s/${id}`);
 async function waLink(type, rec, makePdf) {
-  if (type === 'leak' || type === 'tank') {
+  if (['leak', 'tank', 'aramco', 'cow'].includes(type)) {
     const t = rec.files?.qr_token;
     if (!t) throw new Error('This certificate has no QR link yet. Open it and click Save once, then send it.');
     return verifyUrl(t);
@@ -447,6 +457,12 @@ function waText(type, r, link) {
     + `\n\nView, verify and download the certificate:\n${link}` + sign;
   if (type === 'leak') return hi + `Please find the Leak Test Certificate ${r.doc_no}` + (r.party_name ? ` for ${r.party_name}` : '') + '.'
     + `\nTest date: ${fmtDate(r.doc_date)}\nResult: ${d.result === 'FAIL' ? 'FAIL' : 'PASS'}` + (d.chassis_no ? `\nChassis No.: ${d.chassis_no}` : '')
+    + `\n\nView, verify and download the certificate:\n${link}` + sign;
+  if (type === 'aramco') return hi + `Please find the Fuel Tanker Inspection Certificate ${r.doc_no}` + (r.party_name ? ` for ${r.party_name}` : '') + '.'
+    + (d.chassis_no ? `\nChassis No.: ${d.chassis_no}` : '') + (d.truck_plate ? `\nTruck plate: ${d.truck_plate}` : '') + `\nResult: ${d.result === 'FAIL' ? 'NOT PASSED' : 'PASS'}` + (d.valid_until ? `\nValid until: ${fmtDate(d.valid_until)}` : '')
+    + `\n\nView, verify and download the certificate:\n${link}` + sign;
+  if (type === 'cow') return hi + `Please find the Certificate of Origin & Limited Warranty ${r.doc_no}` + (r.party_name ? ` for ${r.party_name}` : '') + '.'
+    + (d.chassis_no ? `\nChassis / VIN: ${d.chassis_no}` : '') + (d.warranty_until ? `\nWarranty until: ${fmtDate(d.warranty_until)}` : '')
     + `\n\nView, verify and download the certificate:\n${link}` + sign;
   if (type === 'dn') return hi + `Please find Delivery Note ${r.doc_no}` + (r.party_name ? ` for ${r.party_name}` : '') + '.'
     + (d.po_no ? `\nPO No.: ${d.po_no}` : '') + (d.truck_no ? `\nTruck No.: ${d.truck_no}` : '') + `\n\nDelivery note (PDF):\n${link}` + sign;
@@ -1119,9 +1135,10 @@ function zatcaQr(r) {
 const iPdf = async (type, r, photos) => {
   await arabicReady();
   if (type === 'receipt') return receiptPdf(r, await assets());
-  if (type !== 'tank') return itemsPdf(type, r, await assets());
+  if (type === 'cow') return cowPdf(r, await assets());
+  if (type !== 'tank' && type !== 'aramco') return itemsPdf(type, r, await assets());
   if (!photos) photos = r.files?.photos?.some(Boolean) ? (await recordFiles(r)).photos : [];
-  return tankPdf(r, {...await assets(), photos: await withEl(photos)});
+  return (type === 'aramco' ? aicPdf : tankPdf)(r, {...await assets(), photos: await withEl(photos)});
 };
 
 /* ---------- list ---------- */
@@ -1653,6 +1670,668 @@ async function showTankForm(id, copyFrom) {
 }
 
 
+/* ===================== SHARED: letterhead certificate builder (Aramco inspection, origin & warranty) ===================== */
+const CR_NO = '4030524267';
+const CO_AR = 'شركة الهياكل المعدنية الصناعية';
+function certDoc(img, docNo) {
+  const {jsPDF} = window.jspdf;
+  const pdf = new jsPDF({unit: 'mm', format: 'a4', compress: true});
+  const W = 210, H = 297, M = 12, CW = W - 2 * M;
+  const hdrH = CW * img.header.h / img.header.w, ftrH = CW * img.footer.h / img.footer.w, TOP = 5 + hdrH, BOT = H - 5 - ftrH - 6;
+  const frame = () => {
+    pdf.addImage(img.header.dataUrl, 'JPEG', M, 5, CW, hdrH, 'hdr');
+    pdf.addImage(img.footer.dataUrl, 'JPEG', M, H - 5 - ftrH, CW, ftrH, 'ftr');
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); pdf.setTextColor(...C.slate);
+    pdf.text(`CR: ${CR_NO}   |   VAT NO: ${VAT_NO}`, W - M, TOP + 3.5, {align: 'right'});
+  };
+  frame();
+  const d = {pdf, W, H, M, CW, TOP, BOT, ftrH, y: TOP + 9};
+  d.page = () => { pdf.addPage(); frame(); d.y = TOP + 9; };
+  d.need = h => { if (d.y + h > d.BOT) d.page(); };
+  d.ar = (t, x, yMid, pt, o = {}) => {                 // x = right edge, or centre (o.center), or left edge (o.left)
+    const a = arImg(t, pt, o); const left = o.center ? x - a.w / 2 : o.left ? x : x - a.w;
+    pdf.addImage(a.dataUrl, 'PNG', left, yMid - a.h / 2, a.w, a.h); return a;
+  };
+  d.title = (en, arT, sub) => {
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(14); pdf.setTextColor(...C.slate);
+    pdf.text(en, W / 2, d.y, {align: 'center'}); d.y += 6.5;
+    if (arT) { d.ar(arT, W / 2, d.y, 12.5, {bold: true, color: 'rgb(46,88,104)', center: true}); d.y += 6; }
+    if (sub) { pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.5); pdf.setTextColor(...C.muted); pdf.text(sub, W / 2, d.y, {align: 'center'}); d.y += 4; }
+    d.y += 3;
+  };
+  d.bar = (en, arT) => {
+    d.need(14);
+    pdf.setFillColor(...C.slate); pdf.rect(M, d.y, CW, 7, 'F');
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9); pdf.setTextColor(255, 255, 255);
+    pdf.text(en, M + 3, d.y + 4.7);
+    if (arT) d.ar(arT, W - M - 3, d.y + 3.6, 9, {bold: true, color: '#ffffff'});
+    d.y += 7;
+  };
+  // label / value grid, `cols` pairs per row; label may be [en, ar]
+  d.grid = (rows, cols = 2, RH = 10) => {
+    const cw = CW / cols, LW = cols === 1 ? 52 : 34;
+    rows.forEach(row => {
+      d.need(RH);
+      row.forEach(([lab, v], i) => {
+        const x = M + i * cw, [en, arL] = Array.isArray(lab) ? lab : [lab, ''];
+        pdf.setFillColor(...LIGHT); pdf.rect(x, d.y, LW, RH, 'F');
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.6); pdf.setTextColor(...C.ink);
+        pdf.text(en, x + 1.8, d.y + (arL ? 3.9 : RH / 2 + 1.2));
+        if (arL) d.ar(arL, x + 1.8, d.y + 7.2, 6.8, {left: true, color: 'rgb(84,100,112)'});
+        const vw = cw - LW - 3, s = String(v ?? '').trim() || '-';
+        if (hasAr(s)) { const a = arImg(s, 8.5, {bold: true, maxW: vw}); pdf.addImage(a.dataUrl, 'PNG', x + LW + 2, d.y + RH / 2 - Math.min(a.h, RH - 1) / 2, a.w * Math.min(1, (RH - 1) / a.h), Math.min(a.h, RH - 1)); }
+        else { pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.6); pdf.setTextColor(...C.ink);
+          const ls = pdf.splitTextToSize(s, vw).slice(0, 2); pdf.text(ls, x + LW + 2, d.y + RH / 2 + 1.2 - (ls.length - 1) * 1.8); }
+      });
+      pdf.setDrawColor(...C.line); pdf.setLineWidth(0.2); pdf.line(M, d.y + RH, W - M, d.y + RH);
+      d.y += RH;
+    });
+  };
+  d.para = (t, size = 8.8, style = 'normal') => {
+    pdf.setFont('helvetica', style); pdf.setFontSize(size); pdf.setTextColor(...C.ink);
+    const ls = pdf.splitTextToSize(String(t || ''), CW - 4); d.need(ls.length * size * 0.46 + 3);
+    pdf.text(ls, M + 2, d.y + 4, {lineHeightFactor: 1.4}); d.y += ls.length * size * 0.353 * 1.4 + 4;
+  };
+  d.signs = (boxes, qrText, img2) => {          // signature boxes on the right, QR on the left, stamp over the last box
+    const QR = 34, BH = 40; d.need(BH + 8);
+    const y0 = d.y + 3;
+    drawQr(pdf, qrText, M, y0, QR);
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6.5); pdf.setTextColor(...C.muted);
+    pdf.text('Scan to verify this certificate', M + QR / 2, y0 + QR + 3, {align: 'center'});
+    const x0 = M + QR + 8, bw = (CW - QR - 8 - 4 * (boxes.length - 1)) / boxes.length;
+    boxes.forEach(([cap, name, title], i) => {
+      const x = x0 + i * (bw + 4);
+      pdf.setDrawColor(...C.line); pdf.setLineWidth(0.3); pdf.roundedRect(x, y0, bw, BH, 1.2, 1.2, 'S');
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.8); pdf.setTextColor(...C.slate); pdf.text(cap, x + 3, y0 + 5);
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9); pdf.setTextColor(...C.ink); pdf.text(pdf.splitTextToSize(name || ' ', bw - 6)[0], x + 3, y0 + 11);
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.8); pdf.setTextColor(...C.muted); if (title) pdf.text(pdf.splitTextToSize(title, bw - 6)[0], x + 3, y0 + 15.5);
+      pdf.setDrawColor(...C.muted); pdf.setLineWidth(0.25); pdf.line(x + 3, y0 + BH - 9, x + bw - 3, y0 + BH - 9);
+      pdf.setFontSize(6.8); pdf.text('Signature & date', x + 3, y0 + BH - 5.5);
+    });
+    const st = img2.stamp, sk = Math.min(44 / st.w, 20 / st.h), sw = st.w * sk, sh = st.h * sk;
+    pdf.addImage(st.dataUrl, 'PNG', x0 + (boxes.length - 1) * (bw + 4) + bw - sw - 2, y0 + BH - 9 - sh + 2, sw, sh, 'stamp');
+    d.y = y0 + BH + 6;
+  };
+  d.finish = () => { const n = pdf.getNumberOfPages();
+    for (let i = 1; i <= n; i++) { pdf.setPage(i); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.5); pdf.setTextColor(...C.muted);
+      pdf.text(`${docNo || 'DRAFT'}   |   Page ${i} of ${n}`, W - M, H - 5 - ftrH - 2.5, {align: 'right'}); }
+    return pdf; };
+  return d;
+}
+const RES_COL = {PASS: [[232, 245, 236], [29, 122, 75]], FAIL: [[252, 235, 233], [179, 38, 30]], 'N/A': [[238, 241, 243], [96, 110, 118]]};
+// remembers the last signer names on this device
+const signMemo = {get: k => { try { return JSON.parse(localStorage.getItem('docs.sign.' + k) || '{}'); } catch (e) { return {}; } },
+  set: (k, v) => { try { localStorage.setItem('docs.sign.' + k, JSON.stringify(v)); } catch (e) {} }};
+
+/* ===================== ARAMCO FUEL TANKER INSPECTION CERTIFICATE (AIC-2026-001) ===================== */
+const AIC_ITEMS = [
+  ['Tank body assembly', 'فحص جسم الخزان الرئيسي', 'Visual inspection', 'Tank body in good condition, free from dents and distortion'],
+  ['Sheet / plate thickness', 'فحص سماكة الألواح والصاج', 'Ultrasonic thickness gauge', 'Plate thickness within nominal tolerance'],
+  ['Shell structure & welds', 'فحص الجسم الخارجي واللحامات', 'Visual weld inspection', 'Shell and weld seams free from defects'],
+  ['Manhole covers, seals & vents', 'فحص أغطية المانهول والجوانات', 'Visual & seal check', 'Manhole covers, seals and vents tight'],
+  ['Ladders, walkway & handrails', 'فحص السلالم والممشى والدرابزين', 'Visual inspection', 'Ladders, walkway and handrails secure'],
+  ['Rear lights & lamps', 'فحص الإضاءة الخلفية', 'Functional test', 'Brake, reverse and indicator lights working'],
+  ['Side lights & reflectors', 'فحص الإضاءة الجانبية والعواكس', 'Functional test', 'Side marker lights and reflective tape in place'],
+  ['Pressure / leak test', 'اختبار الضغط والتسريب', 'Pressure test (see readings)', 'No leakage at test pressure'],
+  ['Bottom loading system', 'نظام التحميل والتفريغ السفلي', 'API RP 1004 / functional test', 'API adaptors and couplers working, no leakage'],
+  ['Emergency shut-off & internal valves', 'صمامات الطوارئ والصمامات الداخلية', 'Functional test', 'Emergency shut-off operating correctly'],
+  ['Overfill prevention system', 'نظام منع الطفح', 'Sensor & socket test', 'Overfill sensors and socket working'],
+  ['Static earthing / bonding', 'نظام التأريض الاستاتيكي', 'Continuity test (see readings)', 'Earthing continuity verified'],
+  ['Vapour recovery system', 'نظام استرجاع الأبخرة', 'Visual & functional check', 'Vapour recovery valves and hood sealed'],
+  ['Axles, brakes & suspension', 'المحاور والفرامل والتعليق', 'Visual & functional test', 'Axles, brakes and suspension in good condition'],
+  ['Fire extinguishers & hazmat signs', 'طفايات الحريق وملصقات المواد الخطرة', 'Visual inspection', 'Fire extinguishers and hazmat placards in place']
+];
+const AIC_READ = [
+  ['shell_mm', 'Shell plate thickness', 'سماكة صاج الخزان', 'mm', 'e.g. 5.0 / 5.1 / 4.9'],
+  ['ends_mm', 'Dished ends / baffles thickness', 'سماكة الأطراف والحواجز', 'mm', 'e.g. 6.0'],
+  ['test_type', 'Test type', 'نوع الاختبار', '', ''],
+  ['test_bar', 'Test pressure', 'ضغط الاختبار', 'bar', 'e.g. 0.35'],
+  ['hold_min', 'Hold time', 'مدة الاختبار', 'min', 'e.g. 30'],
+  ['drop_bar', 'Pressure drop observed', 'انخفاض الضغط', 'bar', 'e.g. 0.00'],
+  ['compartments', 'Compartments tested', 'الأقسام المختبرة', '', 'e.g. 3 of 3'],
+  ['earth_ohm', 'Earthing resistance', 'مقاومة التأريض', 'ohm', 'e.g. 4.5']
+];
+const AIC_PHOTOS = [['Tank body, shell & ladder', 'جسم الخزان والسلالم'], ['Manhole covers & chassis number', 'فتحات المانهول ورقم الشاسي'],
+  ['Rear & side lights', 'الإضاءة الخلفية والجانبية'], ['Bottom loading & overfill system', 'نظام التحميل السفلي ومنع الطفح']];
+const aicOverall = checks => { const f = checks.filter(c => c.r === 'FAIL').length, p = checks.filter(c => c.r === 'PASS').length, n = checks.filter(c => c.r === 'N/A').length; return {pass: !f, f, p, n}; };
+const AIC = {
+  noteEn: (date, valid, pass) => pass
+    ? `Al Hyakel Metal Industries certifies that the fuel tank semi-trailer described above was inspected and tested at our workshop on ${fullDate(date)}. The inspection covered the tank body, plate thickness, shell and welds, manholes, ladders and walkway, rear and side lights, pressure leak test, bottom loading system, emergency valves, overfill prevention, static earthing, vapour recovery, axles and brakes, and safety equipment. All items were found satisfactory as recorded in this certificate. This certificate is valid until ${fullDate(valid)}, subject to no accident, damage or modification, and is issued for submission to Saudi Aramco.`
+    : `Al Hyakel Metal Industries certifies that the fuel tank semi-trailer described above was inspected and tested at our workshop on ${fullDate(date)}. One or more items did not pass, as recorded in this certificate. The tanker must not be put into service until these items are corrected and re-inspected.`,
+  noteAr: (date, valid, pass) => pass
+    ? `تشهد ${CO_AR} بأن نصف المقطورة الصهريجية لنقل المحروقات الموضحة بياناتها أعلاه قد تم فحصها واختبارها في ورشتنا بتاريخ ${arDate(date)}م، وشمل الفحص جسم الخزان وسماكة الصاج والجسم الخارجي واللحامات وفتحات المانهول والسلالم والممشى والإضاءة الخلفية والجانبية واختبار التسريب بالضغط ونظام التحميل السفلي وصمامات الطوارئ ونظام منع الطفح والتأريض الاستاتيكي ونظام استرجاع الأبخرة والمحاور والفرامل ومعدات السلامة، وقد وُجدت جميع البنود مطابقة كما هو مدون في هذه الشهادة. هذه الشهادة صالحة حتى ${arDate(valid)}م ما لم تتعرض لحادث أو ضرر أو تعديل، وقد صدرت لتقديمها إلى شركة أرامكو السعودية.`
+    : `تشهد ${CO_AR} بأن نصف المقطورة الصهريجية لنقل المحروقات الموضحة بياناتها أعلاه قد تم فحصها واختبارها في ورشتنا بتاريخ ${arDate(date)}م، ولم تجتز بنداً أو أكثر كما هو مدون في هذه الشهادة، ولا يجوز تشغيل الصهريج حتى يتم إصلاح هذه البنود وإعادة فحصها.`
+};
+IDOCS.aramco = {
+  title: 'Aramco Inspection', plural: 'Aramco Inspection Certificates', group: 'customer', custom: true,
+  nextNo: (list, date) => { const y = (date || today()).slice(0, 4); return `AIC-${y}-${String(maxNo(list, new RegExp(`^AIC-${y}-(\\d+)$`)) + 1).padStart(3, '0')}`; },
+  listCols: [['Customer', r => who(r.party_name)], ['Chassis No.', r => esc(r.data?.chassis_no)], ['Result', r => `<span class="res ${r.data?.result === 'FAIL' ? 'FAIL' : 'PASS'}">${r.data?.result === 'FAIL' ? 'FAIL' : 'PASS'}</span>`], ['Valid Until', r => esc(fmtDate(r.data?.valid_until))]],
+  search: r => [r.data?.chassis_no, r.data?.serial_no, r.data?.truck_plate]
+};
+function aicPdf(r, img) {
+  const d = r.data || {}, checks = d.checks || AIC_ITEMS.map(x => ({r: 'PASS', m: x[2], rem: x[3]})), ov = aicOverall(checks);
+  const D = certDoc(img, r.doc_no), {pdf, M, CW, W} = D;
+  D.title('FUEL TANKER INSPECTION CERTIFICATE', 'شهادة فحص صهريج نقل المحروقات', 'Comprehensive field inspection  ·  For submission to Saudi Aramco');
+  D.bar('Certificate & customer details', 'بيانات الشهادة والعميل');
+  D.grid([
+    [[['Certificate No.', 'رقم الشهادة'], r.doc_no || '(on save)'], [['Customer', 'اسم العميل'], r.party_name]],
+    [[['Issue date', 'تاريخ الإصدار'], fmtDate(r.doc_date)], [['Customer address', 'عنوان العميل'], d.customer_address]],
+    [[['Valid until', 'تاريخ الانتهاء'], d.valid_until ? `${fmtDate(d.valid_until)}${d.valid_months ? ` (${d.valid_months} months)` : ''}` : '-'], [['Chassis No.', 'رقم الشاسي'], d.chassis_no]],
+    [[['Serial No.', 'الرقم التسلسلي'], d.serial_no], [['Truck plate', 'رقم اللوحة'], d.truck_plate]],
+    [[['Tank capacity', 'سعة التانكي'], d.capacity], [['Vehicle type', 'نوع المركبة'], d.vehicle_type]]
+  ], 2, 9);
+  D.y += 3;
+  D.bar('Field inspection checklist', 'قائمة الفحص الميداني');
+  // header row
+  const cols = [8, 60, 42, 17, CW - 127];   // # | item | method | result | remarks
+  const xs = cols.reduce((a, w, i) => (a.push(i ? a[i - 1] + cols[i - 1] : M), a), []);
+  pdf.setFillColor(...LIGHT); pdf.rect(M, D.y, CW, 6, 'F');
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.4); pdf.setTextColor(...C.slate);
+  ['#', 'Inspection item', 'Method / reference', 'Result', 'Remarks'].forEach((h, i) => pdf.text(h, xs[i] + (i === 3 ? cols[3] / 2 : 1.6), D.y + 4, i === 3 ? {align: 'center'} : {}));
+  D.y += 6;
+  AIC_ITEMS.forEach((it, i) => {
+    const c = checks[i] || {}, RH = 7.9; D.need(RH);
+    if (i % 2) { pdf.setFillColor(250, 251, 252); pdf.rect(M, D.y, CW, RH, 'F'); }
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.6); pdf.setTextColor(...C.muted); pdf.text(String(i + 1), xs[0] + 1.6, D.y + 5);
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.6); pdf.setTextColor(...C.ink); pdf.text(it[0], xs[1] + 1.4, D.y + 3.4);
+    D.ar(it[1], xs[1] + 1.4, D.y + 6.3, 6.6, {left: true, color: 'rgb(84,100,112)'});
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.1); pdf.setTextColor(...C.ink);
+    pdf.text(pdf.splitTextToSize(c.m || it[2], cols[2] - 3).slice(0, 2), xs[2] + 1.4, D.y + 3.6);
+    const res = c.r || 'PASS', [fill, ink] = RES_COL[res] || RES_COL.PASS;
+    pdf.setFillColor(...fill); pdf.roundedRect(xs[3] + 1.5, D.y + 1.8, cols[3] - 3, 4.8, 1, 1, 'F');
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.2); pdf.setTextColor(...ink); pdf.text(res, xs[3] + cols[3] / 2, D.y + 5.1, {align: 'center'});
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.1); pdf.setTextColor(...C.ink);
+    pdf.text(pdf.splitTextToSize(c.rem || '', cols[4] - 3).slice(0, 2), xs[4] + 1.4, D.y + 3.6);
+    pdf.setDrawColor(...C.line); pdf.setLineWidth(0.15); pdf.line(M, D.y + RH, W - M, D.y + RH);
+    D.y += RH;
+  });
+  // overall result
+  D.need(11); D.y += 1.5;
+  const [fill, ink] = ov.pass ? RES_COL.PASS : RES_COL.FAIL;
+  pdf.setFillColor(...fill); pdf.setDrawColor(...ink); pdf.setLineWidth(0.4); pdf.roundedRect(M, D.y, CW, 10, 1.5, 1.5, 'FD');
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10.5); pdf.setTextColor(...ink);
+  pdf.text(ov.pass ? 'OVERALL RESULT: PASS' : 'OVERALL RESULT: NOT PASSED', M + 4, D.y + 6.6);
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.2);
+  pdf.text(`${ov.p} passed${ov.f ? ` · ${ov.f} failed` : ''}${ov.n ? ` · ${ov.n} not applicable` : ''}`, M + 70, D.y + 6.6);
+  D.ar(ov.pass ? 'النتيجة: مطابق' : 'النتيجة: غير مطابق', W - M - 4, D.y + 5, 10, {bold: true, color: `rgb(${ink.join(',')})`});
+  D.y += 14;
+
+  // page 2: readings, declaration, signatures
+  D.page();
+  const rd = AIC_READ.filter(([k]) => String(d.readings?.[k] ?? '').trim());
+  if (rd.length) {
+    D.bar('Test readings', 'قراءات الاختبار');
+    D.grid(rd.map(([k, en, arL, unit]) => [[[en, arL], `${d.readings[k]}${unit ? ' ' + unit : ''}`]]), 1, 9);
+    D.y += 5;
+  }
+  D.bar('Declaration', 'إقرار المطابقة');
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.6);
+  const enL = pdf.splitTextToSize(d.note_en || AIC.noteEn(r.doc_date, d.valid_until, ov.pass), CW / 2 - 7);
+  const arB = arImg(d.note_ar || AIC.noteAr(r.doc_date, d.valid_until, ov.pass), 9, {maxW: CW / 2 - 7});
+  const bh = Math.max(enL.length * 4.3, arB.h) + 8; D.need(bh);
+  pdf.setFillColor(...LIGHT); pdf.rect(M, D.y, CW, bh, 'F');
+  pdf.setTextColor(...C.ink); pdf.text(enL, M + 3.5, D.y + 6, {lineHeightFactor: 1.4});
+  pdf.addImage(arB.dataUrl, 'PNG', W - M - 3.5 - arB.w, D.y + 3.5, arB.w, arB.h);
+  D.y += bh + 6;
+  const qrText = r.files?.qr_token ? verifyUrl(r.files.qr_token) : `Al Hyakel Metal Industries | ${r.doc_no || 'DRAFT'} | Chassis ${d.chassis_no || '-'} | Valid until ${d.valid_until || '-'}`;
+  D.signs([['Inspected by', d.inspector, d.inspector_title || 'Inspector'], ['Approved by', d.approver, d.approver_title]], qrText, img);
+  // page 3: photos with captions
+  const photos = (img.photos || []);
+  if (photos.some(Boolean)) {
+    D.page();
+    D.bar('Inspection photos', 'صور الفحص والمعاينة');
+    const G = 4, cw = (CW - G) / 2, ch = 78, y0 = D.y + 4;
+    let k = 0;
+    photos.forEach((p, i) => { if (!p) return;
+      const x = M + (k % 2) * (cw + G), yy = y0 + Math.floor(k / 2) * (ch + 14); k++;
+      pdf.setDrawColor(...LK.card); pdf.setLineWidth(0.3); pdf.roundedRect(x, yy, cw, ch, 1, 1, 'S');
+      try { pdf.addImage(p.el ? coverCrop(p, (cw - 4) / (ch - 4)) : p.dataUrl, 'JPEG', x + 2, yy + 2, cw - 4, ch - 4, 'aph' + i); } catch (e) {}
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8); pdf.setTextColor(...C.ink);
+      pdf.text(`Photo ${i + 1}: ${AIC_PHOTOS[i][0]}`, x + 1, yy + ch + 4.5);
+      D.ar(AIC_PHOTOS[i][1], x + cw - 1, yy + ch + 4, 7.5, {color: 'rgb(84,100,112)'});
+    });
+  }
+  return D.finish();
+}
+
+async function showAramcoForm(id, copyFrom) {
+  const seq = ROUTE_SEQ, type = 'aramco', T = IDOCS.aramco;
+  view.innerHTML = '<div class="ah-skel" role="status" aria-label="Loading"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>';
+  let list, others;
+  try { [list, ...others] = await Promise.all([loadIList(type, true), ...GROUP_TYPES('customer').filter(t => t !== type).map(t => loadIList(t))]); others = others.flat(); }
+  catch (e) { view.innerHTML = `<p class="flash">Database error: ${esc(nice(e))}. Has the latest <b>supabase_docs.sql</b> been run?</p>`; return; }
+  let rec = null, src = null;
+  if (id || copyFrom) {
+    const {data} = await sb.from('docs_documents').select('*').eq('id', id || copyFrom).eq('doc_type', type).maybeSingle();
+    if (!data) { view.innerHTML = `<p class="flash">Certificate not found. <a href="#aramco">Back to list</a></p>`; return; }
+    src = data; if (id) rec = data;
+  }
+  const ro = !CAN_EDIT || locked(rec), dis = ro ? 'disabled' : '';
+  const qrToken = rec?.files?.qr_token || newToken();
+  const slots = [null, null, null, null], removed = new Set();
+  if (rec?.files?.photos?.some(Boolean)) (await recordFiles(rec)).photos.forEach((p, i) => { if (p) slots[i] = {...p, path: rec.files.photos[i]}; });
+  const dateNow = rec?.doc_date || today(), memo = signMemo.get('aramco');
+  const d = {vehicle_type: 'Fuel Tank Semi-Trailer (3 Axles)', valid_months: 12, inspector: memo.inspector || '', inspector_title: memo.inspector_title || 'QC Inspector',
+    approver: memo.approver || '', approver_title: memo.approver_title || '', ...(src?.data || {})};
+  if (!rec) { d.valid_until = addMonths(dateNow, Number(d.valid_months) || 12); delete d.note_en; delete d.note_ar; }
+  const checks = AIC_ITEMS.map((it, i) => ({r: 'PASS', m: it[2], rem: it[3], ...((src?.data?.checks || [])[i] || {})}));
+  if (!rec && copyFrom) checks.forEach((c, i) => { c.r = 'PASS'; c.rem = AIC_ITEMS[i][3]; });
+  const rdg = {test_type: 'Hydrostatic', ...(src?.data?.readings || {})};
+  if (!rec && copyFrom) AIC_READ.forEach(([k]) => { if (k !== 'test_type') delete rdg[k]; });
+  const autoEn = () => AIC.noteEn($('#f_date').value, $('#f_valid_until').value, aicOverall(readChecks()).pass);
+  const autoAr = () => AIC.noteAr($('#f_date').value, $('#f_valid_until').value, aicOverall(readChecks()).pass);
+  let enAuto = !d.note_en, arAuto = !d.note_ar;
+  const people = [...list, ...others], names = [...new Set(people.map(x => x.party_name).filter(Boolean))].sort();
+  const stLine = await approvalLine(rec);
+  const whoLine = rec ? `Created by: ${esc(await nameOf(rec.created_by))} · ${new Date(rec.created_at).toLocaleString('en-GB', {dateStyle: 'medium', timeStyle: 'short'})}` +
+    (rec.updated_at ? ` &nbsp;|&nbsp; Last edited by: ${esc(await nameOf(rec.updated_by))} · ${new Date(rec.updated_at).toLocaleString('en-GB', {dateStyle: 'medium', timeStyle: 'short'})}` : '') : '';
+  const fld = (k, l, v, extra = '') => `<div class="field"><label for="f_${k}">${l}</label><input id="f_${k}" value="${esc(v)}" ${extra} ${dis}></div>`;
+  if (seq !== ROUTE_SEQ) return;
+  view.innerHTML = `
+    <p style="margin:0 0 10px"><a href="#aramco">&larr; Aramco Inspection Certificates</a></p>
+    <h2>${rec ? `Aramco Inspection Certificate <span class="mono" style="font-size:1.1rem">${esc(rec.doc_no)}</span>` : 'New Aramco Inspection Certificate'}</h2>
+    ${whoLine ? `<p class="meta">${whoLine}</p>` : ''}${stLine ? `<p class="status-line">${stLine}</p>` : ''}
+    <form id="f" autocomplete="off">
+      <div class="sheet">
+        <h3>Certificate</h3>
+        <div class="grid">
+          <div class="field"><label for="f_no">Certificate No.</label>${rec ? `<div class="fixed">${esc(rec.doc_no)}</div>` : `<input id="f_no" placeholder="Auto: ${esc(T.nextNo(list, dateNow))}" ${dis}>`}</div>
+          <div class="field"><label for="f_date">Issue date</label><input id="f_date" type="date" required value="${esc(dateNow)}" ${dis}></div>
+          <div class="field"><label for="f_valid_months">Valid for (months)</label><input id="f_valid_months" type="number" min="1" max="60" value="${esc(d.valid_months)}" ${dis}></div>
+          <div class="field"><label for="f_valid_until">Valid until</label><input id="f_valid_until" type="date" value="${esc(d.valid_until)}" ${dis}></div>
+        </div>
+        ${rec ? '' : '<p class="hint">Leave the number blank to use the next one automatically. "Valid until" follows the issue date and months.</p>'}
+        <h3>Customer &amp; tanker</h3>
+        <div class="grid">
+          <div class="field"><label for="f_party">Customer name</label><input id="f_party" list="names" required value="${esc(src?.party_name)}" ${dis}>
+            <datalist id="names">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
+          ${fld('customer_address', 'Customer address', d.customer_address)}
+          ${fld('chassis_no', 'Chassis No. / VIN', d.chassis_no)}${fld('serial_no', 'Serial No.', d.serial_no)}
+          ${fld('truck_plate', 'Truck plate', d.truck_plate)}${fld('capacity', 'Tank capacity', d.capacity, 'placeholder="e.g. 34,000 Liters"')}
+          ${fld('vehicle_type', 'Vehicle type', d.vehicle_type)}
+        </div>
+      </div>
+      <div class="sheet">
+        <h3>Inspection checklist</h3>
+        <div class="table-wrap"><table class="chk"><thead><tr><th>#</th><th>Item</th><th>Method / reference</th><th>Result</th><th>Remarks</th></tr></thead><tbody>
+          ${AIC_ITEMS.map((it, i) => `<tr><td class="muted">${i + 1}</td><td><b>${esc(it[0])}</b><div class="arsub" lang="ar" dir="rtl">${esc(it[1])}</div></td>
+            <td><input data-m="${i}" value="${esc(checks[i].m)}" ${dis}></td>
+            <td><select data-r="${i}" class="r-${checks[i].r === 'N/A' ? 'NA' : checks[i].r}" ${dis}>${['PASS', 'FAIL', 'N/A'].map(o => `<option${o === checks[i].r ? ' selected' : ''}>${o}</option>`).join('')}</select></td>
+            <td><input data-rem="${i}" value="${esc(checks[i].rem)}" ${dis}></td></tr>`).join('')}
+        </tbody></table></div>
+        <p class="hint" id="ovl"></p>
+        <h3>Test readings</h3>
+        <div class="grid">
+          ${AIC_READ.map(([k, en, , unit, ph]) => k === 'test_type'
+            ? `<div class="field"><label for="r_${k}">${en}</label><select id="r_${k}" ${dis}>${['Hydrostatic', 'Pneumatic', 'Hydrostatic & pneumatic'].map(o => `<option${o === rdg[k] ? ' selected' : ''}>${o}</option>`).join('')}</select></div>`
+            : `<div class="field"><label for="r_${k}">${en}${unit ? ` (${unit})` : ''}</label><input id="r_${k}" value="${esc(rdg[k] ?? '')}" placeholder="${esc(ph)}" ${dis}></div>`).join('')}
+        </div>
+        <p class="hint">Only the readings you fill in are printed.</p>
+      </div>
+      <div class="sheet">
+        <h3>Declaration</h3>
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))">
+          <div class="field"><label for="f_note_en">English</label><textarea id="f_note_en" rows="7" ${dis}></textarea></div>
+          <div class="field"><label for="f_note_ar">Arabic</label><textarea id="f_note_ar" rows="7" dir="rtl" lang="ar" style="font-family:${esc(AR_FONT)};font-size:16px" ${dis}></textarea></div>
+        </div>
+        ${ro ? '' : '<p class="hint">The text follows the dates and the overall result until you edit it.</p>'}
+        <h3>Signatures</h3>
+        <div class="grid">
+          ${fld('inspector', 'Inspected by (name)', d.inspector)}${fld('inspector_title', 'Inspector title', d.inspector_title)}
+          ${fld('approver', 'Approved by (name)', d.approver)}${fld('approver_title', 'Approver title', d.approver_title, 'placeholder="e.g. Technical Manager"')}
+        </div>
+        ${ro ? '' : '<p class="hint">Names are remembered on this device for the next certificate.</p>'}
+      </div>
+      <div class="sheet">
+        <h3>Photos (last page)</h3>
+        <div class="photos" id="photos"></div>
+        <p class="hint" style="margin-top:14px">Up to 4 photos: ${AIC_PHOTOS.map((p, i) => `${i + 1}) ${p[0]}`).join(', ')}. They are printed on the last page with captions.</p>
+      </div>
+      <p class="err" id="err" role="alert"></p>
+      <div class="bar">
+        ${ro ? '' : '<button class="btn" id="save" type="submit">Save</button><button class="btn sec" id="saveNew" type="button" title="Save, then start a new one">Save &amp; New</button>'}
+        <button class="btn sec" type="button" id="dl">Download PDF</button>
+        <button class="btn sec" type="button" id="pv">Preview</button>
+        <span class="share"><button class="btn sec" type="button" id="sh">Share</button></span>
+        ${waFormBtn(type)}
+        ${rec && CAN_EDIT ? `<a class="btn sec" href="#aramco/copy/${rec.id}">Copy as new</a>` : ''}
+        ${approvalButtons(rec)}
+        <span class="grow"></span>
+        ${rec && CAN_DELETE ? '<button class="btn danger" type="button" id="del">Delete</button>' : ''}
+      </div>
+    </form>`;
+  wireApproval(rec, type);
+  const form = $('#f');
+  function readChecks() { return AIC_ITEMS.map((_, i) => ({r: $(`[data-r="${i}"]`).value, m: $(`[data-m="${i}"]`).value.trim(), rem: $(`[data-rem="${i}"]`).value.trim()})); }
+  const drawOv = () => { const o = aicOverall(readChecks());
+    $('#ovl').innerHTML = `Overall result: <span class="res ${o.pass ? 'PASS' : 'FAIL'}">${o.pass ? 'PASS' : 'NOT PASSED'}</span> &nbsp;${o.p} passed${o.f ? `, ${o.f} failed` : ''}${o.n ? `, ${o.n} not applicable` : ''}`; };
+  $('#f_note_en').value = d.note_en || autoEn(); $('#f_note_ar').value = d.note_ar || autoAr(); drawOv();
+  const refreshText = () => { if (enAuto) $('#f_note_en').value = autoEn(); if (arAuto) $('#f_note_ar').value = autoAr(); };
+  const drawSlots = () => { $('#photos').innerHTML = slots.map((sl, i) => `<div class="slot ${sl ? 'filled' : ''} ${ro ? 'ro' : ''}" data-i="${i}">
+      ${sl ? `<img src="${sl.dataUrl}" alt="Photo ${i + 1}">` : `<span class="lbl">${ro ? 'No image' : `+ Photo ${i + 1}<br><small>${esc(AIC_PHOTOS[i][0])}</small>`}</span>`}
+      ${sl && !ro ? `<button type="button" class="x" data-x="${i}" aria-label="Remove photo ${i + 1}">Remove</button>` : ''}
+      <input type="file" accept="image/*" aria-label="Photo ${i + 1}" ${ro ? 'disabled' : ''}></div>`).join(''); };
+  drawSlots();
+  form.addEventListener('change', async e => {
+    if (e.target.matches('[data-r]')) { e.target.className = 'r-' + (e.target.value === 'N/A' ? 'NA' : e.target.value); drawOv(); refreshText(); }
+    if (e.target.type !== 'file' || !e.target.closest('#photos')) return;
+    const file = e.target.files[0]; if (!file) return;
+    const i = e.target.closest('.slot').dataset.i;
+    try { const im = await shrink(file, 1200, 'image/jpeg', 0.72); if (slots[i]?.path) removed.add(slots[i].path); slots[i] = {...im, changed: true}; dirty = true; drawSlots(); }
+    catch (err) { toast('This image could not be opened: ' + nice(err), true); }
+  });
+  form.addEventListener('click', e => { const x = e.target.closest('[data-x]'); if (!x || !x.closest('#photos')) return;
+    const i = x.dataset.x; if (slots[i]?.path) removed.add(slots[i].path); slots[i] = null; dirty = true; drawSlots(); });
+  form.addEventListener('input', e => {
+    dirty = true;
+    if (e.target.id === 'f_note_en') enAuto = false;
+    if (e.target.id === 'f_note_ar') arAuto = false;
+    if ((e.target.id === 'f_date' || e.target.id === 'f_valid_months') && $('#f_date').value) $('#f_valid_until').value = addMonths($('#f_date').value, Number($('#f_valid_months').value) || 12);
+    if (['f_date', 'f_valid_months', 'f_valid_until'].includes(e.target.id)) refreshText();
+  });
+  $('#f_party').addEventListener('change', () => {
+    const n = $('#f_party').value.trim().toLowerCase(); if (!n) return;
+    const last = people.filter(x => (x.party_name || '').trim().toLowerCase() === n).sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+    const el = $('#f_customer_address'); if (last && !el.value.trim() && last.data?.customer_address) el.value = last.data.customer_address;
+  });
+  const collect = () => {
+    const ch = readChecks(), o = aicOverall(ch), v = k => $('#f_' + k).value.trim();
+    return {doc_date: $('#f_date').value, party_name: v('party'), data: {
+      ...Object.fromEntries(['customer_address', 'chassis_no', 'serial_no', 'truck_plate', 'capacity', 'vehicle_type', 'valid_until', 'inspector', 'inspector_title', 'approver', 'approver_title'].map(k => [k, v(k)])),
+      valid_months: Number(v('valid_months')) || 12, checks: ch, result: o.pass ? 'PASS' : 'FAIL',
+      readings: Object.fromEntries(AIC_READ.map(([k]) => [k, $('#r_' + k).value.trim()])),
+      note_en: enAuto ? '' : v('note_en'), note_ar: arAuto ? '' : v('note_ar')}};
+  };
+  const draft = () => ({...collect(), doc_no: rec?.doc_no || ($('#f_no')?.value.trim() || ''), files: {...(rec?.files || {}), qr_token: qrToken}});
+  const fileName = () => (draft().doc_no || 'Aramco-Inspection-DRAFT') + '.pdf';
+  const run = async (btn, fn) => { const t = btn.textContent; btn.disabled = true; btn.textContent = 'Please wait…'; $('#err').textContent = '';
+    try { await fn(); } catch (e) { $('#err').textContent = nice(e); } btn.disabled = false; btn.textContent = t; };
+  $('#dl').onclick = e => run(e.target, async () => (await iPdf(type, draft(), slots)).save(fileName()));
+  $('#wa')?.addEventListener('click', e => waClick(e.currentTarget, type, rec, null, true));
+  wireShare($('#sh'), () => iPdf(type, draft(), slots), fileName,
+    () => { const v = draft(); return `Fuel Tanker Inspection Certificate ${v.doc_no || ''} - ${v.party_name} - Chassis ${v.data.chassis_no || '-'}, valid until ${fmtDate(v.data.valid_until)}`; });
+  $('#pv').onclick = e => run(e.target, async () => { const w = window.open('', '_blank'); const url = (await iPdf(type, draft(), slots)).output('bloburl'); if (w) w.location = url; else location.href = url; });
+  $('#del')?.addEventListener('click', e => run(e.target, async () => {
+    if (!confirm(`Permanently delete ${rec.doc_no}?`)) return;
+    const {error} = await sb.from('docs_documents').delete().eq('id', rec.id); if (error) throw error;
+    const ph = (rec.files?.photos || []).filter(Boolean); if (ph.length) await sb.storage.from(BUCKET).remove(ph);
+    if (rec.files?.qr_token) await sb.storage.from(CERT_BUCKET).remove([rec.files.qr_token + '.pdf']);
+    dirty = false; toast(rec.doc_no + ' deleted'); location.hash = '#aramco';
+  }));
+  form.addEventListener('submit', e => { e.preventDefault(); if (!ro) run($('#save'), async () => {
+    const v = collect();
+    if (!v.doc_date) throw new Error('Please enter the issue date.');
+    if (!v.party_name) { $('#f_party').focus(); throw new Error('Please enter the customer name.'); }
+    if (!v.data.chassis_no) { $('#f_chassis_no').focus(); throw new Error('Please enter the chassis number.'); }
+    v.files = {...(rec?.files || {}), qr_token: qrToken};
+    let res;
+    if (rec) res = await sb.from('docs_documents').update(v).eq('id', rec.id).select().single();
+    else { const manual = $('#f_no').value.trim(); res = await sb.from('docs_documents').insert({doc_type: type, ...v, ...(manual ? {doc_no: manual} : {})}).select().single(); }
+    if (res.error) throw new Error(res.error.code === '23505' ? 'This number already exists. Leave it blank or enter a different one.' : nice(res.error));
+    rec = res.data;
+    signMemo.set('aramco', {inspector: v.data.inspector, inspector_title: v.data.inspector_title, approver: v.data.approver, approver_title: v.data.approver_title});
+    const stamp = Date.now(), photos = [];
+    for (let i = 0; i < 4; i++) {
+      const sl = slots[i]; if (!sl) { photos.push(null); continue; }
+      if (sl.changed) {
+        const path = `aramco/${rec.id}/photo${i + 1}-${stamp}.jpg`;
+        const {error} = await sb.storage.from(BUCKET).upload(path, sl.blob, {contentType: 'image/jpeg', upsert: true});
+        if (error) throw new Error('Image upload failed: ' + nice(error) + '. Please click Save again.');
+        sl.path = path; sl.changed = false;
+      }
+      photos.push(sl.path);
+    }
+    const up = await sb.from('docs_documents').update({files: {...(rec.files || {}), qr_token: qrToken, photos}}).eq('id', rec.id).select().single();
+    if (up.error) throw up.error;
+    rec = up.data; dirty = false;
+    await uploadCert(qrToken, await iPdf(type, rec, slots));
+    if (removed.size) { await sb.storage.from(BUCKET).remove([...removed]); removed.clear(); }
+    toast(`${rec.doc_no} saved`);
+    goAfterSave(type, rec.id);
+  }); });
+}
+
+/* ===================== CERTIFICATE OF ORIGIN & LIMITED WARRANTY (COW-2026-001) ===================== */
+const COW_PARTS = [
+  ['API adaptors & dust caps', '4" API bottom loading adaptors with manual operating handle and protective dust cap'],
+  ['Pneumatic safety interlocks', 'Air interlock valves on the cabinet door, API couplers and drop outlets (drive-away protection)'],
+  ['Electronic overfill protection', 'Optic overfill sensors in the manhole cover with 5-wire / 2-wire socket'],
+  ['Vapour recovery system', '100 mm (4") vapour recovery valve in the manhole cover, linked to the side vapour adaptor'],
+  ['Bottom sump valve', 'Heavy-duty bottom sump valve (internal discharge and sump drain control)']
+];
+const COW_TESTS = [
+  ['API adaptor & handle operation', 'Smooth handle rotation, no leakage, seal intact'],
+  ['Pneumatic safety interlock', 'Brakes engage automatically when the API door / coupler is open'],
+  ['Overfill sensor (manhole)', 'Optic signal continuity verified, auto shut-off active'],
+  ['Bottom sump valve pressure test', 'Tested at 5 bar, no leakage'],
+  ['Vapour recovery line & hood', 'Sealed vapour path verified, dust caps working'],
+  ['Static grounding & bonding', 'Grounding bolt and cable continuity verified (below 10 ohm)']
+];
+const COW_OPT = {
+  shell_material: ['High-tensile carbon steel', 'Stainless steel', 'Aluminium alloy'],
+  suspension: ['Air suspension', 'Bogie heavy-duty (12 / 14 ton)', 'Mechanical leaf spring'],
+  axle_brand: ['FUWA 13-ton heavy duty', 'BPW 12-ton air ride', 'SAF-Holland 14-ton'],
+  brake: ['Dual line pneumatic drum brakes with ABS / EBS', 'Standard pneumatic drum brakes'],
+  kingpin_size: ['2"', '3.5"']
+};
+const COW_DEF = {
+  vehicle_type: 'Fuel Tank Semi-Trailer', capacity: '36,000 Liters', shell_material: COW_OPT.shell_material[0], shell_mm: '5', ends_mm: '6',
+  testing: '100% pneumatic leak tested and hydrostatically inspected', beam: 'Heavy-duty fabricated I-beams (submerged arc welded)',
+  flange_top: '16', flange_bottom: '18', web_mm: '10', crossmembers: 'Reinforced pipe and channel crossmembers for torsional rigidity',
+  kingpin_plate_mm: '12', kingpin_size: '2"', axles: '3', suspension: COW_OPT.suspension[1], axle_brand: COW_OPT.axle_brand[0], brake: COW_OPT.brake[0],
+  bl_status: 'installed', warranty_months: 12,
+  origin: 'Al Hyakel Metal Industries hereby certifies that the Fuel Tank Semi-Trailer described in this certificate was designed, fabricated and quality-inspected at our factory in Jeddah, Kingdom of Saudi Arabia. The tank shell, chassis main beams and bottom loading system were manufactured and assembled at our facility.',
+  t1: 'Warranted against manufacturing defects, structural failure and weld cracks for the warranty period stated above, from the delivery date.',
+  t2: 'Covered by the original component manufacturers\' (OEM) warranty, usually 12 months.',
+  t3: 'The warranty does not apply in case of overloading beyond the rated GVW, unauthorised structural modification, accident damage, or lack of routine maintenance.'
+};
+IDOCS.cow = {
+  title: 'Origin & Warranty', plural: 'Certificates of Origin & Warranty', group: 'customer', custom: true,
+  nextNo: (list, date) => { const y = (date || today()).slice(0, 4); return `COW-${y}-${String(maxNo(list, new RegExp(`^COW-${y}-(\\d+)$`)) + 1).padStart(3, '0')}`; },
+  listCols: [['Customer', r => who(r.party_name)], ['Chassis / VIN', r => esc(r.data?.chassis_no)], ['Invoice / PO', r => esc(r.data?.invoice_no)], ['Warranty Until', r => esc(fmtDate(r.data?.warranty_until))]],
+  search: r => [r.data?.chassis_no, r.data?.serial_no, r.data?.invoice_no]
+};
+function cowPdf(r, img) {
+  const d = {...COW_DEF, ...(r.data || {})}, D = certDoc(img, r.doc_no), {pdf} = D;
+  D.title('CERTIFICATE OF ORIGIN & LIMITED WARRANTY', '', 'Heavy equipment & commercial transport trailer division');
+  D.bar('1. Customer & vehicle identification');
+  D.grid([
+    [['Certificate No.', r.doc_no || '(on save)'], ['Issue date', fmtDate(r.doc_date)]],
+    [['Customer', r.party_name], ['Invoice / PO No.', d.invoice_no]],
+    [['Customer address', d.customer_address], ['Delivery date', fmtDate(d.delivery_date)]],
+    [['Vehicle type', d.vehicle_type], ['Serial No.', d.serial_no]],
+    [['Chassis / VIN', d.chassis_no], ['Manufacturer', 'Al Hyakel Metal Industries']],
+    [['Country of origin', 'Kingdom of Saudi Arabia'], ['Factory', 'Jeddah, Saudi Arabia']]
+  ], 2, 9);
+  D.y += 4;
+  D.bar('2. Technical specifications');
+  const mm = v => v ? `${v} mm` : '';
+  D.grid([
+    [['Nominal capacity', d.capacity], ['Compartments', d.compartments]],
+    [['Shell material', d.shell_material], ['Shell plate thickness', mm(d.shell_mm)]],
+    [['Dished ends & baffles', mm(d.ends_mm)], ['Testing', d.testing]],
+    [['Main beams', d.beam], ['Flanges (top / bottom)', d.flange_top || d.flange_bottom ? `${d.flange_top || '-'} mm / ${d.flange_bottom || '-'} mm` : '']],
+    [['Web plate', mm(d.web_mm)], ['Crossmembers', d.crossmembers]],
+    [['Kingpin', `${d.kingpin_size || ''} kingpin${d.kingpin_plate_mm ? `, ${d.kingpin_plate_mm} mm bolted plate` : ''}`], ['Axles', d.axles ? `${d.axles} axles` : '']],
+    [['Suspension', d.suspension], ['Axle brand & capacity', d.axle_brand]],
+    [['Brake system', d.brake], ['Bottom loading', d.bl_status === 'na' ? 'Not applicable (top loading only)' : 'Installed, tested & approved']]
+  ], 2, 9);
+  D.y += 4;
+  if (d.bl_status !== 'na') {
+    D.bar('3. Bottom loading system & inspection');
+    D.grid(COW_PARTS.map(([k, v]) => [[k, v]]), 1, 8.5);
+    D.y += 3;
+    const checks = d.checks || COW_TESTS.map(t => ({r: 'PASS', rem: t[1]}));
+    COW_TESTS.forEach(([t], i) => { const c = checks[i] || {}, RH = 7.5; D.need(RH);
+      const res = c.r || 'PASS', [fill, ink] = RES_COL[res] || RES_COL.PASS;
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.8); pdf.setTextColor(...C.ink); pdf.text(`${i + 1}. ${t}`, D.M + 1.5, D.y + 4.9);
+      pdf.setFillColor(...fill); pdf.roundedRect(D.M + 64, D.y + 1.4, 16, 4.8, 1, 1, 'F');
+      pdf.setFontSize(7.2); pdf.setTextColor(...ink); pdf.text(res, D.M + 72, D.y + 4.7, {align: 'center'});
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.6); pdf.setTextColor(...C.ink); pdf.text(pdf.splitTextToSize(c.rem || '', D.CW - 86)[0] || '', D.M + 84, D.y + 4.9);
+      pdf.setDrawColor(...C.line); pdf.setLineWidth(0.15); pdf.line(D.M, D.y + RH, D.W - D.M, D.y + RH); D.y += RH; });
+    D.y += 4;
+  }
+  const n = d.bl_status === 'na' ? 3 : 4;
+  D.bar(`${n}. Certificate of origin`);
+  D.para(`${d.origin}${/country of origin/i.test(d.origin) ? '' : ' Country of origin: Kingdom of Saudi Arabia.'}`);
+  D.bar(`${n + 1}. Limited warranty`);
+  D.grid([[['Warranty period', `${d.warranty_months} months${d.delivery_date ? `, from ${fmtDate(d.delivery_date)} to ${fmtDate(d.warranty_until)}` : ''}`]],
+    [['Tank shell & main beams', d.t1]], [['Axles, valves & bottom loading', d.t2]], [['Conditions & exclusions', d.t3]]], 1, 11);
+  D.y += 3;
+  const qrText = r.files?.qr_token ? verifyUrl(r.files.qr_token) : `Al Hyakel Metal Industries | ${r.doc_no || 'DRAFT'} | Chassis ${d.chassis_no || '-'}`;
+  D.signs([['Prepared by', d.prepared_by, d.prepared_title || 'Quality Control Inspector'], ['Approved by', d.approver, d.approver_title || 'Plant Director / Technical Manager']], qrText, img);
+  return D.finish();
+}
+
+async function showCowForm(id, copyFrom) {
+  const seq = ROUTE_SEQ, type = 'cow', T = IDOCS.cow;
+  view.innerHTML = '<div class="ah-skel" role="status" aria-label="Loading"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>';
+  let list, others;
+  try { [list, ...others] = await Promise.all([loadIList(type, true), ...GROUP_TYPES('customer').filter(t => t !== type).map(t => loadIList(t))]); others = others.flat(); }
+  catch (e) { view.innerHTML = `<p class="flash">Database error: ${esc(nice(e))}. Has the latest <b>supabase_docs.sql</b> been run?</p>`; return; }
+  let rec = null, src = null;
+  if (id || copyFrom) {
+    const {data} = await sb.from('docs_documents').select('*').eq('id', id || copyFrom).eq('doc_type', type).maybeSingle();
+    if (!data) { view.innerHTML = `<p class="flash">Certificate not found. <a href="#cow">Back to list</a></p>`; return; }
+    src = data; if (id) rec = data;
+  }
+  const ro = !CAN_EDIT || locked(rec), dis = ro ? 'disabled' : '';
+  const qrToken = rec?.files?.qr_token || newToken();
+  const dateNow = rec?.doc_date || today(), memo = signMemo.get('cow');
+  const d = {...COW_DEF, prepared_by: memo.prepared_by || '', prepared_title: memo.prepared_title || 'Quality Control Inspector', approver: memo.approver || '', approver_title: memo.approver_title || 'Plant Director / Technical Manager', ...(src?.data || {})};
+  if (!rec && copyFrom) ['invoice_no', 'serial_no', 'chassis_no', 'delivery_date', 'warranty_until'].forEach(k => delete d[k]);
+  if (!d.delivery_date) d.delivery_date = dateNow;
+  const checks = COW_TESTS.map((t, i) => ({r: 'PASS', rem: t[1], ...((rec ? src?.data?.checks : null) || [])[i]}));
+  const people = [...list, ...others], names = [...new Set(people.map(x => x.party_name).filter(Boolean))].sort();
+  const stLine = await approvalLine(rec);
+  const whoLine = rec ? `Created by: ${esc(await nameOf(rec.created_by))} · ${new Date(rec.created_at).toLocaleString('en-GB', {dateStyle: 'medium', timeStyle: 'short'})}` +
+    (rec.updated_at ? ` &nbsp;|&nbsp; Last edited by: ${esc(await nameOf(rec.updated_by))} · ${new Date(rec.updated_at).toLocaleString('en-GB', {dateStyle: 'medium', timeStyle: 'short'})}` : '') : '';
+  const fld = (k, l, v, extra = '') => `<div class="field"><label for="f_${k}">${l}</label><input id="f_${k}" value="${esc(v)}" ${extra} ${dis}></div>`;
+  const pick = (k, l) => `<div class="field"><label for="f_${k}">${l}</label><input id="f_${k}" list="o_${k}" value="${esc(d[k])}" ${dis}><datalist id="o_${k}">${COW_OPT[k].map(o => `<option value="${esc(o)}">`).join('')}</datalist></div>`;
+  const area = (k, l, rows = 3) => `<div class="field" style="grid-column:1/-1"><label for="f_${k}">${l}</label><textarea id="f_${k}" rows="${rows}" ${dis}>${esc(d[k])}</textarea></div>`;
+  if (seq !== ROUTE_SEQ) return;
+  view.innerHTML = `
+    <p style="margin:0 0 10px"><a href="#cow">&larr; Certificates of Origin &amp; Warranty</a></p>
+    <h2>${rec ? `Certificate of Origin &amp; Warranty <span class="mono" style="font-size:1.1rem">${esc(rec.doc_no)}</span>` : 'New Certificate of Origin &amp; Warranty'}</h2>
+    ${whoLine ? `<p class="meta">${whoLine}</p>` : ''}${stLine ? `<p class="status-line">${stLine}</p>` : ''}
+    <form id="f" autocomplete="off">
+      <div class="sheet">
+        <h3>1. Customer &amp; vehicle</h3>
+        <div class="grid">
+          <div class="field"><label for="f_no">Certificate No.</label>${rec ? `<div class="fixed">${esc(rec.doc_no)}</div>` : `<input id="f_no" placeholder="Auto: ${esc(T.nextNo(list, dateNow))}" ${dis}>`}</div>
+          <div class="field"><label for="f_date">Issue date</label><input id="f_date" type="date" required value="${esc(dateNow)}" ${dis}></div>
+          <div class="field"><label for="f_party">Customer name</label><input id="f_party" list="names" required value="${esc(src?.party_name)}" ${dis}>
+            <datalist id="names">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
+          ${fld('customer_address', 'Customer address', d.customer_address)}${fld('invoice_no', 'Invoice / PO No.', d.invoice_no)}
+          <div class="field"><label for="f_delivery_date">Delivery date</label><input id="f_delivery_date" type="date" value="${esc(d.delivery_date)}" ${dis}></div>
+          ${fld('vehicle_type', 'Vehicle type', d.vehicle_type)}${fld('serial_no', 'Serial No.', d.serial_no)}${fld('chassis_no', 'Chassis / VIN', d.chassis_no)}
+        </div>
+        <p class="hint">Manufacturer (Al Hyakel Metal Industries) and country of origin (Kingdom of Saudi Arabia) are printed automatically.</p>
+      </div>
+      <div class="sheet">
+        <h3>2. Tank</h3>
+        <div class="grid">${fld('capacity', 'Nominal capacity', d.capacity)}${fld('compartments', 'Compartments', d.compartments, 'placeholder="e.g. 12,000 + 12,000 + 12,000 L"')}
+          ${pick('shell_material', 'Shell material')}${fld('shell_mm', 'Shell plate (mm)', d.shell_mm)}${fld('ends_mm', 'Dished ends & baffles (mm)', d.ends_mm)}${fld('testing', 'Testing', d.testing)}</div>
+        <h3>Chassis</h3>
+        <div class="grid">${fld('beam', 'Main beams', d.beam)}${fld('flange_top', 'Top flange (mm)', d.flange_top)}${fld('flange_bottom', 'Bottom flange (mm)', d.flange_bottom)}
+          ${fld('web_mm', 'Web plate (mm)', d.web_mm)}${fld('crossmembers', 'Crossmembers', d.crossmembers)}${fld('kingpin_plate_mm', 'Kingpin plate (mm)', d.kingpin_plate_mm)}${pick('kingpin_size', 'Kingpin size')}</div>
+        <h3>Axles &amp; brakes</h3>
+        <div class="grid"><div class="field"><label for="f_axles">Number of axles</label><select id="f_axles" ${dis}>${['2', '3', '4'].map(o => `<option${o === String(d.axles) ? ' selected' : ''}>${o}</option>`).join('')}</select></div>
+          ${pick('suspension', 'Suspension')}${pick('axle_brand', 'Axle brand & capacity')}${pick('brake', 'Brake system')}</div>
+        <p class="hint">Pick from the list or type your own.</p>
+      </div>
+      <div class="sheet">
+        <h3>3. Bottom loading</h3>
+        <div class="grid"><div class="field"><label for="f_bl_status">Bottom loading system</label><select id="f_bl_status" ${dis}>
+          <option value="installed"${d.bl_status !== 'na' ? ' selected' : ''}>Installed, tested &amp; approved</option><option value="na"${d.bl_status === 'na' ? ' selected' : ''}>Not applicable (top loading only)</option></select></div></div>
+        <div id="blBox"${d.bl_status === 'na' ? ' hidden' : ''}>
+          <p class="hint" style="margin-top:0">Printed parts: ${COW_PARTS.map(p => esc(p[0])).join(', ')}.</p>
+          <div class="table-wrap"><table class="chk"><thead><tr><th>#</th><th>Test</th><th>Result</th><th>Remarks</th></tr></thead><tbody>
+            ${COW_TESTS.map((t, i) => `<tr><td class="muted">${i + 1}</td><td><b>${esc(t[0])}</b></td>
+              <td><select data-r="${i}" class="r-${checks[i].r === 'N/A' ? 'NA' : checks[i].r}" ${dis}>${['PASS', 'FAIL', 'N/A'].map(o => `<option${o === checks[i].r ? ' selected' : ''}>${o}</option>`).join('')}</select></td>
+              <td><input data-rem="${i}" value="${esc(checks[i].rem)}" ${dis}></td></tr>`).join('')}
+          </tbody></table></div>
+        </div>
+      </div>
+      <div class="sheet">
+        <h3>4. Origin &amp; warranty</h3>
+        <div class="grid">
+          ${area('origin', 'Certificate of origin text', 4)}
+          <div class="field"><label for="f_warranty_months">Warranty (months)</label><input id="f_warranty_months" type="number" min="1" max="120" value="${esc(d.warranty_months)}" ${dis}></div>
+          <div class="field"><label>Warranty until</label><div class="fixed" id="wUntil"></div></div>
+          ${area('t1', 'Tank shell &amp; main beams', 2)}${area('t2', 'Axles, valves &amp; bottom loading', 2)}${area('t3', 'Conditions &amp; exclusions', 2)}
+        </div>
+        <h3>Signatures</h3>
+        <div class="grid">${fld('prepared_by', 'Prepared by (name)', d.prepared_by)}${fld('prepared_title', 'Title', d.prepared_title)}
+          ${fld('approver', 'Approved by (name)', d.approver)}${fld('approver_title', 'Title', d.approver_title)}</div>
+      </div>
+      <p class="err" id="err" role="alert"></p>
+      <div class="bar">
+        ${ro ? '' : '<button class="btn" id="save" type="submit">Save</button><button class="btn sec" id="saveNew" type="button" title="Save, then start a new one">Save &amp; New</button>'}
+        <button class="btn sec" type="button" id="dl">Download PDF</button>
+        <button class="btn sec" type="button" id="pv">Preview</button>
+        <span class="share"><button class="btn sec" type="button" id="sh">Share</button></span>
+        ${waFormBtn(type)}
+        ${rec && CAN_EDIT ? `<a class="btn sec" href="#cow/copy/${rec.id}">Copy as new</a>` : ''}
+        ${approvalButtons(rec)}
+        <span class="grow"></span>
+        ${rec && CAN_DELETE ? '<button class="btn danger" type="button" id="del">Delete</button>' : ''}
+      </div>
+    </form>`;
+  wireApproval(rec, type);
+  const form = $('#f');
+  const until = () => $('#f_delivery_date').value ? addMonths($('#f_delivery_date').value, Number($('#f_warranty_months').value) || 12) : '';
+  const drawUntil = () => { $('#wUntil').textContent = until() ? fmtDate(until()) : 'Enter the delivery date'; };
+  drawUntil();
+  form.addEventListener('input', e => { dirty = true; if (['f_delivery_date', 'f_warranty_months'].includes(e.target.id)) drawUntil(); });
+  form.addEventListener('change', e => {
+    if (e.target.id === 'f_bl_status') $('#blBox').hidden = e.target.value === 'na';
+    if (e.target.matches('[data-r]')) e.target.className = 'r-' + (e.target.value === 'N/A' ? 'NA' : e.target.value);
+  });
+  $('#f_party').addEventListener('change', () => {
+    const n = $('#f_party').value.trim().toLowerCase(); if (!n) return;
+    const last = people.filter(x => (x.party_name || '').trim().toLowerCase() === n).sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+    const el = $('#f_customer_address'); if (last && !el.value.trim() && last.data?.customer_address) el.value = last.data.customer_address;
+  });
+  const KEYS = ['customer_address', 'invoice_no', 'delivery_date', 'vehicle_type', 'serial_no', 'chassis_no', 'capacity', 'compartments', 'shell_material', 'shell_mm', 'ends_mm', 'testing',
+    'beam', 'flange_top', 'flange_bottom', 'web_mm', 'crossmembers', 'kingpin_plate_mm', 'kingpin_size', 'axles', 'suspension', 'axle_brand', 'brake', 'bl_status', 'origin', 't1', 't2', 't3',
+    'prepared_by', 'prepared_title', 'approver', 'approver_title'];
+  const collect = () => ({doc_date: $('#f_date').value, party_name: $('#f_party').value.trim(), data: {
+    ...Object.fromEntries(KEYS.map(k => [k, $('#f_' + k).value.trim()])), warranty_months: Number($('#f_warranty_months').value) || 12, warranty_until: until(),
+    checks: COW_TESTS.map((_, i) => ({r: $(`[data-r="${i}"]`).value, rem: $(`[data-rem="${i}"]`).value.trim()}))}});
+  const draft = () => ({...collect(), doc_no: rec?.doc_no || ($('#f_no')?.value.trim() || ''), files: {...(rec?.files || {}), qr_token: qrToken}});
+  const fileName = () => (draft().doc_no || 'Origin-Warranty-DRAFT') + '.pdf';
+  const run = async (btn, fn) => { const t = btn.textContent; btn.disabled = true; btn.textContent = 'Please wait…'; $('#err').textContent = '';
+    try { await fn(); } catch (e) { $('#err').textContent = nice(e); } btn.disabled = false; btn.textContent = t; };
+  $('#dl').onclick = e => run(e.target, async () => (await iPdf(type, draft())).save(fileName()));
+  $('#wa')?.addEventListener('click', e => waClick(e.currentTarget, type, rec, null, true));
+  wireShare($('#sh'), () => iPdf(type, draft()), fileName, () => { const v = draft(); return `Certificate of Origin & Warranty ${v.doc_no || ''} - ${v.party_name} - Chassis ${v.data.chassis_no || '-'}`; });
+  $('#pv').onclick = e => run(e.target, async () => { const w = window.open('', '_blank'); const url = (await iPdf(type, draft())).output('bloburl'); if (w) w.location = url; else location.href = url; });
+  $('#del')?.addEventListener('click', e => run(e.target, async () => {
+    if (!confirm(`Permanently delete ${rec.doc_no}?`)) return;
+    const {error} = await sb.from('docs_documents').delete().eq('id', rec.id); if (error) throw error;
+    if (rec.files?.qr_token) await sb.storage.from(CERT_BUCKET).remove([rec.files.qr_token + '.pdf']);
+    dirty = false; toast(rec.doc_no + ' deleted'); location.hash = '#cow';
+  }));
+  form.addEventListener('submit', e => { e.preventDefault(); if (!ro) run($('#save'), async () => {
+    const v = collect();
+    if (!v.doc_date) throw new Error('Please enter the issue date.');
+    if (!v.party_name) { $('#f_party').focus(); throw new Error('Please enter the customer name.'); }
+    if (!v.data.chassis_no) { $('#f_chassis_no').focus(); throw new Error('Please enter the chassis / VIN number.'); }
+    v.files = {...(rec?.files || {}), qr_token: qrToken};
+    let res;
+    if (rec) res = await sb.from('docs_documents').update(v).eq('id', rec.id).select().single();
+    else { const manual = $('#f_no').value.trim(); res = await sb.from('docs_documents').insert({doc_type: type, ...v, ...(manual ? {doc_no: manual} : {})}).select().single(); }
+    if (res.error) throw new Error(res.error.code === '23505' ? 'This number already exists. Leave it blank or enter a different one.' : nice(res.error));
+    rec = res.data; dirty = false;
+    signMemo.set('cow', {prepared_by: v.data.prepared_by, prepared_title: v.data.prepared_title, approver: v.data.approver, approver_title: v.data.approver_title});
+    await uploadCert(qrToken, await iPdf(type, rec));
+    toast(`${rec.doc_no} saved`);
+    goAfterSave(type, rec.id);
+  }); });
+}
+
+
 /* ===================== CASH RECEIPT (سند قبض) ===================== */
 // Money received from a customer. Can be linked to an invoice: the payment is then recorded on that invoice too.
 const RCPT_METHODS = ['Cash', 'Cheque', 'Bank transfer', 'Card'];
@@ -2043,11 +2722,11 @@ async function route() {
   ROUTE_SEQ++;
   const h = location.hash.replace(/^#/, '') || 'leak';
   const [type, a, b] = h.split('/');
-  if (!['leak', 'tank', 'quotation', 'invoice', 'dn', 'po', 'jobcard', 'mr', 'receipt', 'catalog'].includes(type)) { location.hash = '#leak'; return; }
+  if (!['leak', 'tank', 'aramco', 'cow', 'quotation', 'invoice', 'dn', 'po', 'jobcard', 'mr', 'receipt', 'catalog'].includes(type)) { location.hash = '#leak'; return; }
   $$('#tabs a').forEach(x => x.classList.toggle('on', x.dataset.t === type));
   if (type === 'catalog') return showCatalog();
   if (type !== 'leak') {
-    const form = type === 'tank' ? (i, c) => showTankForm(i, c) : type === 'receipt' ? (i, c) => showReceiptForm(i, c) : (i, c) => showIForm(type, i, c);
+    const form = type === 'tank' ? (i, c) => showTankForm(i, c) : type === 'aramco' ? (i, c) => showAramcoForm(i, c) : type === 'cow' ? (i, c) => showCowForm(i, c) : type === 'receipt' ? (i, c) => showReceiptForm(i, c) : (i, c) => showIForm(type, i, c);
     if (!a) return showIList(type);
     if (a === 'new') return CAN_EDIT ? form(null) : (location.hash = '#' + type);
     if (a === 'copy') return CAN_EDIT ? form(null, b) : (location.hash = '#' + type);

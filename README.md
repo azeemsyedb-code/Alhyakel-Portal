@@ -9,7 +9,7 @@ No server needed: the website runs on **GitHub Pages**, and all data and logins 
 | **Employees** | Attendance, overtime, tasks, salary | admin · supervisor · viewer |
 | **Gate kiosk** | Employees check in / check out with a PIN (no login) | — |
 | **Users & Access** | Create users, change passwords, grant / remove access | portal admin |
-| **Documents** | Leak Test (TS-001), Tank Certificate (HMI-2026-001, English + Arabic), Cash Receipt (CR-2026-001), Quotation (QT-AL000001), Invoice (INV-AL00001, ZATCA QR), Delivery Note (AH-2026-001), Purchase Order (PO-00001), Job Card (JC-2026-001), Material Request (MR-2026-001): draft / approve, history, PDF | manager · staff · viewer |
+| **Documents** | Leak Test (TS-001), Tank Certificate (HMI-2026-001, English + Arabic), Aramco Fuel Tanker Inspection (AIC-2026-001, English + Arabic), Certificate of Origin & Warranty (COW-2026-001), Cash Receipt (CR-2026-001), Quotation (QT-AL000001), Invoice (INV-AL00001, ZATCA QR), Delivery Note (AH-2026-001), Purchase Order (PO-00001), Job Card (JC-2026-001), Material Request (MR-2026-001): draft / approve, history, PDF | manager · staff · viewer |
 
 ---
 
@@ -235,6 +235,25 @@ Kept: logins and roles (Users & Access) and HR settings. Document numbers start 
 - **Pay all balances**: one payment for everyone's remaining balance (for example the monthly bank / WPS transfer).
 - The payslip PDF lists the payments made and the balance due.
 - Needs the latest `supabase_hr.sql`.
+
+## Aramco Fuel Tanker Inspection Certificate (Documents → Aramco Inspection)
+
+- Number **AIC-2026-001** (restarts every year). Issue date + **12 months** = valid until (months can be changed).
+- Customer, chassis / VIN, serial no., truck plate, capacity, vehicle type.
+- **15-point checklist** (tank body, plate thickness, shell & welds, manholes, ladders, rear lights, side lights, pressure / leak test, bottom loading, emergency valves, overfill, earthing, vapour recovery, axles & brakes, extinguishers & hazmat). Each item: **PASS / FAIL / N/A**, method and remarks (filled in, can be changed). One FAIL makes the overall result **NOT PASSED**, the declaration text changes and the QR page shows "Inspection not passed".
+- **Test readings** (plate thickness, ends, test type, pressure, hold time, pressure drop, compartments, earthing resistance): only the filled ones are printed.
+- English + Arabic declaration, **Inspected by / Approved by** names and titles (remembered on the device), up to **4 photos** with captions on the last page.
+- PDF: page 1 details + checklist + overall result, page 2 readings + declaration + signatures + QR + stamp, page 3 photos.
+- QR, WhatsApp, expiry reminders on Home: same as the Tank Certificate.
+
+## Certificate of Origin & Limited Warranty (Documents → Origin & Warranty)
+
+- Number **COW-2026-001** (restarts every year). English only.
+- Customer, invoice / PO, delivery date, vehicle, serial no., chassis / VIN. Manufacturer and **country of origin (Kingdom of Saudi Arabia)** are printed automatically.
+- Tank, chassis, axles and brakes specs; suspension, axle brand, brake system, shell material and kingpin can be picked from a list or typed.
+- **Bottom loading:** "Installed" prints the parts and the 6 tests (PASS / FAIL / N/A + remarks). "Not applicable (top loading only)" hides all of it.
+- Warranty months (default 12) from the delivery date gives **Warranty until**; the QR page shows whether the warranty is still active.
+- Prepared by / Approved by with titles, QR and stamp.
 
 ## Cash Receipt (Documents → Cash Receipt)
 

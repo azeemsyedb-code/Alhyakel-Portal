@@ -169,9 +169,27 @@ dd.mono{font-family:var(--f-mono);font-size:14px}
   if (!c) { show({tone: 'bad', en: 'Not found', ar: 'غير موجودة', lead: 'No certificate with this code exists in our records. It may be fake or withdrawn. Please call us to confirm.'}); return; }
 
   const pdf = `${String(CFG.SUPABASE_URL).replace(/\/+$/, '')}/storage/v1/object/public/certs/${token}.pdf`;
-  if (c.type === 'tank') {
-    const rows = [['Certificate No.', c.doc_no, 'mono'], ['Customer', c.party_name], ['Tank No.', c.tank_no, 'mono'], ['Truck plate', c.truck_plate], ['Serial No.', c.serial_no, 'mono'], ['Capacity', c.capacity]];
-    const lead = 'Tank Trailer Axles Certificate, issued by Al Hyakel workshop.';
+  if (c.type === 'cow') {
+    const rows = [['Certificate No.', c.doc_no, 'mono'], ['Customer', c.party_name], ['Vehicle', c.vehicle_type], ['Chassis / VIN', c.chassis_no, 'mono'], ['Serial No.', c.serial_no, 'mono'], ['Capacity', c.capacity], ['Country of origin', 'Kingdom of Saudi Arabia']];
+    const lead = 'Certificate of Origin &amp; Limited Warranty, issued by Al Hyakel Metal Industries.';
+    if (!c.warranty_until) { show({tone: 'ok', en: 'Genuine certificate', ar: 'شهادة أصلية', lead, genuine: true, rows, pdf}); return; }
+    const start = c.delivery_date || c.doc_date, total = Math.max(1, days(start, c.warranty_until)), left = days(today, c.warranty_until);
+    const pct = Math.min(100, Math.max(0, (total - Math.max(left, 0)) / total * 100)), tone = left < 0 ? 'warn' : 'ok';
+    const timeline = `<section class="sect"><h2>Warranty</h2>
+        <div class="bar"><div class="fill" style="width:${pct}%"></div><div class="now" style="left:${pct}%;--lx:${pct > 85 ? '-85%' : pct < 15 ? '-15%' : '-50%'}"><span>${left >= 0 ? 'Today' : 'Ended'}</span></div></div>
+        <div class="ends"><div><span>Delivered</span><b>${fmt(start)}</b></div><div><span>Warranty until</span><b>${fmt(c.warranty_until)}</b></div></div>
+        <div class="left">${left >= 0 ? `Warranty is active: <b>${left} day${left === 1 ? '' : 's'}</b> left.` : `The warranty ended <b>${-left} day${left === -1 ? '' : 's'} ago</b>. The certificate of origin stays valid.`}</div></section>`;
+    show({tone, en: tone === 'ok' ? 'Genuine certificate' : 'Genuine, warranty ended', ar: tone === 'ok' ? 'شهادة أصلية' : 'شهادة أصلية، انتهى الضمان', lead, genuine: true, timeline, rows, pdf});
+    return;
+  }
+  if (c.type === 'tank' || c.type === 'aramco') {
+    const aic = c.type === 'aramco';
+    if (aic && c.result === 'FAIL') {
+      show({tone: 'bad', en: 'Inspection not passed', ar: 'لم يجتز الفحص', lead: 'This fuel tanker did not pass the inspection. It is not certified for service.', genuine: true, stamp: 'FAILED',
+        rows: [['Certificate No.', c.doc_no, 'mono'], ['Customer', c.party_name], ['Chassis No.', c.chassis_no, 'mono'], ['Truck plate', c.truck_plate]], pdf}); return; }
+    const rows = aic ? [['Certificate No.', c.doc_no, 'mono'], ['Customer', c.party_name], ['Chassis No.', c.chassis_no, 'mono'], ['Serial No.', c.serial_no, 'mono'], ['Truck plate', c.truck_plate], ['Capacity', c.capacity], ['Vehicle', c.vehicle_type]]
+      : [['Certificate No.', c.doc_no, 'mono'], ['Customer', c.party_name], ['Tank No.', c.tank_no, 'mono'], ['Truck plate', c.truck_plate], ['Serial No.', c.serial_no, 'mono'], ['Capacity', c.capacity]];
+    const lead = aic ? 'Fuel Tanker Inspection Certificate (for Saudi Aramco), issued by Al Hyakel workshop.' : 'Tank Trailer Axles Certificate, issued by Al Hyakel workshop.';
     if (!c.valid_until) { show({tone: 'ok', en: 'Genuine certificate', ar: 'شهادة أصلية', lead, genuine: true, rows, pdf}); return; }
     const total = Math.max(1, days(c.doc_date, c.valid_until)), left = days(today, c.valid_until);
     const pct = Math.min(100, Math.max(0, (total - Math.max(left, 0)) / total * 100));
