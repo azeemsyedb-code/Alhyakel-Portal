@@ -9,7 +9,7 @@
   const riyadh = ts => ts ? new Intl.DateTimeFormat('en-GB', {timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false})
     .format(new Date(ts)).replace(/(\d+)\/(\d+)\/(\d+),?/, '$3-$2-$1') : '';
   const num = v => v === '' || v == null || isNaN(Number(v)) ? (v ?? '') : Number(v);
-  const DOC_NAMES = {leak: 'Leak Test', tank: 'Tank Certificate', quotation: 'Quotation', invoice: 'Invoice', dn: 'Delivery Note', po: 'Purchase Order', jobcard: 'Job Card', mr: 'Material Request'};
+  const DOC_NAMES = {leak: 'Leak Test', tank: 'Tank Certificate', quotation: 'Quotation', invoice: 'Invoice', dn: 'Delivery Note', po: 'Purchase Order', jobcard: 'Job Card', mr: 'Material Request', receipt: 'Cash Receipt'};
   const human = k => k.replace(/_/g, ' ').replace(/\b\w/, c => c.toUpperCase()).replace(/\bno\b/i, 'No.').replace(/\bvat\b/i, 'VAT');
 
   const PERIODS = {
@@ -135,6 +135,10 @@
         const a = await all('hr_advances', '*', q => between('given_on', from, to)(q).order('given_on'));
         add('Advances', a.map(x => ({'Given on': x.given_on, ...E(x.employee_id), 'Amount (SAR)': num(x.amount), 'Monthly installment': num(x.installment), Note: x.note})));
       });
+      await tryPart('salary payments', async () => {
+        const s = await all('hr_salary_payments', '*', q => between('paid_on', from, to)(q).order('paid_on'));
+        add('Salary payments', s.map(x => ({'Paid on': x.paid_on, 'Salary month': x.month, ...E(x.employee_id), 'Amount (SAR)': num(x.amount), Method: x.method, Reference: x.reference, Note: x.note, 'Recorded by': who(x.created_by)})));
+      });
       await tryPart('payslips', async () => {
         const s = await all('hr_payslips', '*', q => { if (from) q = q.gte('month', from.slice(0, 7)); if (to) q = q.lte('month', to.slice(0, 7)); return q.order('month'); });
         add('Payslips', s.map(x => { const d = x.data || {}, dd = d.days || {};
@@ -180,7 +184,7 @@
   /* ---------- backups (weekly automatic + "Back up now") ---------- */
   const TABLE_NAMES = {portal_users: 'Users', docs_documents: 'Documents', docs_payments: 'Payments', docs_catalog: 'Price list', inv_suppliers: 'Suppliers',
     inv_products: 'Products', inv_movements: 'Stock movements', inv_counts: 'Stock counts', hr_settings: 'HR settings', hr_employees: 'Employees', hr_pay: 'Pay',
-    hr_attendance: 'Attendance', hr_tasks: 'Tasks', hr_kit: 'Working kit', hr_adjustments: 'Deductions & bonuses', hr_advances: 'Advances', hr_payslips: 'Payslips'};
+    hr_attendance: 'Attendance', hr_tasks: 'Tasks', hr_kit: 'Working kit', hr_adjustments: 'Deductions & bonuses', hr_advances: 'Advances', hr_payslips: 'Payslips', hr_salary_payments: 'Salary payments'};
   const kb = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
   window.portalBackups = async () => {
     const box = $('#backupBox'); if (!box) return;
