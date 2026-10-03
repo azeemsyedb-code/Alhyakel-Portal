@@ -67,7 +67,7 @@
   const addDays = (d, n) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
   const addMonths = (d, n) => { const [y, m, day] = d.split('-').map(Number), x = new Date(Date.UTC(y, m - 1 + n, 1));
     x.setUTCDate(Math.min(day, new Date(Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + 1, 0)).getUTCDate())); return x.toISOString().slice(0, 10); };
-  const DOC_NAMES = {leak: 'Leak Test', tank: 'Tank Certificate', quotation: 'Quotation', invoice: 'Invoice', dn: 'Delivery Note', po: 'Purchase Order', jobcard: 'Job Card', mr: 'Material Request', receipt: 'Cash Receipt'};
+  const DOC_NAMES = {leak: 'Leak Test', tank: 'Tank Certificate', quotation: 'Quotation', invoice: 'Invoice', dn: 'Delivery Note', po: 'Purchase Order', jobcard: 'Job Card', mr: 'Material Request', receipt: 'Cash Receipt', aramco: 'Aramco Inspection', cow: 'Origin & Warranty'};
   window.portalDocNames = DOC_NAMES;
   const initials = n => String(n || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
 
@@ -101,12 +101,12 @@
           if (count) groups.push({key: 'approve', title: 'Waiting for approval', color: COL.orange, icon: 'check', count,
             items: (data || []).map(d => ({label: d.doc_no, sub: `${DOC_NAMES[d.doc_type] || d.doc_type} · ${d.party_name || ''}`, href: `documents.html#${d.doc_type}/${d.id}`}))});
         }));
-      jobs.push(sb.from('docs_documents').select('id, doc_no, party_name, data').eq('doc_type', 'tank')
-        .gte('data->>valid_until', t).lte('data->>valid_until', addDays(t, 30)).limit(30).then(({data}) => {
+      jobs.push(sb.from('docs_documents').select('id, doc_type, doc_no, party_name, data').in('doc_type', ['tank', 'aramco'])
+        .gte('data->>valid_until', t).lte('data->>valid_until', addDays(t, 30)).limit(60).then(({data}) => {
           const rows = (data || []).sort((a, b) => String(a.data?.valid_until).localeCompare(String(b.data?.valid_until)));
           stats.expiring = rows.length;
-          if (rows.length) groups.push({key: 'expiry', title: 'Tank certificates expiring in 30 days', color: COL.blue, icon: 'cal', count: rows.length,
-            items: rows.map(d => ({label: d.doc_no, sub: `${d.party_name || ''} · valid until ${d.data?.valid_until}`, href: `documents.html#tank/${d.id}`}))});
+          if (rows.length) groups.push({key: 'expiry', title: 'Certificates expiring in 30 days', color: COL.blue, icon: 'cal', count: rows.length,
+            items: rows.map(d => ({label: d.doc_no, sub: `${d.party_name || ''} · valid until ${d.data?.valid_until}`, href: `documents.html#${d.doc_type || 'tank'}/${d.id}`}))});
         }));
       jobs.push(sb.from('docs_documents').select('id, doc_no, party_name, doc_date, data').eq('doc_type', 'invoice').gte('doc_date', t.slice(0, 7) + '-01')
         .then(({data}) => { stats.invoicedMonth = (data || []).reduce((s, d) => s + (Number(d.data?.grand_total) || 0), 0); }));
