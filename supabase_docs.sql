@@ -34,6 +34,10 @@ create index if not exists docs_documents_type_date_idx on public.docs_documents
 alter table public.docs_documents add column if not exists status text not null default 'draft';
 alter table public.docs_documents add column if not exists approved_by uuid;
 alter table public.docs_documents add column if not exists approved_at timestamptz;
+-- document types (cash receipt added later)
+alter table public.docs_documents drop constraint if exists docs_documents_doc_type_check;
+alter table public.docs_documents add constraint docs_documents_doc_type_check
+  check (doc_type in ('leak','tank','quotation','po','dn','invoice','jobcard','mr','receipt'));
 alter table public.docs_documents drop constraint if exists docs_documents_status_check;
 alter table public.docs_documents add constraint docs_documents_status_check check (status in ('draft','approved'));
 
@@ -45,6 +49,7 @@ alter table public.docs_documents add constraint docs_documents_status_check che
 --      quotation : QT-AL000001, QT-AL000002, ...
 --      po   : PO-00001, PO-00002, ...
 --      tank : HMI-2026-001, ... (restarts every year)
+--      receipt : CR-2026-001, ... (cash receipt, restarts every year)
 --      invoice : INV-AL00001, ...
 --      jobcard : JC-2026-001, mr : MR-2026-001 (restart every year)
 --    A number typed in the form is used as-is (must be unique).
@@ -93,6 +98,11 @@ begin
         select coalesce(max((regexp_match(doc_no, '^' || case new.doc_type when 'jobcard' then 'JC' else 'MR' end || '-' || v_yr || '-(\d+)$'))[1]::int), 0) + 1 into v_n
           from public.docs_documents where doc_type = new.doc_type;
         new.doc_no := case new.doc_type when 'jobcard' then 'JC-' else 'MR-' end || v_yr || '-' || lpad(v_n::text, 3, '0');
+      elsif new.doc_type = 'receipt' then
+        v_yr := to_char(new.doc_date, 'YYYY');
+        select coalesce(max((regexp_match(doc_no, '^CR-' || v_yr || '-(\d+)$'))[1]::int), 0) + 1 into v_n
+          from public.docs_documents where doc_type = 'receipt';
+        new.doc_no := 'CR-' || v_yr || '-' || lpad(v_n::text, 3, '0');
       elsif new.doc_type = 'quotation' then
         select coalesce(max((regexp_match(doc_no, '^QT-AL(\d+)$'))[1]::int), 0) + 1 into v_n
           from public.docs_documents where doc_type = 'quotation';

@@ -25,6 +25,7 @@ restart identity cascade;
 
 -- tables from supabase_extras.sql (only if that file has been run); backups are kept on purpose
 do $$ begin
+  if to_regclass('public.hr_salary_payments') is not null then truncate table public.hr_salary_payments; end if;
   if to_regclass('public.inv_counts') is not null then truncate table public.inv_counts restart identity; end if;
   if to_regclass('public.hr_punch_photos') is not null then truncate table public.hr_punch_photos restart identity; end if;
   if to_regclass('public.push_log') is not null then truncate table public.push_log restart identity; end if;

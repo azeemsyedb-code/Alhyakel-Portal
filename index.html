@@ -41,7 +41,7 @@
       <div class="meta"><span>${roleLabel}</span><b>${esc(/\.html$/.test(role) ? role : role.charAt(0).toUpperCase() + role.slice(1))}</b></div></a>`;
   const kioskUrl = new URL(L.kiosk, location.href).href;
   $('grid').innerHTML = [
-    U.docs_role && card(L.documents, COL.brand, 'doc', '8 document types', 'Documents', 'Certificates, quotations, invoices, PO, delivery notes, job cards, material requests and the price list.', 'Your role', U.docs_role),
+    U.docs_role && card(L.documents, COL.brand, 'doc', '9 document types', 'Documents', 'Certificates, quotations, invoices, cash receipts, PO, delivery notes, job cards, material requests and the price list.', 'Your role', U.docs_role),
     U.inv_role && card(L.inventory, COL.orange, 'box', 'Stock', 'Inventory', 'Stock in / out with barcode scan, products, suppliers and low-stock alerts.', 'Your role', U.inv_role),
     U.hr_role && card(L.employees, COL.green, 'team', 'Staff', 'Employees', 'Attendance, overtime, tasks, working kit and monthly payslips.', 'Your role', U.hr_role),
     U.is_admin && card(L.access, COL.purple, 'key', 'Logins', 'Users &amp; Access', 'Create logins, reset passwords and decide who opens what.', 'Your role', 'Portal admin'),

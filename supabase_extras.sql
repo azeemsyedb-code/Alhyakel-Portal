@@ -195,7 +195,7 @@ returns bigint language plpgsql security definer set search_path = public as $$
 declare
   t text; rows jsonb; d jsonb := '{}'::jsonb; counts jsonb := '{}'::jsonb; v_id bigint;
   tabs text[] := array['portal_users','docs_documents','docs_payments','docs_catalog','inv_suppliers','inv_products','inv_movements','inv_counts',
-                       'hr_settings','hr_employees','hr_pay','hr_attendance','hr_tasks','hr_kit','hr_adjustments','hr_advances','hr_payslips'];
+                       'hr_settings','hr_employees','hr_pay','hr_attendance','hr_tasks','hr_kit','hr_adjustments','hr_advances','hr_payslips','hr_salary_payments'];
 begin
   if auth.uid() is not null and not public.is_portal_admin() then raise exception 'Only a portal admin can make a backup'; end if;
   if p_kind not in ('auto','manual') then raise exception 'Unknown backup kind'; end if;
@@ -313,7 +313,7 @@ grant execute on function public.portal_push_test() to authenticated;
 -- documents: waiting for approval / approved
 create or replace function public.docs_notify()
 returns trigger language plpgsql security definer set search_path = public as $$
-declare names jsonb := '{"leak":"Leak Test","tank":"Tank Certificate","quotation":"Quotation","invoice":"Invoice","dn":"Delivery Note","po":"Purchase Order","jobcard":"Job Card","mr":"Material Request"}';
+declare names jsonb := '{"leak":"Leak Test","tank":"Tank Certificate","quotation":"Quotation","invoice":"Invoice","dn":"Delivery Note","po":"Purchase Order","jobcard":"Job Card","mr":"Material Request","receipt":"Cash Receipt"}';
         nm text := coalesce(names->>new.doc_type, new.doc_type);
 begin
   if tg_op = 'INSERT' and new.status = 'draft' then

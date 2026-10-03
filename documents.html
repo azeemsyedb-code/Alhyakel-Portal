@@ -111,6 +111,7 @@ tr.inactive td{opacity:.5}
     <a href="#po" data-t="po">Purchase Order</a>
     <a href="#jobcard" data-t="jobcard">Job Card</a>
     <a href="#mr" data-t="mr">Material Request</a>
+    <a href="#receipt" data-t="receipt">Cash Receipt</a>
     <a href="#catalog" data-t="catalog">Price List</a>
   </nav>
 </div>
@@ -1022,6 +1023,7 @@ function zatcaQr(r) {
 }
 const iPdf = async (type, r, photos) => {
   await arabicReady();
+  if (type === 'receipt') return receiptPdf(r, await assets());
   if (type !== 'tank') return itemsPdf(type, r, await assets());
   if (!photos) photos = r.files?.photos?.some(Boolean) ? (await recordFiles(r)).photos : [];
   return tankPdf(r, {...await assets(), photos: await withEl(photos)});
@@ -1548,6 +1550,197 @@ async function showTankForm(id, copyFrom) {
   }); });
 }
 
+
+/* ===================== CASH RECEIPT (سند قبض) ===================== */
+// Money received from a customer. Can be linked to an invoice: the payment is then recorded on that invoice too.
+const RCPT_METHODS = ['Cash', 'Cheque', 'Bank transfer', 'Card'];
+IDOCS.receipt = {
+  title: 'Cash Receipt', plural: 'Cash Receipts', group: 'customer', custom: true,
+  nextNo: (list, date) => { const y = (date || today()).slice(0, 4); return `CR-${y}-${String(maxNo(list, new RegExp(`^CR-${y}-(\\d+)$`)) + 1).padStart(3, '0')}`; },
+  party: [],
+  listCols: [['Received from', r => who(r.party_name)], ['Method', r => esc(r.data?.method)], ['Invoice', r => esc(r.data?.invoice_no)], ['Amount (SAR)', r => money(r.data?.amount), 'money']],
+  search: r => [r.data?.invoice_no, r.data?.purpose, r.data?.reference, r.data?.method]
+};
+
+function receiptPdf(r, img) {
+  const d = r.data || {};
+  const {jsPDF} = window.jspdf;
+  const pdf = new jsPDF({unit: 'mm', format: 'a4', compress: true});
+  const W = 210, M = 12, CW = W - 2 * M, hh = CW * img.header.h / img.header.w;
+  const ar = (t, x, y, pt, o = {}) => { const a = arImg(t, pt, o); pdf.addImage(a.dataUrl, 'PNG', o.left ? x : x - a.w, y - a.h / 2, a.w, a.h); return a; };
+  const amount = Number(d.amount) || 0;
+  const half = (y0, label) => {
+    pdf.addImage(img.header.dataUrl, 'JPEG', M, y0, CW, hh, 'hdr');
+    let y = y0 + hh + 7;
+    // title + copy label
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(16); pdf.setTextColor(...C.slate);
+    pdf.text('CASH RECEIPT', M, y + 2);
+    ar('سند قبض', M + pdf.getTextWidth('CASH RECEIPT') + 5, y + 0.6, 14, {left: true, color: '#2E5868', bold: true});
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); pdf.setTextColor(...C.muted);
+    pdf.text(label + `   |   VAT No: ${VAT_NO}`, M, y + 7.5);
+    // amount box
+    const bw = 62, bx = W - M - bw;
+    pdf.setDrawColor(...C.slate); pdf.setLineWidth(0.6); pdf.roundedRect(bx, y - 6, bw, 15, 1.5, 1.5, 'S');
+    pdf.setFillColor(...C.slate); pdf.roundedRect(bx, y - 6, 16, 15, 1.5, 1.5, 'F'); pdf.rect(bx + 8, y - 6, 8, 15, 'F');
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); pdf.setTextColor(255, 255, 255); pdf.text('SAR', bx + 8, y + 2.8, {align: 'center'});
+    pdf.setFontSize(15); pdf.setTextColor(...C.ink); pdf.text(money(amount), bx + bw - 3, y + 3.4, {align: 'right'});
+    y += 14;
+    // no. and date
+    pdf.setDrawColor(...C.line); pdf.setLineWidth(0.25); pdf.line(M, y, W - M, y);
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9); pdf.setTextColor(...C.ink);
+    pdf.text('Receipt No.', M, y + 6); pdf.setTextColor(...RED); pdf.setFontSize(10.5); pdf.text(r.doc_no || 'DRAFT', M + 23, y + 6);
+    ar('رقم السند', M + 80, y + 5.2, 8.5);
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9); pdf.setTextColor(...C.ink); pdf.text('Date', W / 2 + 6, y + 6);
+    pdf.setFont('helvetica', 'normal'); pdf.text(fullDate(r.doc_date), W / 2 + 18, y + 6);
+    ar('التاريخ', W - M, y + 5.2, 8.5);
+    y += 10;
+    // lines: English label | value | Arabic label
+    const line = (en, arTxt, value, h = 10) => {
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9); pdf.setTextColor(...C.slate); pdf.text(en, M, y + 6);
+      const aw = ar(arTxt, W - M, y + 5.2, 9).w;
+      const x0 = M + 40, x1 = W - M - aw - 4;
+      pdf.setDrawColor(...C.line); pdf.setLineDashPattern([0.6, 0.9], 0); pdf.line(x0, y + 7.6, x1, y + 7.6); pdf.setLineDashPattern([], 0);
+      const v = String(value || '').trim() || '-';
+      if (hasAr(v)) { const a = arImg(v, 10, {maxW: x1 - x0 - 2, bold: true}); const k = Math.min(1, 8 / a.h); pdf.addImage(a.dataUrl, 'PNG', x0 + 1, y + 6 - a.h * k + 1.6, a.w * k, a.h * k); }
+      else { pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); pdf.setTextColor(...C.ink); pdf.text(pdf.splitTextToSize(v, x1 - x0 - 2)[0], x0 + 1, y + 6); }
+      y += h;
+    };
+    line('Received from', 'استلمنا من السيد / السادة', r.party_name);
+    line('The sum of', 'مبلغ وقدره', sarWords(amount));
+    line('Being', 'وذلك عن', [d.purpose, d.invoice_no && `against invoice ${d.invoice_no}`].filter(Boolean).join(', '));
+    line('Paid by', 'طريقة الدفع', [d.method, d.reference && `No. ${d.reference}`, d.bank].filter(Boolean).join(', '));
+    // signatures + stamp
+    y += 18;
+    const sw = 46, sh = img.stamp.h * sw / img.stamp.w;
+    pdf.addImage(img.stamp.dataUrl, 'PNG', W / 2 - sw / 2, y + 9 - sh, sw, sh, 'stamp');
+    pdf.setDrawColor(...C.ink); pdf.setLineWidth(0.35); pdf.line(M, y + 6, M + 60, y + 6); pdf.line(W - M - 60, y + 6, W - M, y + 6);
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.5); pdf.setTextColor(...C.slate);
+    pdf.text('Received by (Al Hyakel)', M, y + 10.5); ar('المستلم', M + 60, y + 10, 8.5);
+    pdf.text('Paid by (Customer)', W - M - 60, y + 10.5); ar('الدافع', W - M, y + 10, 8.5);
+  };
+  half(6, 'Original');
+  pdf.setDrawColor(...C.muted); pdf.setLineWidth(0.2); pdf.setLineDashPattern([2, 1.5], 0); pdf.line(4, 148.5, W - 4, 148.5); pdf.setLineDashPattern([], 0);
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6.5); pdf.setTextColor(...C.muted); pdf.text('cut here', W / 2, 147.3, {align: 'center'});
+  half(154, 'Copy');
+  return pdf;
+}
+
+async function showReceiptForm(id, copyFrom) {
+  const seq = ROUTE_SEQ, type = 'receipt', T = IDOCS.receipt;
+  view.innerHTML = '<p class="muted">Loading…</p>';
+  let list, invoices, others;
+  try { [list, invoices, ...others] = await Promise.all([loadIList(type, true), loadIList('invoice', true), ...GROUP_TYPES('customer').filter(t => t !== type && t !== 'invoice').map(t => loadIList(t))]); others = others.flat(); }
+  catch (e) { view.innerHTML = `<p class="flash">Database error: ${esc(nice(e))}</p>`; return; }
+  let rec = null, src = null;
+  if (id || copyFrom) {
+    const {data} = await sb.from('docs_documents').select('*').eq('id', id || copyFrom).eq('doc_type', type).maybeSingle();
+    if (!data) { view.innerHTML = `<p class="flash">Receipt not found. <a href="#receipt">Back to list</a></p>`; return; }
+    src = data; if (id) rec = data;
+  }
+  const d = {method: 'Cash', ...(src?.data || {})};
+  if (copyFrom) { delete d.payment_id; delete d.invoice_id; delete d.invoice_no; }
+  const ro = !CAN_EDIT || locked(rec), dis = ro ? 'disabled' : '';
+  const dateNow = rec?.doc_date || today(), stLine = await approvalLine(rec);
+  const names = [...new Set([...list, ...invoices, ...others].map(x => x.party_name).filter(Boolean))].sort();
+  const bal = inv => r2((Number(inv.data?.grand_total) || 0) - (inv.paid || 0)) + (rec && d.invoice_id === inv.id ? Number(d.amount || 0) : 0);
+  const who = rec ? `Created by: ${esc(await nameOf(rec.created_by))} · ${new Date(rec.created_at).toLocaleString('en-GB', {dateStyle: 'medium', timeStyle: 'short'})}` : '';
+  if (seq !== ROUTE_SEQ) return;
+  view.innerHTML = `
+    <p style="margin:0 0 10px"><a href="#receipt">&larr; Cash Receipts</a></p>
+    <h2>${rec ? `Cash Receipt <span class="mono" style="font-size:1.1rem">${esc(rec.doc_no)}</span>` : 'New Cash Receipt'}</h2>
+    ${who ? `<p class="meta">${who}</p>` : ''}${stLine ? `<p class="status-line">${stLine}</p>` : ''}
+    <form id="f" autocomplete="off">
+      <div class="sheet">
+        <h3>Receipt</h3>
+        <div class="grid">
+          <div class="field"><label for="f_no">Receipt No.</label>${rec ? `<div class="fixed">${esc(rec.doc_no)}</div>` : `<input id="f_no" placeholder="Auto: ${esc(T.nextNo(list, dateNow))}" ${dis}>`}</div>
+          <div class="field"><label for="f_date">Date</label><input id="f_date" type="date" required value="${esc(dateNow)}" ${dis}></div>
+          <div class="field" style="grid-column:1/-1"><label for="f_party">Received from</label><input id="f_party" list="names" required value="${esc(src?.party_name)}" ${dis}>
+            <datalist id="names">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
+          <div class="field"><label for="f_amount">Amount (SAR)</label><input id="f_amount" type="number" min="0.01" step="0.01" required value="${esc(d.amount)}" ${dis}></div>
+          <div class="field"><label for="f_method">Paid by</label><select id="f_method" ${dis}>${RCPT_METHODS.map(m => `<option${m === d.method ? ' selected' : ''}>${m}</option>`).join('')}</select></div>
+          <div class="field"><label for="f_reference">Cheque / transfer No.</label><input id="f_reference" value="${esc(d.reference)}" ${dis}></div>
+          <div class="field"><label for="f_bank">Bank</label><input id="f_bank" value="${esc(d.bank)}" placeholder="e.g. Al Rajhi Bank" ${dis}></div>
+        </div>
+        <p class="hint" id="words"></p>
+        <div class="grid">
+          <div class="field"><label for="f_invoice">Against invoice (optional)</label><select id="f_invoice" ${dis}></select></div>
+          <div class="field"><label for="f_purpose">Being (for)</label><input id="f_purpose" value="${esc(d.purpose)}" placeholder="e.g. Advance for tank fabrication" ${dis}></div>
+        </div>
+        ${ro ? '' : '<p class="hint">Choose an invoice to record this money as a payment on it too (it then shows in that invoice&#39;s Payments and in Receivables).</p>'}
+      </div>
+      <p class="err" id="err" role="alert"></p>
+      <div class="bar">
+        ${ro ? '' : '<button class="btn" id="save" type="submit">Save</button><button class="btn sec" id="saveNew" type="button" title="Save, then start a new one">Save &amp; New</button>'}
+        <button class="btn sec" type="button" id="dl">Download PDF</button>
+        <button class="btn sec" type="button" id="pv">Preview</button>
+        <span class="share"><button class="btn sec" type="button" id="sh">Share</button></span>
+        ${rec && CAN_EDIT ? `<a class="btn sec" href="#receipt/copy/${rec.id}">Copy as new</a>` : ''}
+        ${approvalButtons(rec)}
+        <span class="grow"></span>
+        ${rec && CAN_DELETE ? '<button class="btn danger" type="button" id="del">Delete</button>' : ''}
+      </div>
+    </form>`;
+  wireApproval(rec, type);
+  const form = $('#f');
+  const drawInvoices = () => {
+    const p = $('#f_party').value.trim().toLowerCase(), cur = $('#f_invoice').value || d.invoice_id;
+    const opts = invoices.filter(i => i.id === cur || ((i.party_name || '').trim().toLowerCase() === p && bal(i) > 0.005));
+    $('#f_invoice').innerHTML = `<option value="">Not linked to an invoice</option>` + opts.map(i => `<option value="${i.id}"${i.id === cur ? ' selected' : ''}>${esc(i.doc_no)}, balance SAR ${money(bal(i))}</option>`).join('');
+  };
+  const drawWords = () => { const a = Number($('#f_amount').value); $('#words').textContent = a > 0 ? sarWords(a) : ''; };
+  drawInvoices(); drawWords();
+  form.addEventListener('input', e => { dirty = true; if (e.target.id === 'f_amount') drawWords(); });
+  $('#f_party').addEventListener('change', drawInvoices);
+  $('#f_invoice').addEventListener('change', () => { const inv = invoices.find(i => i.id === $('#f_invoice').value);
+    if (inv && !$('#f_amount').value) { $('#f_amount').value = bal(inv).toFixed(2); drawWords(); }
+    if (inv && !$('#f_purpose').value.trim()) $('#f_purpose').value = 'Payment';
+  });
+  const collect = () => { const inv = invoices.find(i => i.id === $('#f_invoice').value);
+    return {doc_date: $('#f_date').value, party_name: $('#f_party').value.trim(), data: {amount: r2(Number($('#f_amount').value) || 0), method: $('#f_method').value,
+      reference: $('#f_reference').value.trim(), bank: $('#f_bank').value.trim(), purpose: $('#f_purpose').value.trim(),
+      invoice_id: inv ? inv.id : null, invoice_no: inv ? inv.doc_no : null, payment_id: rec?.data?.payment_id || null}}; };
+  const draft = () => ({...collect(), doc_no: rec?.doc_no || ($('#f_no')?.value.trim() || '')});
+  const run = async (btn, fn) => { const t = btn.textContent; btn.disabled = true; btn.textContent = 'Please wait…'; $('#err').textContent = '';
+    try { await fn(); } catch (e) { $('#err').textContent = nice(e); } btn.disabled = false; btn.textContent = t; };
+  const name = () => (draft().doc_no || 'Cash-Receipt-DRAFT') + '.pdf';
+  $('#dl').onclick = e => run(e.target, async () => (await iPdf(type, draft())).save(name()));
+  wireShare($('#sh'), () => iPdf(type, draft()), name, () => { const v = draft(); return `Cash Receipt ${v.doc_no || ''} - ${v.party_name} - SAR ${money(v.data.amount)}`; });
+  $('#pv').onclick = e => run(e.target, async () => { const w = window.open('', '_blank'); const url = (await iPdf(type, draft())).output('bloburl'); if (w) w.location = url; else location.href = url; });
+  $('#del')?.addEventListener('click', e => run(e.target, async () => {
+    if (!confirm(`Permanently delete ${rec.doc_no}?${rec.data?.payment_id ? ' Its payment on ' + rec.data.invoice_no + ' will be deleted too.' : ''}`)) return;
+    if (rec.data?.payment_id) { const {error} = await sb.from('docs_payments').delete().eq('id', rec.data.payment_id); if (error) throw error; }
+    const {error} = await sb.from('docs_documents').delete().eq('id', rec.id); if (error) throw error;
+    ILIST.invoice = null; dirty = false; toast(rec.doc_no + ' deleted'); location.hash = '#receipt';
+  }));
+  form.addEventListener('submit', e => { e.preventDefault(); if (!ro) run($('#save'), async () => {
+    const v = collect(), x = v.data, old = rec?.data || {};
+    if (!v.doc_date) throw new Error('Please enter the date.');
+    if (!v.party_name) { $('#f_party').focus(); throw new Error('Please enter who the money was received from.'); }
+    if (!(x.amount > 0)) { $('#f_amount').focus(); throw new Error('Please enter the amount.'); }
+    const linkChanged = old.payment_id && (old.invoice_id !== x.invoice_id || Number(old.amount) !== x.amount || rec.doc_date !== v.doc_date || old.method !== x.method);
+    if (linkChanged && !CAN_DELETE) throw new Error('This receipt is recorded as a payment on ' + old.invoice_no + '. Only a manager can change its amount, date, method or invoice.');
+    if (x.invoice_id && !old.payment_id) { const inv = invoices.find(i => i.id === x.invoice_id);
+      if (inv && x.amount > bal(inv) + 0.005 && !confirm(`This is more than the invoice balance (SAR ${money(bal(inv))}). Save anyway?`)) return; }
+    let res;
+    if (rec) res = await sb.from('docs_documents').update(v).eq('id', rec.id).select().single();
+    else { const manual = $('#f_no').value.trim(); res = await sb.from('docs_documents').insert({doc_type: type, ...v, ...(manual ? {doc_no: manual} : {})}).select().single(); }
+    if (res.error) throw new Error(res.error.code === '23505' ? 'This number already exists. Leave it blank or enter a different one.' : nice(res.error));
+    rec = res.data;
+    // keep the invoice payment in step with the receipt
+    let pid = old.payment_id || null;
+    if (pid && (linkChanged || !x.invoice_id)) { const {error} = await sb.from('docs_payments').delete().eq('id', pid); if (error) throw error; pid = null; }
+    if (x.invoice_id && !pid) {
+      const {data: pay, error} = await sb.from('docs_payments').insert({document_id: x.invoice_id, paid_on: v.doc_date, amount: x.amount, method: x.method, reference: rec.doc_no}).select().single();
+      if (error) throw new Error('Receipt saved, but the invoice payment could not be recorded: ' + nice(error));
+      pid = pay.id;
+    }
+    if (pid !== (rec.data?.payment_id || null)) { const up = await sb.from('docs_documents').update({data: {...rec.data, payment_id: pid}}).eq('id', rec.id).select().single(); if (!up.error) rec = up.data; }
+    ILIST.invoice = null; dirty = false; toast(`${rec.doc_no} saved`);
+    goAfterSave(type, rec.id);
+  }); });
+}
+
 /* ============================== invoice payments panel ============================== */
 async function drawPayments(rec) {
   const box = $('#pays'); if (!box) return;
@@ -1748,11 +1941,11 @@ async function route() {
   ROUTE_SEQ++;
   const h = location.hash.replace(/^#/, '') || 'leak';
   const [type, a, b] = h.split('/');
-  if (!['leak', 'tank', 'quotation', 'invoice', 'dn', 'po', 'jobcard', 'mr', 'catalog'].includes(type)) { location.hash = '#leak'; return; }
+  if (!['leak', 'tank', 'quotation', 'invoice', 'dn', 'po', 'jobcard', 'mr', 'receipt', 'catalog'].includes(type)) { location.hash = '#leak'; return; }
   $$('#tabs a').forEach(x => x.classList.toggle('on', x.dataset.t === type));
   if (type === 'catalog') return showCatalog();
   if (type !== 'leak') {
-    const form = type === 'tank' ? (i, c) => showTankForm(i, c) : (i, c) => showIForm(type, i, c);
+    const form = type === 'tank' ? (i, c) => showTankForm(i, c) : type === 'receipt' ? (i, c) => showReceiptForm(i, c) : (i, c) => showIForm(type, i, c);
     if (!a) return showIList(type);
     if (a === 'new') return CAN_EDIT ? form(null) : (location.hash = '#' + type);
     if (a === 'copy') return CAN_EDIT ? form(null, b) : (location.hash = '#' + type);

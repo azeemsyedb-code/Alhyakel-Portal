@@ -1077,7 +1077,9 @@ async function payrollData(ym) {
     sb.from('hr_adjustments').select('*').gte('adj_date', start).lte('adj_date', end).order('adj_date'),
     sb.from('hr_advances').select('*').order('given_on'),
     sb.from('hr_payslips').select('id,employee_id,month,data,net,created_at')].map(q => q.then(must)));
-  return {att, tasks, adj, adv, slips};
+  // salary payments for this month (part payments during the month are allowed)
+  const {data: pays, error: pe} = await sb.from('hr_salary_payments').select('*').eq('month', ym).order('paid_on').order('created_at');
+  return {att, tasks, adj, adv, slips, pays: pe ? [] : pays, paysReady: !pe};
 }
 function calcSlip(e, ym, D) {
   const {days} = monthRange(ym), basic = Number(e.basic_pay || 0), daily = basic / 30;
@@ -1135,10 +1137,43 @@ async function payslipPdf(slips) {
     pdf.text('NET PAY', M + 4, d.y + 7.3); pdf.text('SAR ' + sar(s.net), M + CW - 4, d.y + 7.3, {align: 'right'});
     d.y += 14;
     d.para(inWords(s.net), 8.8, 'italic');
+    if (s.payments && s.payments.length) {
+      const paid = s.payments.reduce((a, p) => a + Number(p.amount), 0), bal = Math.round((s.net - paid) * 100) / 100;
+      d.section('Payments');
+      d.table([{label: 'Date', w: 30}, {label: 'Method', w: 34}, {label: 'Reference'}, {label: 'Amount (SAR)', w: 40, align: 'right'}],
+        [...s.payments.map(p => [longDate(p.paid_on).replace(/^\w+ /, ''), p.method, p.reference || '-', sar(p.amount)]),
+         {cells: ['Total paid', '', '', sar(paid)], bold: true, fill: PC.shade},
+         {cells: [bal >= 0 ? 'Balance due' : 'Overpaid', '', '', sar(Math.abs(bal))], bold: true, fill: bal > 0.005 ? [253, 238, 232] : PC.shade}]);
+    }
     d.para('I confirm that I have received the net pay shown above for the month, and that the deductions listed were explained to me.', 8.5);
     d.signs(['Employee signature & date', 'Prepared by (HR)', 'Approved by']);
     mark();
   });
+  return d.finish();
+}
+
+// one salary payment, for the employee to sign (useful for part payments during the month)
+async function salaryVoucherPdf(p, e, slip, paidBefore) {
+  const d = pdfDoc('SALARY PAYMENT VOUCHER', await letterhead(), `SPV-${p.month}-${e.emp_code}`);
+  d.kv([['Employee', e.name], ['Code', e.emp_code], ['Designation', e.designation || '-'], ['Salary month', monthName(p.month)],
+        ['Paid on', longDate(p.paid_on)], ['Method', p.method + (p.reference ? ` (${p.reference})` : '')]]);
+  const {pdf, M, CW} = d;
+  pdf.setFillColor(...PC.slate); pdf.rect(M, d.y, CW, 12, 'F');
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(12.5); pdf.setTextColor(255, 255, 255);
+  pdf.text('AMOUNT PAID', M + 4, d.y + 7.8); pdf.text('SAR ' + sar(p.amount), M + CW - 4, d.y + 7.8, {align: 'right'});
+  d.y += 15;
+  d.para(inWords(Number(p.amount)), 8.8, 'italic');
+  if (slip) {
+    const after = Math.round((slip.net - paidBefore - Number(p.amount)) * 100) / 100;
+    d.section(`Salary for ${monthName(p.month)}`);
+    d.table([{label: 'Description'}, {label: 'Amount (SAR)', w: 44, align: 'right'}], [
+      ['Net salary for the month' + (slip.saved ? '' : ' (estimate, payslip not saved yet)'), sar(slip.net)],
+      ['Paid before this voucher', sar(paidBefore)], ['This payment', sar(p.amount)],
+      {cells: [after >= 0 ? 'Balance still to be paid' : 'Overpaid', sar(Math.abs(after))], bold: true, fill: PC.shade}]);
+  }
+  if (p.note) d.para('Note: ' + p.note, 8.8);
+  d.para(`I confirm that I have received the amount above as ${slip && Math.abs(slip.net - paidBefore - Number(p.amount)) > 0.005 ? 'part' : 'full'} payment of my salary for ${monthName(p.month)}.`, 8.8);
+  d.signs(['Employee signature & date', 'Paid by', 'Approved by']);
   return d.finish();
 }
 
@@ -1151,22 +1186,35 @@ async function viewPayroll() {
   const shown = r => r.saved ? r.saved.data : r.calc;
   const sumBy = (s, f) => s.ded.filter(f).reduce((a, x) => a + x.amount, 0);
   const tot = rows.reduce((a, r) => a + Number(shown(r).net), 0);
+  const paidOf = id => D.pays.filter(p => p.employee_id === id).reduce((a, p) => a + Number(p.amount), 0);
+  const balOf = r => Math.round((Number(shown(r).net) - paidOf(r.e.id)) * 100) / 100;
+  const totPaid = D.pays.reduce((a, p) => a + Number(p.amount), 0);
+  const payChip = r => { const paid = paidOf(r.e.id), bal = balOf(r);
+    return !paid ? chip('off', 'Unpaid') : bal > 0.005 ? chip('half_day', 'Part paid') : bal < -0.005 ? chip('absent', 'Overpaid') : chip('done', 'Paid'); };
   main.innerHTML = `
     <div class="head"><div><h1>Payroll</h1><p>${monthName(ym)}. Payslip = basic + overtime + paid tasks + bonus, minus absent days, violations / deductions and advance installments.</p></div>
       <div class="tools"><input type="month" id="pm" value="${ym}" aria-label="Month">
         <button class="btn" id="addAdj">+ Deduction / violation / bonus</button><button class="btn" id="addAdv">+ Advance</button></div></div>
     <div class="tools" style="margin-bottom:12px"><button class="btn primary" id="saveAll">Save all payslips</button><button class="btn" id="pdfAll">All payslips (PDF)</button>
-      <span class="muted">Net total: <b>SAR ${money(tot)}</b></span></div>
-    <div class="wrap"><table><thead><tr><th>Code</th><th>Name</th><th class="r">Basic</th><th class="r">Overtime</th><th class="r">Tasks + bonus</th><th class="r">Absent</th><th class="r">Other ded.</th><th class="r">Advance</th><th class="r">Net (SAR)</th><th>Status</th><th></th></tr></thead>
+      ${D.paysReady ? '<button class="btn" id="payAll">Pay all balances</button>' : ''}
+      <span class="muted">Net total: <b>SAR ${money(tot)}</b> · Paid: <b>SAR ${money(totPaid)}</b> · Balance: <b>SAR ${money(tot - totPaid)}</b></span></div>
+    ${D.paysReady ? '' : '<div class="offnote">Salary payments are not set up yet: run the latest supabase_hr.sql in Supabase.</div>'}
+    <div class="wrap"><table><thead><tr><th>Code</th><th>Name</th><th class="r">Basic</th><th class="r">Overtime</th><th class="r">Tasks + bonus</th><th class="r">Absent</th><th class="r">Other ded.</th><th class="r">Advance</th><th class="r">Net (SAR)</th><th class="r">Paid</th><th class="r">Balance</th><th>Status</th><th></th></tr></thead>
     <tbody>${rows.map(r => { const s = shown(r), ot = s.earn.filter(x => x.label.startsWith('Overtime')).reduce((a, x) => a + x.amount, 0), extra = s.gross - s.basic - ot;
       const changed = r.saved && Math.abs(Number(r.saved.net) - r.calc.net) > 0.005;
       return `<tr data-id="${r.e.id}"><td class="muted">${esc(r.e.emp_code)}</td><td>${esc(r.e.name)}</td><td class="r">${money(s.basic)}</td><td class="r">${money(ot)}</td><td class="r">${money(extra)}</td>
         <td class="r">${money(sumBy(s, x => x.kind === 'absent'))}</td><td class="r">${money(sumBy(s, x => x.kind === 'violation' || x.kind === 'deduction'))}</td><td class="r">${money(sumBy(s, x => x.kind === 'advance'))}</td>
-        <td class="r"><b>${money(s.net)}</b></td>
-        <td>${r.saved ? chip('done', 'Saved') + (changed ? ` ${chip('half_day', 'Changed since')}` : '') : chip('off', 'Not saved')}</td>
-        <td style="white-space:nowrap"><button class="btn" data-pdf>Payslip</button> <button class="btn" data-save>${r.saved ? 'Re-save' : 'Save'}</button></td></tr>`; }).join('')
-      || '<tr><td colspan="11" class="empty">No active employees.</td></tr>'}</tbody></table></div>
-    <p class="muted" style="font-size:13px">Absence deduction: basic ÷ 30 per absent day (half day = half). Advance installments start from the following month. Saving locks in the payslip and records the advance recovery.</p>
+        <td class="r"><b>${money(s.net)}</b></td><td class="r">${paidOf(r.e.id) ? money(paidOf(r.e.id)) : ''}</td><td class="r">${paidOf(r.e.id) ? `<b>${money(balOf(r))}</b>` : ''}</td>
+        <td>${r.saved ? chip('done', 'Saved') + (changed ? ` ${chip('half_day', 'Changed since')}` : '') : chip('off', 'Not saved')} ${D.paysReady ? payChip(r) : ''}</td>
+        <td style="white-space:nowrap"><button class="btn" data-pdf>Payslip</button> <button class="btn" data-save>${r.saved ? 'Re-save' : 'Save'}</button>${D.paysReady ? ' <button class="btn primary" data-pay>Pay</button>' : ''}</td></tr>`; }).join('')
+      || '<tr><td colspan="13" class="empty">No active employees.</td></tr>'}</tbody></table></div>
+    <p class="muted" style="font-size:13px">Absence deduction: basic ÷ 30 per absent day (half day = half). Advance installments start from the following month. Saving locks in the payslip and records the advance recovery. "Pay" records salary actually handed over; you can pay part of it during the month and the rest later.</p>
+    ${D.paysReady ? `<h2>Salary payments: ${monthName(ym)}</h2>
+    <div class="wrap"><table><thead><tr><th>Paid on</th><th>Employee</th><th>Method</th><th>Reference / note</th><th class="r">Amount (SAR)</th><th></th></tr></thead>
+    <tbody>${D.pays.map(p => `<tr data-payid="${p.id}"><td>${shortDate(p.paid_on)} ${p.paid_on.slice(0, 4)}</td><td>${esc(empById(p.employee_id)?.name)}</td><td>${esc(p.method)}</td>
+      <td class="wrapcell">${esc([p.reference, p.note].filter(Boolean).join(' · '))}</td><td class="r">${money(p.amount)}</td>
+      <td style="white-space:nowrap"><button class="btn" data-voucher>Voucher</button> <button class="btn danger" data-delpay>Delete</button></td></tr>`).join('')
+      || '<tr><td colspan="6" class="empty">No salary paid for this month yet.</td></tr>'}</tbody></table></div>` : ''}
     <h2>Deductions, violations &amp; bonuses: ${monthName(ym)}</h2>
     <div class="wrap"><table><thead><tr><th>Date</th><th>Employee</th><th>Type</th><th>Reason</th><th class="r">Amount (SAR)</th><th></th></tr></thead>
     <tbody>${D.adj.map(a => `<tr><td>${shortDate(a.adj_date)}</td><td>${esc(empById(a.employee_id)?.name)}</td><td>${chip({violation: 'absent', deduction: 'half_day', bonus: 'done'}[a.kind], ADJ[a.kind])}</td>
@@ -1185,7 +1233,7 @@ async function viewPayroll() {
   const pick = id => rows.find(r => r.e.id === id);
   const save = async r => must(await sb.from('hr_payslips').upsert({employee_id: r.e.id, month: ym, data: r.calc, net: r.calc.net}, {onConflict: 'employee_id,month'}));
   main.querySelectorAll('[data-pdf]').forEach(b => b.onclick = async () => { const r = pick(b.closest('tr').dataset.id);
-    try { (await payslipPdf([shown(r)])).save(`Payslip-${r.e.emp_code}-${ym}.pdf`); } catch (err) { toast('Could not create PDF: ' + (err.message || err), true); } });
+    try { (await payslipPdf([{...shown(r), payments: D.pays.filter(p => p.employee_id === r.e.id)}])).save(`Payslip-${r.e.emp_code}-${ym}.pdf`); } catch (err) { toast('Could not create PDF: ' + (err.message || err), true); } });
   main.querySelectorAll('[data-save]').forEach(b => b.onclick = async () => { const r = pick(b.closest('tr').dataset.id);
     if (r.saved && !confirm(`Recalculate and save ${r.e.name}'s payslip for ${monthName(ym)}?`)) return;
     try { await save(r); toast('Payslip saved'); route(); } catch (err) { toast(err.message, true); } });
@@ -1195,7 +1243,7 @@ async function viewPayroll() {
     if (!confirm(`Save ${todo.length} payslip(s)? (Already saved payslips will not change)`)) return;
     try { for (const r of todo) await save(r); toast(`${todo.length} payslip(s) saved`); route(); } catch (err) { toast(err.message, true); } };
   $('#pdfAll').onclick = async () => { if (!rows.length) return;
-    try { (await payslipPdf(rows.map(shown))).save(`Payslips-${ym}.pdf`); } catch (err) { toast('Could not create PDF: ' + (err.message || err), true); } };
+    try { (await payslipPdf(rows.map(r => ({...shown(r), payments: D.pays.filter(p => p.employee_id === r.e.id)})))).save(`Payslips-${ym}.pdf`); } catch (err) { toast('Could not create PDF: ' + (err.message || err), true); } };
   $('#addAdj').onclick = () => openDialog({title: 'Deduction / violation / bonus', submit: 'Save', body: `
       <label>Employee<select name="employee_id" required>${empOpts('', 'Choose employee')}</select></label>
       <label>Type<select name="kind">${opts(ADJ, 'violation')}</select></label>
@@ -1215,6 +1263,44 @@ async function viewPayroll() {
     onSubmit: async fd => { if (Number(fd.installment) > Number(fd.amount)) throw new Error('Installment cannot be more than the advance.');
       must(await sb.from('hr_advances').insert({employee_id: fd.employee_id, given_on: fd.given_on, amount: Number(fd.amount), installment: Number(fd.installment), note: fd.note.trim() || null}));
       toast('Advance recorded'); route(); }});
+  const METHODS = ['Cash', 'Bank transfer', 'Cheque'];
+  const payDialog = r => { const bal = balOf(r), paid = paidOf(r.e.id);
+    openDialog({title: `Pay salary: ${esc(r.e.name)}`, submit: 'Record payment', body: `
+      <p class="full muted" style="margin:0">${monthName(ym)}: net <b>SAR ${money(shown(r).net)}</b>${r.saved ? '' : ' (estimate, payslip not saved yet)'}, paid so far <b>SAR ${money(paid)}</b>, balance <b>SAR ${money(bal)}</b></p>
+      <label>Paid on<input type="date" name="paid_on" required value="${todayStr()}"></label>
+      <label>Amount (SAR)<input type="number" name="amount" min="0.01" step="0.01" required value="${bal > 0 ? bal.toFixed(2) : ''}"></label>
+      <label>Method<select name="method">${METHODS.map(m => `<option>${m}</option>`).join('')}</select></label>
+      <label>Reference<input name="reference" placeholder="Transfer / cheque no."></label>
+      <label class="full">Note<input name="note" placeholder="e.g. part payment before Eid"></label>
+      <label class="chk full"><input type="checkbox" name="voucher" checked> Download a payment voucher for the employee to sign</label>`,
+      onSubmit: async fd => {
+        const amt = Number(fd.amount); if (!(amt > 0)) throw new Error('Please enter the amount.');
+        if (amt > bal + 0.005 && !confirm(`This is more than the balance (SAR ${money(bal)}). Record it anyway?`)) return;
+        const row = must(await sb.from('hr_salary_payments').insert({employee_id: r.e.id, month: ym, paid_on: fd.paid_on, amount: amt, method: fd.method,
+          reference: fd.reference.trim() || null, note: fd.note.trim() || null}).select().single());
+        if (fd.voucher === 'on') try { (await salaryVoucherPdf(row, r.e, {net: Number(shown(r).net), saved: !!r.saved}, paid)).save(`Salary-voucher-${r.e.emp_code}-${row.paid_on}.pdf`); } catch (e) {}
+        toast('Payment recorded'); route();
+      }}); };
+  main.querySelectorAll('[data-pay]').forEach(b => b.onclick = () => payDialog(pick(b.closest('tr').dataset.id)));
+  $('#payAll')?.addEventListener('click', () => {
+    const todo = rows.filter(r => balOf(r) > 0.005);
+    if (!todo.length) { toast('Nothing left to pay for this month.'); return; }
+    openDialog({title: `Pay all balances: ${monthName(ym)}`, submit: `Pay ${todo.length} employee(s)`, body: `
+      <p class="full muted" style="margin:0">${todo.length} employee(s), total <b>SAR ${money(todo.reduce((a, r) => a + balOf(r), 0))}</b>. Each one gets a payment for their remaining balance.</p>
+      <label>Paid on<input type="date" name="paid_on" required value="${todayStr()}"></label>
+      <label>Method<select name="method">${METHODS.map(m => `<option${m === 'Bank transfer' ? ' selected' : ''}>${m}</option>`).join('')}</select></label>
+      <label class="full">Reference<input name="reference" placeholder="e.g. WPS / payroll transfer reference"></label>`,
+      onSubmit: async fd => {
+        must(await sb.from('hr_salary_payments').insert(todo.map(r => ({employee_id: r.e.id, month: ym, paid_on: fd.paid_on, amount: balOf(r), method: fd.method, reference: fd.reference.trim() || null}))));
+        toast(`${todo.length} payment(s) recorded`); route();
+      }});
+  });
+  main.querySelectorAll('[data-voucher]').forEach(b => b.onclick = async () => {
+    const id = b.closest('tr').dataset.payid, p = D.pays.find(x => String(x.id) === id), r = pick(p.employee_id), e = empById(p.employee_id);
+    const before = D.pays.filter(x => x.employee_id === p.employee_id && (x.paid_on < p.paid_on || (x.paid_on === p.paid_on && x.created_at < p.created_at))).reduce((a, x) => a + Number(x.amount), 0);
+    try { (await salaryVoucherPdf(p, e, r ? {net: Number(shown(r).net), saved: !!r.saved} : null, before)).save(`Salary-voucher-${e.emp_code}-${p.paid_on}.pdf`); } catch (err) { toast('Could not create PDF: ' + (err.message || err), true); } });
+  main.querySelectorAll('[data-delpay]').forEach(b => b.onclick = async () => { if (!confirm('Delete this salary payment?')) return;
+    try { must(await sb.from('hr_salary_payments').delete().eq('id', b.closest('tr').dataset.payid)); toast('Deleted'); route(); } catch (err) { toast(err.message, true); } });
   main.querySelectorAll('[data-deladj]').forEach(b => b.onclick = async () => { if (!confirm('Delete this record?')) return;
     try { must(await sb.from('hr_adjustments').delete().eq('id', b.dataset.deladj)); toast('Deleted'); route(); } catch (err) { toast(err.message, true); } });
   main.querySelectorAll('[data-deladv]').forEach(b => b.onclick = async () => { if (!confirm('Delete this advance?')) return;

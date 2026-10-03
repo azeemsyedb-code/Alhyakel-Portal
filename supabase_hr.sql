@@ -147,3 +147,22 @@ begin
   new.updated_at := now();
   return new;
 end $$;
+
+-- ---------- salary payments (part payments during the month are allowed) ----------
+create table if not exists public.hr_salary_payments (
+  id          uuid primary key default gen_random_uuid(),
+  employee_id uuid not null references public.hr_employees(id) on delete cascade,
+  month       text not null check (month ~ '^\d{4}-\d{2}$'),      -- the salary month this payment is for
+  paid_on     date not null default ((now() at time zone 'Asia/Riyadh')::date),
+  amount      numeric(12,2) not null check (amount > 0),
+  method      text not null default 'Cash' check (method in ('Cash','Bank transfer','Cheque')),
+  reference   text,
+  note        text,
+  created_by  uuid default auth.uid(),
+  created_at  timestamptz not null default now()
+);
+create index if not exists hr_salpay_month_idx on public.hr_salary_payments (month, employee_id);
+alter table public.hr_salary_payments enable row level security;
+drop policy if exists hr_salpay_admin on public.hr_salary_payments;
+create policy hr_salpay_admin on public.hr_salary_payments for all to authenticated using (public.my_role('hr') = 'admin') with check (public.my_role('hr') = 'admin');
+revoke all on public.hr_salary_payments from anon;

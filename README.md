@@ -9,7 +9,7 @@ No server needed: the website runs on **GitHub Pages**, and all data and logins 
 | **Employees** | Attendance, overtime, tasks, salary | admin · supervisor · viewer |
 | **Gate kiosk** | Employees check in / check out with a PIN (no login) | — |
 | **Users & Access** | Create users, change passwords, grant / remove access | portal admin |
-| **Documents** | Leak Test (TS-001), Tank Certificate (HMI-2026-001, English + Arabic), Quotation (QT-AL000001), Invoice (INV-AL00001, ZATCA QR), Delivery Note (AH-2026-001), Purchase Order (PO-00001), Job Card (JC-2026-001), Material Request (MR-2026-001): draft / approve, history, PDF | manager · staff · viewer |
+| **Documents** | Leak Test (TS-001), Tank Certificate (HMI-2026-001, English + Arabic), Cash Receipt (CR-2026-001), Quotation (QT-AL000001), Invoice (INV-AL00001, ZATCA QR), Delivery Note (AH-2026-001), Purchase Order (PO-00001), Job Card (JC-2026-001), Material Request (MR-2026-001): draft / approve, history, PDF | manager · staff · viewer |
 
 ---
 
@@ -224,6 +224,22 @@ A free Supabase project is paused if it is not used at all for **7 days**. With 
 2. Supabase → **Storage** → open the **docs** bucket → select everything → **Delete**. Do the same in the **certs** bucket. (Photos and certificate PDFs are files, so SQL cannot remove them.)
 
 Kept: logins and roles (Users & Access) and HR settings. Document numbers start again from 1 (TS-001, HMI-2026-001, QT-AL000001 …). After the reset, add each employee's salary and kiosk PIN in **Employees → Employees**.
+
+## Salary payments (Employees → Payroll)
+
+- Each row shows the month's **Net**, what has been **Paid** and the **Balance**, with a status: Unpaid, Part paid, Paid or Overpaid.
+- **Pay**: record money given to the employee (cash, bank transfer or cheque). You can pay part of the salary during the month and the rest later; each payment is listed under **Salary payments** for that month.
+- Tick "Download a payment voucher" (or click **Voucher** on a payment) to print a Salary Payment Voucher for the employee to sign: amount, amount in words, net for the month, paid before and balance left.
+- **Pay all balances**: one payment for everyone's remaining balance (for example the monthly bank / WPS transfer).
+- The payslip PDF lists the payments made and the balance due. Salary payments are different from **Advances** (a loan recovered in monthly installments).
+- Needs the latest `supabase_hr.sql`.
+
+## Cash Receipt (Documents → Cash Receipt)
+
+- A receipt for money received from a customer: number `CR-2026-001` (restarts every year), date, received from, amount (written in words automatically), paid by (cash, cheque, bank transfer, card) with cheque / transfer number and bank, and what it is for.
+- **Against invoice**: choose one of the customer's unpaid invoices and the money is also recorded as a payment on that invoice (it shows in the invoice's Payments and in Receivables). Deleting the receipt deletes that payment. Once linked, only a manager can change the amount, date, method or invoice.
+- The PDF is bilingual (English / Arabic, سند قبض) with the company stamp, printed twice on one A4 page: the **Original** for the customer and a **Copy** for the file, with a cut line between them.
+- Needs the latest `supabase_docs.sql`.
 
 ## Stock count (Inventory → Stock count)
 
