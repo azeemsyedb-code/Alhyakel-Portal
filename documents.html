@@ -18,6 +18,22 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 <script src="assets/config.js"></script>
 <script src="assets/portal.js" data-module="docs"></script>
 <style>
+.docnav{margin:16px 0 6px;background:#fff;border-radius:14px;box-shadow:0 1px 4px rgba(30,60,80,.08);overflow:hidden}
+.docgroups{display:flex;gap:6px;padding:6px;background:#F0F4F5;overflow-x:auto;scrollbar-width:none}
+.docgroups::-webkit-scrollbar,.docsub::-webkit-scrollbar{display:none}
+.docgroups a{flex:1 1 0;display:flex;align-items:center;justify-content:center;gap:9px;padding:10px 16px;border-radius:10px;color:var(--muted);
+  font:600 14px var(--font);text-decoration:none;white-space:nowrap;transition:background .15s,color .15s}
+.docgroups a:hover{color:var(--text);background:rgba(255,255,255,.6)}
+.docgroups a svg{width:19px;height:19px;flex:none;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.docgroups a.on{background:#fff;color:var(--teal);box-shadow:0 1px 4px rgba(30,60,80,.12)}
+.docsub{display:flex;gap:2px;padding:0 10px;overflow-x:auto;scrollbar-width:none}
+.docsub a{position:relative;padding:12px 14px;color:var(--muted);font:500 13.5px var(--font);text-decoration:none;white-space:nowrap}
+.docsub a:hover{color:var(--text)}
+.docsub a.on{color:var(--teal);font-weight:600}
+.docsub a.on::after{content:"";position:absolute;left:10px;right:10px;bottom:0;height:3px;border-radius:3px 3px 0 0;background:var(--teal)}
+.docsub a[hidden]{display:none}
+.docgroups a .sm{display:none}
+@media (max-width:640px){.docgroups a{padding:9px 6px;gap:6px;font-size:13.5px}.docgroups a svg{width:17px;height:17px}.docgroups a .lg{display:none}.docgroups a .sm{display:inline}.docsub{padding:0 4px}.docsub a{padding:12px 11px}}
 .ahhead .row{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .tools{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:14px}
 .tools .field{margin:0}
@@ -127,20 +143,27 @@ tr.inactive td{opacity:.5}
 <body>
 <div class="ahhead">
   <div class="row"><div><h1>Documents</h1><p>Certificates and company documents: save, approve, download PDFs and share.</p></div><span class="pill" id="myRole"></span></div>
-  <nav class="ahpills" id="tabs" aria-label="Document types">
-    <a href="#leak" data-t="leak">Leak Test</a>
-    <a href="#tank" data-t="tank">Tank Certificate</a>
-    <a href="#aramco" data-t="aramco">Aramco Inspection</a>
-    <a href="#cow" data-t="cow">Origin &amp; Warranty</a>
-    <a href="#quotation" data-t="quotation">Quotation</a>
-    <a href="#invoice" data-t="invoice">Invoice</a>
-    <a href="#dn" data-t="dn">Delivery Note</a>
-    <a href="#po" data-t="po">Purchase Order</a>
-    <a href="#jobcard" data-t="jobcard">Job Card</a>
-    <a href="#mr" data-t="mr">Material Request</a>
-    <a href="#receipt" data-t="receipt">Cash Receipt</a>
-    <a href="#catalog" data-t="catalog">Price List</a>
-  </nav>
+  <div class="docnav">
+    <nav class="docgroups" id="groups" aria-label="Document groups">
+      <a href="#leak" data-g="cert"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="5.5"/><path d="M9.5 13.8 8 21l4-2 4 2-1.5-7.2"/><path d="m9.8 9 1.6 1.6 2.9-3"/></svg><span>Certificates</span></a>
+      <a href="#quotation" data-g="sales"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg><span>Sales</span></a>
+      <a href="#jobcard" data-g="work"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg><span class="lg">Workshop &amp; Purchasing</span><span class="sm">Workshop</span></a>
+    </nav>
+    <nav class="docsub" id="tabs" aria-label="Document types">
+      <a href="#leak" data-t="leak" data-g="cert">Leak Test</a>
+      <a href="#tank" data-t="tank" data-g="cert">Tank Certificate</a>
+      <a href="#aramco" data-t="aramco" data-g="cert">Aramco Inspection</a>
+      <a href="#cow" data-t="cow" data-g="cert">Origin &amp; Warranty</a>
+      <a href="#quotation" data-t="quotation" data-g="sales">Quotation</a>
+      <a href="#invoice" data-t="invoice" data-g="sales">Invoice</a>
+      <a href="#receipt" data-t="receipt" data-g="sales">Cash Receipt</a>
+      <a href="#dn" data-t="dn" data-g="sales">Delivery Note</a>
+      <a href="#catalog" data-t="catalog" data-g="sales">Price List</a>
+      <a href="#jobcard" data-t="jobcard" data-g="work">Job Card</a>
+      <a href="#mr" data-t="mr" data-g="work">Material Request</a>
+      <a href="#po" data-t="po" data-g="work">Purchase Order</a>
+    </nav>
+  </div>
 </div>
 <main>
   <div id="view"></div>
@@ -2724,6 +2747,12 @@ async function route() {
   const [type, a, b] = h.split('/');
   if (!['leak', 'tank', 'aramco', 'cow', 'quotation', 'invoice', 'dn', 'po', 'jobcard', 'mr', 'receipt', 'catalog'].includes(type)) { location.hash = '#leak'; return; }
   $$('#tabs a').forEach(x => x.classList.toggle('on', x.dataset.t === type));
+  const grp = $(`#tabs a[data-t="${type}"]`)?.dataset.g || 'cert';
+  $$('#tabs a').forEach(x => x.hidden = x.dataset.g !== grp);
+  $$('#groups a').forEach(x => x.classList.toggle('on', x.dataset.g === grp));
+  try { localStorage.setItem('docs.lastIn.' + grp, type); } catch (e) {}
+  $$('#groups a').forEach(x => { let last = null; try { last = localStorage.getItem('docs.lastIn.' + x.dataset.g); } catch (e) {}
+    if (last && $(`#tabs a[data-t="${last}"][data-g="${x.dataset.g}"]`)) x.setAttribute('href', '#' + last); });
   if (type === 'catalog') return showCatalog();
   if (type !== 'leak') {
     const form = type === 'tank' ? (i, c) => showTankForm(i, c) : type === 'aramco' ? (i, c) => showAramcoForm(i, c) : type === 'cow' ? (i, c) => showCowForm(i, c) : type === 'receipt' ? (i, c) => showReceiptForm(i, c) : (i, c) => showIForm(type, i, c);

@@ -236,6 +236,18 @@ Kept: logins and roles (Users & Access) and HR settings. Document numbers start 
 - The payslip PDF lists the payments made and the balance due.
 - Needs the latest `supabase_hr.sql`.
 
+## Documents page layout
+
+Document types are grouped in three sections, each with its own row of tabs:
+
+| Section | Documents |
+|---|---|
+| **Certificates** | Leak Test, Tank Certificate, Aramco Inspection, Origin & Warranty |
+| **Sales** | Quotation, Invoice, Cash Receipt, Delivery Note, Price List |
+| **Workshop & Purchasing** | Job Card, Material Request, Purchase Order |
+
+Clicking a section opens the document you used last in it.
+
 ## Aramco Fuel Tanker Inspection Certificate (Documents → Aramco Inspection)
 
 - Number **AIC-2026-001** (restarts every year). Issue date + **12 months** = valid until (months can be changed).
