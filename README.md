@@ -282,9 +282,9 @@ Clicking a section opens the document you used last in it.
 
 - One voucher per day (or per top-up): number `PC-2026-001`, date, who holds the cash, **opening balance** (filled in from the previous voucher's closing balance), **cash received** today and from whom.
 - Expense lines: description, category (fuel, transport, food & water, tools, stationery…), paid to, bill no., amount. The closing balance is worked out as you type.
-- Optional photos of up to 4 bills (printed on page 2).
 - PDF **Petty Cash Voucher / سند صرف نثرية**: expenses table, opening / received / spent / closing, total in English and Arabic words, signature boxes (cashier, approved by, accounts) and stamp.
 - The list shows **cash in hand now**, spent and received this month, and the top categories.
+- **Petty cash report (PDF)** on the list page: this month, last month or custom dates. It has every expense line of the period (date, voucher, description, category, paid to, bill no., amount), the total, spending by category, cash received, opening and closing balance, the total in English and Arabic words, and signature boxes.
 
 ## Stock count (Inventory → Stock count)
 

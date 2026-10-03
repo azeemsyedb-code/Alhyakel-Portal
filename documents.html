@@ -1178,7 +1178,7 @@ const iPdf = async (type, r, photos) => {
   await arabicReady();
   if (type === 'receipt') return receiptPdf(r, await assets());
   if (type === 'cow') return cowPdf(r, await assets());
-  if (type === 'petty') { if (!photos) photos = r.files?.photos?.some(Boolean) ? (await recordFiles(r)).photos : []; return pettyPdf(r, {...await assets(), photos: await withEl(photos)}); }
+  if (type === 'petty') return pettyPdf(r, await assets());
   if (type !== 'tank' && type !== 'aramco') return itemsPdf(type, r, await assets());
   if (!photos) photos = r.files?.photos?.some(Boolean) ? (await recordFiles(r)).photos : [];
   return (type === 'aramco' ? aicPdf : tankPdf)(r, {...await assets(), photos: await withEl(photos)});
@@ -1212,6 +1212,7 @@ async function showIList(type) {
     $('#count').textContent = list.length ? `${rows.length} of ${list.length}` : '';
   };
   $('#q').addEventListener('input', draw);
+  if (T.wire) T.wire(list);
   $('#rows').addEventListener('click', async e => {
     const w = e.target.closest('[data-wa]');
     if (w) { e.stopPropagation(); const r = list.find(x => x.id === w.dataset.wa); return waClick(w, type, r, () => iPdf(type, r)); }
@@ -2394,9 +2395,109 @@ IDOCS.petty = {
     const top = Object.entries(cats).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c, v]) => `${esc(c)} ${money(v)}`).join(' · ');
     return `<div class="paybox"><div><b>SAR ${money(pettyClose(last))}</b><span>Cash in hand now (after ${esc(last.doc_no)})</span></div>
       <div><b>SAR ${money(spentM)}</b><span>Spent this month</span></div><div><b>SAR ${money(recM)}</b><span>Received this month</span></div>
-      <div><b style="font-size:14px">${top || '-'}</b><span>Top this month</span></div></div>`;
+      <div><b style="font-size:14px">${top || '-'}</b><span>Top this month</span></div></div>
+      <div class="picker" id="pcReport"><b>Petty cash report (PDF)</b>
+        <div class="field"><label for="pr_period">Period</label><select id="pr_period"><option value="this">This month</option><option value="last">Last month</option><option value="custom">Custom dates</option></select></div>
+        <div class="field"><label for="pr_from">From</label><input id="pr_from" type="date"></div>
+        <div class="field"><label for="pr_to">To</label><input id="pr_to" type="date"></div>
+        <button class="btn" type="button" id="pr_go">Download report</button></div>`;
+  },
+  wire: list => {
+    const per = $('#pr_period'); if (!per) return;
+    const set = () => { const t = today(), [y, m] = t.split('-').map(Number);
+      if (per.value === 'this') { $('#pr_from').value = t.slice(0, 7) + '-01'; $('#pr_to').value = t; }
+      if (per.value === 'last') { const a = new Date(Date.UTC(y, m - 2, 1)), z = new Date(Date.UTC(y, m - 1, 0)); $('#pr_from').value = a.toISOString().slice(0, 10); $('#pr_to').value = z.toISOString().slice(0, 10); }
+      $('#pr_from').disabled = $('#pr_to').disabled = per.value !== 'custom'; };
+    per.onchange = set; set();
+    $('#pr_go').onclick = async e => {
+      const from = $('#pr_from').value, to = $('#pr_to').value;
+      if (!from || !to || from > to) { toast('Please choose a valid period.', true); return; }
+      const rows = list.filter(r => r.doc_date >= from && r.doc_date <= to).sort(pettySort);
+      if (!rows.length) { toast('No petty cash vouchers in this period.', true); return; }
+      const b = e.target; b.disabled = true; b.textContent = 'Please wait…';
+      try { await arabicReady(); (pettyReportPdf(rows, from, to, list, await assets())).save(`Petty-cash-${from}_to_${to}.pdf`); }
+      catch (err) { toast('Could not create PDF: ' + nice(err), true); }
+      b.disabled = false; b.textContent = 'Download report';
+    };
   }
 };
+// all vouchers of a period in one PDF: every expense line, cash received, totals by category, opening and closing balance
+function pettyReportPdf(rows, from, to, all, img) {
+  const D = certDoc(img, `Petty cash ${dmy(from)} - ${dmy(to)}`), {pdf, M, CW, W} = D;
+  D.title('PETTY CASH REPORT', 'تقرير النثرية', `${fullDate(from)}  to  ${fullDate(to)}`);
+  const opening = Number(rows[0].data?.opening) || 0, closing = pettyClose(rows[rows.length - 1]);
+  const lines = rows.flatMap(r => (r.data?.items || []).map(i => ({...i, date: r.doc_date, no: r.doc_no})));
+  const recs = rows.filter(r => Number(r.data?.received)).map(r => ({date: r.doc_date, no: r.doc_no, from: r.data.received_from, amount: Number(r.data.received)}));
+  const spent = r2(lines.reduce((a, i) => a + (Number(i.amount) || 0), 0)), received = r2(recs.reduce((a, x) => a + x.amount, 0));
+  const holders = [...new Set(rows.map(r => r.party_name).filter(Boolean))].join(', ');
+  D.grid([[[['Period', 'الفترة'], `${dmy(from)} - ${dmy(to)}`], [['Vouchers', 'عدد السندات'], `${rows.length} (${rows[0].doc_no} - ${rows[rows.length - 1].doc_no})`]],
+          [[['Held by', 'أمين الصندوق'], holders], [['Expense lines', 'عدد المصروفات'], String(lines.length)]]], 2, 9.5);
+  D.y += 4;
+  // summary boxes
+  const box = [['Opening balance', 'الرصيد الافتتاحي', opening], ['Cash received', 'النقدية المستلمة', received], ['Total spent', 'إجمالي المصروفات', spent], ['Closing balance', 'الرصيد الختامي', closing]];
+  const bw = CW / 4;
+  box.forEach(([en, a, v], i) => { const x = M + i * bw, last = i === 3;
+    pdf.setFillColor(...(last ? C.slate : LIGHT)); pdf.rect(x + (i ? 0.8 : 0), D.y, bw - 0.8, 15, 'F');
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.6); pdf.setTextColor(...(last ? [255, 255, 255] : C.slate)); pdf.text(en, x + 3, D.y + 4.6);
+    D.ar(a, x + bw - 3, D.y + 4, 7.2, {color: last ? '#ffffff' : '#546470'});
+    pdf.setFontSize(12); pdf.setTextColor(...(last ? [255, 255, 255] : C.ink)); pdf.text('SAR ' + money(v), x + 3, D.y + 12); });
+  D.y += 20;
+  // expenses table
+  D.bar('Expenses', 'المصروفات');
+  const cols = [19, 26, 58, 30, 28, 17, CW - 178];
+  const xs = cols.reduce((a, w, i) => (a.push(i ? a[i - 1] + cols[i - 1] : M), a), []);
+  const head = (h) => { pdf.setFillColor(...LIGHT); pdf.rect(M, D.y, CW, 6.5, 'F'); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.2); pdf.setTextColor(...C.slate);
+    h.forEach((t, i) => pdf.text(t, i === h.length - 1 ? xs[i] + cols[i] - 1.5 : xs[i] + 1.4, D.y + 4.3, i === h.length - 1 ? {align: 'right'} : {})); D.y += 6.5; };
+  const H1 = ['Date', 'Voucher', 'Description', 'Category', 'Paid to', 'Bill No.', 'Amount'];
+  head(H1);
+  const cell = (t, x, w, y) => { const v = String(t ?? ''); if (hasAr(v)) { const a = arImg(v, 7.6, {maxW: w - 2.5}); const k = Math.min(1, 5.6 / a.h); pdf.addImage(a.dataUrl, 'PNG', x + 1.4, y - 3.9, a.w * k, a.h * k); }
+    else pdf.text(pdf.splitTextToSize(v, w - 2.5)[0] || '', x + 1.4, y); };
+  lines.forEach((it, i) => { const RH = 6.4;
+    if (D.y + RH > D.BOT) { D.page(); head(H1); }
+    if (i % 2) { pdf.setFillColor(250, 251, 252); pdf.rect(M, D.y, CW, RH, 'F'); }
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(7.4); pdf.setTextColor(...C.ink);
+    const y = D.y + 4.3; pdf.text(dmy(it.date), xs[0] + 1.4, y); pdf.text(it.no || '', xs[1] + 1.4, y);
+    cell(it.description, xs[2], cols[2], y); cell(it.category, xs[3], cols[3], y); cell(it.paid_to, xs[4], cols[4], y); cell(it.bill_no, xs[5], cols[5], y);
+    pdf.setFont('helvetica', 'bold'); pdf.text(money(it.amount), xs[6] + cols[6] - 1.5, y, {align: 'right'});
+    pdf.setDrawColor(...C.line); pdf.setLineWidth(0.12); pdf.line(M, D.y + RH, W - M, D.y + RH); D.y += RH; });
+  D.need(8); pdf.setFillColor(...C.shade); pdf.rect(M, D.y, CW, 7, 'F'); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.2); pdf.setTextColor(...C.ink);
+  pdf.text('Total spent', M + 2, D.y + 4.8); pdf.text('SAR ' + money(spent), W - M - 1.5, D.y + 4.8, {align: 'right'}); D.y += 11;
+  // by category
+  const cats = {}; lines.forEach(i => { const c = i.category || 'Other'; cats[c] = r2((cats[c] || 0) + (Number(i.amount) || 0)); });
+  const catRows = Object.entries(cats).sort((a, b) => b[1] - a[1]);
+  D.bar('Spent by category', 'المصروفات حسب الفئة');
+  catRows.forEach(([c, v]) => { D.need(6.5); const pct = spent ? v / spent : 0;
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); pdf.setTextColor(...C.ink); pdf.text(c, M + 2, D.y + 4.4);
+    pdf.setFillColor(...C.shade); pdf.rect(M + 55, D.y + 1.6, 80, 3.4, 'F'); pdf.setFillColor(...C.slate); pdf.rect(M + 55, D.y + 1.6, Math.max(0.5, 80 * pct), 3.4, 'F');
+    pdf.setTextColor(...C.muted); pdf.text(`${Math.round(pct * 100)}%`, M + 138, D.y + 4.4);
+    pdf.setFont('helvetica', 'bold'); pdf.setTextColor(...C.ink); pdf.text('SAR ' + money(v), W - M - 1.5, D.y + 4.4, {align: 'right'});
+    pdf.setDrawColor(...C.line); pdf.setLineWidth(0.12); pdf.line(M, D.y + 6.2, W - M, D.y + 6.2); D.y += 6.4; });
+  D.y += 5;
+  // cash received
+  if (recs.length) {
+    D.bar('Cash received', 'النقدية المستلمة');
+    recs.forEach(x => { D.need(6.5); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); pdf.setTextColor(...C.ink);
+      pdf.text(dmy(x.date), M + 2, D.y + 4.4); pdf.text(x.no, M + 26, D.y + 4.4); cell(x.from || '-', M + 52, 90, D.y + 4.4);
+      pdf.setFont('helvetica', 'bold'); pdf.text('SAR ' + money(x.amount), W - M - 1.5, D.y + 4.4, {align: 'right'});
+      pdf.setDrawColor(...C.line); pdf.setLineWidth(0.12); pdf.line(M, D.y + 6.2, W - M, D.y + 6.2); D.y += 6.4; });
+    D.y += 5;
+  }
+  // words + signatures
+  D.need(52);
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.8); pdf.setTextColor(...C.slate); pdf.text('Total spent in words', M, D.y + 4);
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.2); pdf.setTextColor(...C.ink); pdf.text(pdf.splitTextToSize(sarWords(spent), CW), M, D.y + 9);
+  const aw = arImg(sarWordsAr(spent), 8.6, {maxW: CW}); pdf.addImage(aw.dataUrl, 'PNG', W - M - aw.w, D.y + 12, aw.w, aw.h);
+  D.y += 22;
+  const sb2 = [['Prepared by (cashier)', 'أمين الصندوق'], ['Approved by', 'اعتماد'], ['Checked by (accounts)', 'المراجعة (الحسابات)']], sw = (CW - 8) / 3;
+  sb2.forEach(([en, a], i) => { const x = M + i * (sw + 4);
+    pdf.setDrawColor(...C.line); pdf.setLineWidth(0.3); pdf.roundedRect(x, D.y, sw, 26, 1.2, 1.2, 'S');
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.6); pdf.setTextColor(...C.slate); pdf.text(en, x + 3, D.y + 5); D.ar(a, x + sw - 3, D.y + 4.3, 7.4, {color: '#546470'});
+    pdf.setDrawColor(...C.muted); pdf.setLineWidth(0.25); pdf.line(x + 3, D.y + 20, x + sw - 3, D.y + 20);
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6.8); pdf.setTextColor(...C.muted); pdf.text('Name, signature & date', x + 3, D.y + 23.5); });
+  const st = img.stamp, sk = Math.min(40 / st.w, 18 / st.h);
+  pdf.addImage(st.dataUrl, 'PNG', M + sw + 4 + sw - st.w * sk - 3, D.y + 18 - st.h * sk, st.w * sk, st.h * sk, 'stamp');
+  return D.finish();
+}
 function pettyPdf(r, img) {
   const d = r.data || {}, items = (d.items || []).filter(i => i.description || Number(i.amount));
   const D = certDoc(img, r.doc_no), {pdf, M, CW, W} = D;
@@ -2461,12 +2562,6 @@ function pettyPdf(r, img) {
   const st = img.stamp, sk = Math.min(40 / st.w, 18 / st.h);
   pdf.addImage(st.dataUrl, 'PNG', M + bw + 4 + bw - st.w * sk - 3, D.y + 22 - st.h * sk, st.w * sk, st.h * sk, 'stamp');
   D.y += 34;
-  // bills / receipts photos
-  const photos = (img.photos || []).filter(Boolean);
-  if (photos.length) {
-    D.page(); D.bar('Bills & receipts', 'الفواتير والإيصالات');
-    drawPhotoGrid(pdf, photos, M, D.y + 4, CW, 170);
-  }
   return D.finish();
 }
 
@@ -2491,8 +2586,6 @@ async function showPettyForm(id, copyFrom) {
   if (!rec) { const pv = prevOf(dateNow); d.opening = pv ? pettyClose(pv) : 0; d.received = ''; d.received_from = ''; d.note = ''; }
   const items = (copyFrom && !rec ? [] : (d.items || [])).map(i => ({...i}));
   while (items.length < 5) items.push({description: '', category: '', paid_to: '', bill_no: '', amount: ''});
-  const slots = [null, null, null, null], removed = new Set();
-  if (rec?.files?.photos?.some(Boolean)) (await recordFiles(rec)).photos.forEach((p, i) => { if (p) slots[i] = {...p, path: rec.files.photos[i]}; });
   const holders = [...new Set([...list, ...mrs].map(x => x.party_name).filter(Boolean))].sort();
   const stLine = await approvalLine(rec);
   const whoLine = rec ? `Created by: ${esc(await nameOf(rec.created_by))} · ${new Date(rec.created_at).toLocaleString('en-GB', {dateStyle: 'medium', timeStyle: 'short'})}` +
@@ -2530,9 +2623,6 @@ async function showPettyForm(id, copyFrom) {
           <div class="field"><label for="f_approver">Approved by</label><input id="f_approver" value="${esc(d.approver)}" ${dis}></div>
           <div class="field"><label for="f_checker">Checked by (accounts)</label><input id="f_checker" value="${esc(d.checker)}" ${dis}></div>
         </div>
-        <h3>Bills &amp; receipts (photos)</h3>
-        <div class="photos" id="photos"></div>
-        <p class="hint" style="margin-top:14px">Optional: photos of up to 4 bills. They are printed on page 2 of the voucher.</p>
       </div>
       <p class="err" id="err" role="alert"></p>
       <div class="bar">
@@ -2568,20 +2658,6 @@ async function showPettyForm(id, copyFrom) {
     if (e.target.id === 'f_date' && openAuto && e.target.value) { const pv = prevOf(e.target.value); $('#f_opening').value = pv ? pettyClose(pv) : 0; }
     sum();
   });
-  const drawSlots = () => { $('#photos').innerHTML = slots.map((sl, i) => `<div class="slot ${sl ? 'filled' : ''} ${ro ? 'ro' : ''}" data-i="${i}">
-      ${sl ? `<img src="${sl.dataUrl}" alt="Bill ${i + 1}">` : `<span class="lbl">${ro ? 'No image' : `+ Bill ${i + 1}<br><small>click to choose</small>`}</span>`}
-      ${sl && !ro ? `<button type="button" class="x" data-x="${i}" aria-label="Remove bill ${i + 1}">Remove</button>` : ''}
-      <input type="file" accept="image/*" aria-label="Bill ${i + 1}" ${ro ? 'disabled' : ''}></div>`).join(''); };
-  drawSlots();
-  form.addEventListener('change', async e => {
-    if (e.target.type !== 'file' || !e.target.closest('#photos')) return;
-    const file = e.target.files[0]; if (!file) return;
-    const i = e.target.closest('.slot').dataset.i;
-    try { const im = await shrink(file, 1400, 'image/jpeg', 0.75); if (slots[i]?.path) removed.add(slots[i].path); slots[i] = {...im, changed: true}; dirty = true; drawSlots(); }
-    catch (err) { toast('This image could not be opened: ' + nice(err), true); }
-  });
-  form.addEventListener('click', e => { const x = e.target.closest('[data-x]'); if (!x || !x.closest('#photos')) return;
-    const i = x.dataset.x; if (slots[i]?.path) removed.add(slots[i].path); slots[i] = null; dirty = true; drawSlots(); });
   const collect = () => { const its = readItems().filter(i => i.description || i.amount), {spent} = sum();
     return {doc_date: $('#f_date').value, party_name: $('#f_party').value.trim(), data: {opening: r2(Number($('#f_opening').value) || 0), opening_auto: openAuto,
       received: r2(Number($('#f_received').value) || 0), received_from: $('#f_received_from').value.trim(), items: its, spent,
@@ -2590,9 +2666,9 @@ async function showPettyForm(id, copyFrom) {
   const fileName = () => (draft().doc_no || 'Petty-Cash-DRAFT') + '.pdf';
   const run = async (btn, fn) => { const t = btn.textContent; btn.disabled = true; btn.textContent = 'Please wait…'; $('#err').textContent = '';
     try { await fn(); } catch (e) { $('#err').textContent = nice(e); } btn.disabled = false; btn.textContent = t; };
-  $('#dl').onclick = e => run(e.target, async () => (await iPdf(type, draft(), slots)).save(fileName()));
-  wireShare($('#sh'), () => iPdf(type, draft(), slots), fileName, () => { const v = draft(); return `Petty Cash Voucher ${v.doc_no || ''} - ${fmtDate(v.doc_date)} - spent SAR ${money(v.data.spent)}`; });
-  $('#pv').onclick = e => run(e.target, async () => { const w = window.open('', '_blank'); const url = (await iPdf(type, draft(), slots)).output('bloburl'); if (w) w.location = url; else location.href = url; });
+  $('#dl').onclick = e => run(e.target, async () => (await iPdf(type, draft())).save(fileName()));
+  wireShare($('#sh'), () => iPdf(type, draft()), fileName, () => { const v = draft(); return `Petty Cash Voucher ${v.doc_no || ''} - ${fmtDate(v.doc_date)} - spent SAR ${money(v.data.spent)}`; });
+  $('#pv').onclick = e => run(e.target, async () => { const w = window.open('', '_blank'); const url = (await iPdf(type, draft())).output('bloburl'); if (w) w.location = url; else location.href = url; });
   $('#del')?.addEventListener('click', e => run(e.target, async () => {
     if (!confirm(`Permanently delete ${rec.doc_no}? Later vouchers keep their own opening balance.`)) return;
     const {error} = await sb.from('docs_documents').delete().eq('id', rec.id); if (error) throw error;
@@ -2611,19 +2687,6 @@ async function showPettyForm(id, copyFrom) {
     if (res.error) throw new Error(res.error.code === '23505' ? 'This number already exists. Leave it blank or enter a different one.' : nice(res.error));
     rec = res.data;
     signMemo.set('petty', {approver: v.data.approver, checker: v.data.checker});
-    const stamp = Date.now(), photos = [];
-    for (let i = 0; i < 4; i++) {
-      const sl = slots[i]; if (!sl) { photos.push(null); continue; }
-      if (sl.changed) {
-        const path = `petty/${rec.id}/bill${i + 1}-${stamp}.jpg`;
-        const {error} = await sb.storage.from(BUCKET).upload(path, sl.blob, {contentType: 'image/jpeg', upsert: true});
-        if (error) throw new Error('Image upload failed: ' + nice(error) + '. Please click Save again.');
-        sl.path = path; sl.changed = false;
-      }
-      photos.push(sl.path);
-    }
-    if (photos.some(Boolean) || rec.files?.photos) { const up = await sb.from('docs_documents').update({files: {...(rec.files || {}), photos}}).eq('id', rec.id).select().single(); if (up.error) throw up.error; rec = up.data; }
-    if (removed.size) { await sb.storage.from(BUCKET).remove([...removed]); removed.clear(); }
     dirty = false; toast(`${rec.doc_no} saved`);
     goAfterSave(type, rec.id);
   }); });
