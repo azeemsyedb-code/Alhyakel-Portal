@@ -71,6 +71,24 @@
   window.portalDocNames = DOC_NAMES;
   const initials = n => String(n || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
 
+  /* ---------- polish: page entrance + numbers that count up ---------- */
+  const reduced = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const enter = () => { const el = document.getElementById('view') || document.querySelector('main'); if (!el) return;
+    el.classList.remove('ah-enter'); void el.offsetWidth; el.classList.add('ah-enter'); };
+  document.addEventListener('DOMContentLoaded', enter);
+  window.addEventListener('hashchange', enter);
+  // <b data-count="19">19</b> : the real value is shown at once, then counts up to it from a little lower
+  window.portalCountUp = (root = document) => {
+    if (reduced()) return;
+    root.querySelectorAll('[data-count]').forEach(el => {
+      const to = Number(el.dataset.count); if (!isFinite(to) || to <= 0) return;
+      const from = Math.floor(to * .55), t0 = performance.now(), dur = 750, fmt = n => n.toLocaleString('en-US');
+      const step = t => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3); el.textContent = fmt(Math.round(from + (to - from) * e)); if (k < 1) requestAnimationFrame(step); };
+      requestAnimationFrame(step);
+    });
+  };
+  window.portalSkel = (n = 6, kind = '') => `<div class="ah-skel ${kind}" role="status" aria-label="Loading">${'<i></i>'.repeat(n)}</div>`;
+
   /* ---------- alerts (bell + home dashboard) ---------- */
   let alertsP = null;
   window.portalAlerts = () => alertsP || (alertsP = (async () => {
