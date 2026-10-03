@@ -3,33 +3,191 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Login | Al Hyakel Portal</title>
+<title>Sign in | Al Hyakel Portal</title>
 <link rel="icon" href="assets/favicon.png">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#1D6E80">
+<meta name="theme-color" content="#E9EEF0">
 <link rel="apple-touch-icon" href="assets/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/portal.css">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@400;500&family=Saira+Condensed:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/adhan@4.4.6/lib/bundles/adhan.umd.min.js"></script>
 <script src="assets/config.js"></script>
+<style>
+:root{--steel:#E6ECEE;--steel2:#CFD8DC;--ink:#1F2D35;--muted:#66767F;--brand:#1D6E80;--brand-d:#155462;--hot:#E07A2E;--red:#C8394E;--paper:#fff;--field:#F3F6F7;--line:#DCE3E6}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{font:15px/1.5 'IBM Plex Sans','IBM Plex Sans Arabic','Segoe UI',system-ui,sans-serif;color:var(--ink);min-height:100vh;
+  background:repeating-linear-gradient(90deg,rgba(255,255,255,.4) 0 1px,transparent 1px 3px),radial-gradient(90% 80% at 25% 30%,#F7F9FA 0,var(--steel) 55%,var(--steel2) 100%)}
+[hidden]{display:none!important}
+.ar{font-family:'IBM Plex Sans Arabic',sans-serif}
+.wrap{min-height:100vh;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);align-items:center;max-width:1220px;margin:0 auto;padding:36px 32px;gap:56px}
+.left{display:grid;gap:22px;justify-items:center}
+.top{display:flex;justify-content:space-between;align-items:center;gap:16px;width:100%}
+.co{display:flex;align-items:center;gap:12px}
+.co img{height:44px;border-radius:8px;background:#fff;padding:3px 5px;box-shadow:0 2px 8px rgba(30,60,80,.08)}
+.co b{display:block;font-weight:600;white-space:nowrap}.co span{display:block;color:var(--muted);font-size:13.5px;white-space:nowrap}
+.wx{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.75);border-radius:14px;padding:6px 14px 6px 8px;box-shadow:0 2px 8px rgba(30,60,80,.08);font-size:13px;line-height:1.25;white-space:nowrap;color:var(--muted)}
+.wx i{font-style:normal;display:block;color:var(--ink);font-size:13.5px}
+.wx svg{width:26px;height:26px;flex:none}
+.wx b{font:600 19px 'Saira Condensed',sans-serif}
+.dial{width:min(400px,100%);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 35% 28%,rgba(255,255,255,.75),rgba(255,255,255,.22) 60%,rgba(255,255,255,.12));
+  -webkit-backdrop-filter:blur(10px) saturate(1.2);backdrop-filter:blur(10px) saturate(1.2);border:1px solid rgba(255,255,255,.85);
+  box-shadow:0 30px 60px -20px rgba(30,60,80,.28),inset 0 1px 0 rgba(255,255,255,.9),inset 0 -12px 30px rgba(29,110,128,.06)}
+svg.gauge{width:100%;height:auto;display:block}
+.dates{text-align:center;line-height:1.4}
+.dates b{display:block;font-weight:500;font-size:16px}
+.dates span{color:var(--muted);font-size:15px}
+.pray{width:min(460px,100%);background:rgba(255,255,255,.8);border-radius:16px;box-shadow:0 2px 10px rgba(30,60,80,.08);padding:12px}
+.pray .next{display:flex;justify-content:space-between;align-items:baseline;padding:2px 6px 10px;font-size:14px;color:var(--muted)}
+.pray .next b{color:var(--ink);font-weight:600}
+.pray .next em{font-style:normal;color:var(--brand);font-weight:600}
+.pray ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.pray li{text-align:center;padding:8px 2px 7px;border-radius:10px}
+.pray li .n{display:block;font-size:12.5px;color:var(--muted)}
+.pray li .a{display:block;font-size:12px;color:var(--muted)}
+.pray li .t{display:block;font:600 19px 'Saira Condensed',sans-serif;letter-spacing:.02em;margin:1px 0}
+.pray li.on{background:var(--brand);color:#fff}
+.pray li.on .n,.pray li.on .a{color:#CFE7EC}
+.pray li.past{opacity:.5}
+.card{background:var(--paper);border-radius:20px;padding:42px 40px 34px;box-shadow:0 30px 60px rgba(30,60,80,.14);width:min(420px,100%);justify-self:center}
+.card .hd{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:6px}
+.card h1{font-size:27px;font-weight:600;margin:0;line-height:1.2}
+.card .hi{margin:0;color:var(--brand);font-size:17px}
+.card p.sub{margin:0 0 26px;color:var(--muted)}
+.field{display:grid;gap:6px;margin-bottom:16px}
+.field label{font-size:13.5px;font-weight:500;color:#41525B}
+.field input{font:inherit;font-size:16px;padding:12px 14px;border:1.5px solid transparent;border-radius:10px;background:var(--field);color:var(--ink);width:100%}
+.field input:focus{outline:none;border-color:var(--brand);background:#fff;box-shadow:0 0 0 4px #E3F0F2}
+.pw{position:relative}.pw input{padding-right:64px}
+.pw button{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--brand);font:500 13px 'IBM Plex Sans',sans-serif;cursor:pointer;padding:6px 8px;border-radius:6px}
+.btn{width:100%;border:0;border-radius:10px;padding:14px;font:600 15.5px 'IBM Plex Sans',sans-serif;color:#fff;background:var(--brand);cursor:pointer;margin-top:6px}
+.btn:hover{background:var(--brand-d)}.btn:disabled{opacity:.6;cursor:default}
+.btn:focus-visible,.pw button:focus-visible{outline:3px solid #9CC9D3;outline-offset:2px}
+.err{color:var(--red);font-size:14px;min-height:1.3em;margin:0}
+.flash{background:#FFF4EA;border:1px solid #F6D3B4;color:#7A3F10;padding:11px 14px;border-radius:10px;margin:0 0 18px;font-size:14px}
+.help{margin-top:26px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:13.5px}
+@media (max-width:920px){
+  .wrap{grid-template-columns:1fr;padding:18px 16px 36px;gap:22px}
+  .left{gap:16px}
+  .dial{width:min(280px,76vw)}
+  .wx{padding:5px 10px 5px 6px}.wx span{display:none}
+  .card{padding:28px 22px 24px}
+  /* phone: sign-in form right after the clock, prayer times below it */
+  .left{display:contents}
+  .top{order:1}.dial{order:2;justify-self:center}.dates{order:3}.card{order:4}.pray{order:5;justify-self:center}
+}
+</style>
 </head>
 <body>
-<div class="login-wrap">
-  <div class="login-card">
-    <img src="assets/logo_mark.png" alt="Al Hyakel" class="login-logo">
-    <div class="login-brand"><b>Al Hyakel Metal Industries</b><span>شركة الهياكل للصناعات المعدنية</span></div>
-    <h2>Portal Login</h2>
+<div class="wrap">
+  <section class="left" aria-label="Al Hyakel Metal Industries">
+    <div class="top">
+      <div class="co"><img src="assets/logo_mark.png" alt=""><div><b>Al Hyakel Metal Industries</b><span>Jeddah, Third Industrial City</span></div></div>
+      <div class="wx" id="wx" hidden aria-label="Weather in Jeddah"></div>
+    </div>
+    <div class="dial">
+    <svg class="gauge" viewBox="0 0 400 400" role="img" aria-label="Clock">
+      <circle cx="200" cy="200" r="196" fill="none" stroke="#FFFFFF" stroke-width="2" opacity=".9"/>
+      <circle cx="200" cy="200" r="186" fill="none" stroke="#1D6E80" stroke-width="1" opacity=".22"/>
+      <g id="ticks"></g>
+      <image href="assets/logo_mark.png" x="178" y="112" width="44" height="30" preserveAspectRatio="xMidYMid meet" opacity=".9"/>
+      <text x="200" y="158" text-anchor="middle" font-family="Saira Condensed" font-weight="500" font-size="13" fill="#1D6E80" letter-spacing="2" opacity=".85">Al Hyakel</text>
+      <text id="lcd" x="200" y="282" text-anchor="middle" font-family="Saira Condensed" font-weight="500" font-size="24" fill="#1F2D35" letter-spacing="3" opacity=".75">--:--:--</text>
+      <g id="hr"><path d="M200 214 L200 112" stroke="#1F2D35" stroke-width="6" stroke-linecap="round"/></g>
+      <g id="mn"><path d="M200 218 L200 58" stroke="#1F2D35" stroke-width="3.5" stroke-linecap="round"/></g>
+      <g id="sec"><path d="M200 232 L200 44" stroke="#E07A2E" stroke-width="1.4" stroke-linecap="round"/><circle cx="200" cy="226" r="4" fill="#E07A2E"/><circle cx="200" cy="200" r="6" fill="#E07A2E"/></g>
+      <circle cx="200" cy="200" r="2.5" fill="#fff"/>
+    </svg>
+    </div>
+    <div class="dates"><b id="greg">&nbsp;</b><span id="hijri" class="ar" lang="ar" dir="rtl">&nbsp;</span></div>
+    <div class="pray" id="pray" hidden aria-label="Prayer times in Jeddah"></div>
+  </section>
+  <main class="card">
+    <div class="hd"><h1 id="hello">Welcome</h1><p class="hi ar" id="helloAr" lang="ar" dir="rtl"></p></div>
+    <p class="sub">Sign in to the Al Hyakel portal: documents, inventory and employees.</p>
     <div id="msg" class="flash" hidden></div>
     <form id="f">
-      <div class="field"><label for="u">User ID</label><input id="u" autocomplete="username" autocapitalize="none" required autofocus></div>
-      <div class="field"><label for="p">Password</label><input id="p" type="password" autocomplete="current-password" required></div>
+      <div class="field"><label for="u">User ID</label><input id="u" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus></div>
+      <div class="field"><label for="p">Password</label><div class="pw"><input id="p" type="password" autocomplete="current-password" required><button type="button" id="eye" aria-label="Show password">Show</button></div></div>
       <p id="err" class="err" role="alert"></p>
-      <button class="btn" id="b" style="width:100%">Login</button>
+      <button class="btn" id="b">Sign in</button>
     </form>
-  </div>
+    <div class="help">Forgot your password? Ask the portal admin to set a new one in Users &amp; Access.</div>
+  </main>
 </div>
+<script>
+(() => {
+  const TZ = 'Asia/Riyadh', LAT = 21.4858, LON = 39.1925, $ = id => document.getElementById(id), NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs, parent) => { const n = document.createElementNS(NS, tag); Object.entries(attrs).forEach(([k, v]) => n.setAttribute(k, v)); parent.appendChild(n); return n; };
+  const pt = (a, r) => [200 + r * Math.sin(a), 200 - r * Math.cos(a)];
+  // bezel bolts and dial
+  for (let i = 0; i < 60; i++) {
+    const a = i * Math.PI / 30, big = i % 5 === 0, q = i % 15 === 0, [x1, y1] = pt(a, 176), [x2, y2] = pt(a, q ? 156 : big ? 162 : 171);
+    el('line', {x1, y1, x2, y2, stroke: q ? '#1D6E80' : '#1F2D35', 'stroke-width': q ? 3 : big ? 1.8 : .8, 'stroke-linecap': 'round', opacity: big ? .9 : .45}, $('ticks'));
+    if (big) { const [tx, ty] = pt(a, 138); const t = el('text', {x: tx, y: ty + 7, 'text-anchor': 'middle', 'font-family': 'Saira Condensed', 'font-weight': 500, 'font-size': q ? 24 : 19, fill: q ? '#1D6E80' : '#1F2D35', opacity: q ? 1 : .7}, $('ticks')); t.textContent = i / 5 || 12; }
+  }
+  const P = n => new Intl.DateTimeFormat('en-GB', {timeZone: TZ, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, weekday: 'long', year: 'numeric', month: 'numeric', day: 'numeric'})
+    .formatToParts(n).reduce((o, p) => (o[p.type] = p.value, o), {});
+  const fG = new Intl.DateTimeFormat('en-GB', {timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'});
+  let fH; try { fH = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-latn', {timeZone: TZ, day: 'numeric', month: 'long', year: 'numeric'}); } catch (e) {}
+  const fHM = new Intl.DateTimeFormat('en-GB', {timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false});
+  const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let lastKey = '';
+
+  // prayer times for Jeddah (Umm al-Qura), next prayer + countdown
+  const PR = [['fajr', 'Fajr', 'الفجر'], ['dhuhr', 'Dhuhr', 'الظهر'], ['asr', 'Asr', 'العصر'], ['maghrib', 'Maghrib', 'المغرب'], ['isha', 'Isha', 'العشاء']];
+  const times = (y, m, d) => { const a = window.adhan; if (!a) return null; return new a.PrayerTimes(new a.Coordinates(LAT, LON), new Date(y, m - 1, d, 12), a.CalculationMethod.UmmAlQura()); };
+  const dur = ms => { const m = Math.max(1, Math.round(ms / 60000)), h = Math.floor(m / 60); return h ? `${h} h ${m % 60} min` : `${m} min`; };
+  function drawPrayers(now, p) {
+    const today = times(+p.year, +p.month, +p.day); if (!today) return;
+    const fri = p.weekday === 'Friday';
+    let next = PR.find(([k]) => today[k] > now), nextAt;
+    if (next) nextAt = today[next[0]];
+    else { const t = new Date(now.getTime() + 864e5), q = P(t), tm = times(+q.year, +q.month, +q.day); next = PR[0]; nextAt = tm.fajr; }
+    const name = k => k === 'dhuhr' && fri ? ['Jumuah', 'الجمعة'] : PR.find(x => x[0] === k).slice(1);
+    $('pray').innerHTML = `<div class="next"><span>Next prayer: <b>${name(next[0])[0]}</b></span><em>in ${dur(nextAt - now)}</em></div><ol>${PR.map(([k]) => {
+      const [en, ar] = name(k), on = k === next[0] && today[k] > now, past = today[k] <= now;
+      return `<li class="${on ? 'on' : past ? 'past' : ''}"><span class="n">${en}</span><span class="t">${fHM.format(today[k])}</span><span class="a ar" lang="ar">${ar}</span></li>`; }).join('')}</ol>`;
+    $('pray').hidden = false;
+  }
+  function frame() {
+    const now = new Date(), p = P(now), H = +p.hour % 24, M = +p.minute, S = +p.second, ms = smooth ? now.getMilliseconds() : 0;
+    $('hr').setAttribute('transform', `rotate(${(H % 12) * 30 + M / 2 + S / 120} 200 200)`);
+    $('mn').setAttribute('transform', `rotate(${M * 6 + S / 10} 200 200)`);
+    $('sec').setAttribute('transform', `rotate(${(S + ms / 1000) * 6} 200 200)`);
+    const key = `${p.hour}${p.minute}${p.second}`;
+    if (key !== lastKey) {
+      lastKey = key;
+      $('lcd').textContent = `${p.hour}:${p.minute}:${p.second}`;
+      $('greg').textContent = fG.format(now);
+      if (fH) $('hijri').textContent = fH.format(now);
+      const [en, ar] = H < 12 ? ['Good morning', 'صباح الخير'] : H < 17 ? ['Good afternoon', 'مساء الخير'] : ['Good evening', 'مساء الخير'];
+      $('hello').textContent = en; $('helloAr').textContent = ar;
+      if (S === 0 || !$('pray').innerHTML) drawPrayers(now, p);
+    }
+    smooth ? requestAnimationFrame(frame) : setTimeout(frame, 1000 - now.getMilliseconds());
+  }
+  frame();
+
+  // weather in Jeddah (Open-Meteo, no key); hidden if it cannot load
+  const WX = c => c === 0 ? ['Clear', 'sun'] : c <= 2 ? ['Partly cloudy', 'part'] : c === 3 ? ['Cloudy', 'cloud'] : c <= 48 ? ['Hazy', 'cloud'] : c <= 67 || (c >= 80 && c <= 82) ? ['Rain', 'rain'] : c >= 95 ? ['Thunderstorm', 'rain'] : ['Cloudy', 'cloud'];
+  const ICON = {sun: '<circle cx="16" cy="16" r="6" fill="#E9A23B"/><g stroke="#E9A23B" stroke-width="2" stroke-linecap="round"><path d="M16 3v3M16 26v3M3 16h3M26 16h3M6.8 6.8l2.1 2.1M23.1 23.1l2.1 2.1M6.8 25.2l2.1-2.1M23.1 8.9l2.1-2.1"/></g>',
+    part: '<circle cx="12" cy="12" r="5" fill="#E9A23B"/><path d="M10 24h13a5 5 0 0 0 0-10 7 7 0 0 0-13 2 4 4 0 0 0 0 8z" fill="#B9C6CC"/>',
+    cloud: '<path d="M8 25h16a6 6 0 0 0 0-12 8 8 0 0 0-15 3 4.5 4.5 0 0 0-1 9z" fill="#A9B8BF"/>',
+    rain: '<path d="M8 20h16a6 6 0 0 0 0-12 8 8 0 0 0-15 3 4.5 4.5 0 0 0-1 9z" fill="#9AAAB2"/><path d="M11 23l-2 5M17 23l-2 5M23 23l-2 5" stroke="#3B82C4" stroke-width="2" stroke-linecap="round"/>'};
+  fetch(`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,relative_humidity_2m,weather_code&timezone=Asia%2FRiyadh`)
+    .then(r => r.ok ? r.json() : Promise.reject()).then(d => {
+      const c = d.current; if (!c) return;
+      const [txt, ic] = WX(c.weather_code);
+      $('wx').innerHTML = `<svg viewBox="0 0 32 32" aria-hidden="true">${ICON[ic]}</svg><b>${Math.round(c.temperature_2m)}°</b><span><i>${txt} in Jeddah</i>Humidity ${c.relative_humidity_2m}%</span>`;
+      $('wx').hidden = false;
+    }).catch(() => {});
+
+  $('eye').onclick = () => { const p = $('p'), show = p.type === 'password'; p.type = show ? 'text' : 'password'; $('eye').textContent = show ? 'Hide' : 'Show'; $('eye').setAttribute('aria-label', show ? 'Hide password' : 'Show password'); };
+})();
+</script>
 <script>
 (async () => {
   const C = window.PORTAL_CONFIG, q = new URLSearchParams(location.search);
@@ -59,9 +217,7 @@
       if (e2) throw new Error('Database error: ' + e2.message);
       if (!me || !me.active) { await sb.auth.signOut(); throw new Error(me ? 'Your account is blocked.' : 'This login has not been added to the portal.'); }
       location.replace(next);
-    } catch (e) { err.textContent = e.message; btn.disabled = false; btn.textContent = 'Login'; }
+    } catch (e) { err.textContent = e.message; btn.disabled = false; btn.textContent = 'Sign in'; }
   });
 })();
-</script>
-</body>
-</html>
+</script></body></html>
