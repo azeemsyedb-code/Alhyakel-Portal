@@ -151,6 +151,7 @@ window.PORTAL_CONFIG = {
   - **Kit schedule:** each employee's last kit and next kit date; when due, it also shows in the bell (notifications).
   - **Kit forms (PDF):** choose a round at the top → one page per employee; get it signed and file it.
   - **Single items:** for giving something in between (a new joiner, torn shoes); this does not change the next kit date.
+  - **Mistakes:** every item has **Delete** (entered by mistake) and returned items have **Undo return**. Choose a round at the top and click **Undo this round** to remove a whole round; the older items it marked "Replaced" go back to "with employee". HR admin and supervisor can do this.
   - **Return:** Good / Damaged / Lost. Damaged or Lost items carry a charge; if the HR admin keeps "Deduct from salary" on, it is deducted in the payslip.
 - **Paid tasks:** when creating a task, the HR admin ticks **Paid task** and enters the amount. It is added to the salary for the month in which the task is marked "Done".
 - **Payroll (HR admin only):** choose a month. Each employee's payslip: basic + overtime + paid tasks + bonus, minus absences (basic ÷ 30 per day, half day = half), violations / deductions. Record these with **+ Deduction / violation / bonus**. **Save** stores the payslip; if something changes later, the row shows "Changed since" — click **Re-save**. Print **Payslip** / **All payslips (PDF)** and have the employee sign.
@@ -210,7 +211,8 @@ A free Supabase project is paused if it is not used at all for **7 days**. With 
 
 - Friday is set as the weekly off day (change it in **Employees → Settings**, or choose "No weekly off day").
 - If someone works on Friday, **all** the hours they work count as overtime (not just the hours above the shift). You can still type a different number of OT hours for that person on that day; "auto" switches back.
-- Optional: **Overtime rate on the off day** in Settings. Leave it empty to use each employee's normal overtime rate.
+- Friday overtime is paid at **2x each employee's own overtime rate** (change the multiplier in **Employees → Settings → Off-day overtime**).
+- **Employees → Pay & overtime rates**: one screen to set every employee's basic pay and own overtime rate; the Friday rate is shown next to it.
 - On Friday, "Mark everyone not in" marks people as **Off day**, not absent. The payslip shows Friday overtime as its own line.
 - Needs the latest `supabase_hr.sql` (run it again in the SQL Editor).
 
@@ -272,7 +274,17 @@ Clicking a section opens the document you used last in it.
 - A receipt for money received from a customer: number `CR-2026-001` (restarts every year), date, received from, amount (written in words automatically), paid by (cash, cheque, bank transfer, card) with cheque / transfer number and bank, and what it is for.
 - **Against invoice**: choose one of the customer's unpaid invoices and the money is also recorded as a payment on that invoice (it shows in the invoice's Payments and in Receivables). Deleting the receipt deletes that payment. Once linked, only a manager can change the amount, date, method or invoice.
 - The PDF is bilingual (English / Arabic, سند قبض) with the company stamp, printed twice on one A4 page: the **Original** for the customer and a **Copy** for the file, with a cut line between them.
+- The amount is written in words in **English and Arabic** (فقط ... ريال سعودي لا غير), the payment method shows in Arabic too, and there is an optional **Being (Arabic)** field.
+- **Amount due**: linked to an invoice, the receipt prints the invoice total, anything paid before, this receipt and the **balance due**. Not linked, type the "Amount due before this receipt" to print the same.
 - Needs the latest `supabase_docs.sql`.
+
+## Petty Cash (Documents → Sales & Cash → Petty Cash)
+
+- One voucher per day (or per top-up): number `PC-2026-001`, date, who holds the cash, **opening balance** (filled in from the previous voucher's closing balance), **cash received** today and from whom.
+- Expense lines: description, category (fuel, transport, food & water, tools, stationery…), paid to, bill no., amount. The closing balance is worked out as you type.
+- Optional photos of up to 4 bills (printed on page 2).
+- PDF **Petty Cash Voucher / سند صرف نثرية**: expenses table, opening / received / spent / closing, total in English and Arabic words, signature boxes (cashier, approved by, accounts) and stamp.
+- The list shows **cash in hand now**, spent and received this month, and the top categories.
 
 ## Stock count (Inventory → Stock count)
 

@@ -309,7 +309,8 @@ const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
 const offDay = () => S.settings.off_day === undefined ? 5 : S.settings.off_day;
 const isOff = d => offDay() != null && d && new Date(d + 'T00:00:00Z').getUTCDay() === Number(offDay());
 const offName = () => offDay() == null ? '' : DAY_NAMES[offDay()];
-const offRateOf = e => S.settings.offday_ot_rate != null && S.settings.offday_ot_rate !== '' ? Number(S.settings.offday_ot_rate) : rateOf(e);
+const offMult = () => Number(S.settings.offday_ot_multiplier || 2);
+const offRateOf = e => Math.round(rateOf(e) * offMult() * 100) / 100;      // off day (Friday): own overtime rate x 2
 const otRateFor = (e, d) => isOff(d) ? offRateOf(e) : rateOf(e);
 const empOpts = (sel, blank) => (blank != null ? `<option value="">${blank}</option>` : '') +
   S.employees.filter(e => e.active || e.id === sel)
@@ -401,7 +402,7 @@ async function viewToday() {
   main.innerHTML = `
     <div class="head"><div><h1>Today</h1><p>${longDate(d)}</p></div>
       <div class="tools"><button class="btn" id="refresh">Refresh</button><a class="btn" href="#attendance">Edit attendance</a></div></div>
-    ${isOff(d) ? `<div class="offnote">${offName()} is the weekly off day. Anyone who works today gets all their hours as overtime${S.settings.offday_ot_rate != null ? ` at SAR ${money(S.settings.offday_ot_rate)} per hour` : ''}.</div>` : ''}
+    ${isOff(d) ? `<div class="offnote">${offName()} is the weekly off day. Anyone who works today gets all their hours as overtime, paid at ${offMult()}x their own overtime rate.</div>` : ''}
     <div class="figs">
       <div class="fig"><div class="num">${present}</div><span>Present</span></div>
       <div class="fig"><div class="num">${onShift}</div><span>On shift now</span></div>
@@ -460,7 +461,7 @@ async function renderDay() {
   $('#attBody').innerHTML = `<div class="wrap"><table>
     <thead><tr><th>Code</th><th>Name</th><th>Status</th><th>In</th><th>Out</th><th class="r">Hours</th><th class="r">OT hours</th><th>Note</th><th></th></tr></thead>
     <tbody id="dayRows">${emps.map(e => dayRow(e, byEmp[e.id])).join('') || '<tr><td colspan="9" class="empty">No active employees.</td></tr>'}</tbody></table></div>
-    ${isOff(d) ? `<div class="offnote" style="margin-top:12px">${offName()} is the weekly off day: all hours worked today count as overtime${S.settings.offday_ot_rate != null ? ` (SAR ${money(S.settings.offday_ot_rate)} per hour)` : ''}. You can still type a different number of OT hours for anyone.</div>` : ''}
+    ${isOff(d) ? `<div class="offnote" style="margin-top:12px">${offName()} is the weekly off day: all hours worked today count as overtime, paid at ${offMult()}x each employee's overtime rate. You can still type a different number of OT hours for anyone.</div>` : ''}
     <p class="muted" style="font-size:13px">OT is calculated automatically: worked hours minus ${S.settings.shift_hours} shift hours${offDay() != null ? ` (on ${offName()}s: all worked hours)` : ''}, rounded down to the half hour. Type a number in OT to override it; "auto" switches back.</p>`;
 
   const tb = $('#dayRows');
@@ -735,20 +736,43 @@ async function viewEmployees() {
   main.innerHTML = `
     <div class="head"><div><h1>Employees</h1><p>${activeEmps().length} active.${noPin ? ` ${noPin} still need a kiosk PIN before they can check in.` : ''}</p></div>
       <div class="tools"><label class="muted"><input type="checkbox" id="inact" data-remember="hr.emp.inactive"${showInactive ? ' checked' : ''}> Show inactive</label>
-        ${isAdmin() ? '<button class="btn primary" id="addEmp">Add employee</button>' : ''}</div></div>
+        ${isAdmin() ? '<button class="btn" id="rates">Pay &amp; overtime rates</button><button class="btn primary" id="addEmp">Add employee</button>' : ''}</div></div>
     <div class="wrap"><table>
-      <thead><tr><th>Code</th><th>Name</th><th>Designation</th><th>Phone</th>${isAdmin() ? '<th class="r">Basic pay (SAR)</th><th class="r">OT rate</th>' : ''}<th>Kiosk PIN</th><th>Status</th></tr></thead>
+      <thead><tr><th>Code</th><th>Name</th><th>Designation</th><th>Phone</th>${isAdmin() ? `<th class="r">Basic pay (SAR)</th><th class="r">OT rate / h</th>${offDay() != null ? `<th class="r">${offName()} OT / h</th>` : ''}` : ''}<th>Kiosk PIN</th><th>Status</th></tr></thead>
       <tbody>${list.map(e => `<tr class="click" data-id="${e.id}"><td class="muted">${esc(e.emp_code)}</td><td>${esc(e.name)}</td>
         <td>${esc(e.designation)}</td><td>${esc(e.phone)}</td>${isAdmin() ? `<td class="r">${money(e.basic_pay)}</td>
-        <td class="r">${e.ot_rate != null ? money(e.ot_rate) : `<span class="muted">${money(S.settings.default_ot_rate)}</span>`}</td>` : ''}
+        <td class="r">${e.ot_rate != null ? money(e.ot_rate) : `<span class="muted">${money(S.settings.default_ot_rate)}</span>`}</td>${offDay() != null ? `<td class="r">${money(offRateOf(e))}</td>` : ''}` : ''}
         <td>${e.pin_set ? chip('done', 'Set') : chip('absent', 'Not set')}</td>
         <td>${e.active ? chip('present', 'Active') : chip('off', 'Inactive')}</td></tr>`).join('')
         || '<tr><td colspan="8" class="empty">No employees yet. Use "Add employee".</td></tr>'}</tbody></table></div>`;
   $('#inact').onchange = e => { showInactive = e.target.checked; viewEmployees(); };
   if (isAdmin()) {
     $('#addEmp').onclick = () => openEmployee(null);
+    $('#rates').onclick = () => openRates();
     main.querySelectorAll('tr.click').forEach(tr => tr.onclick = () => openEmployee(empById(tr.dataset.id)));
   } else main.querySelectorAll('tr.click').forEach(tr => tr.classList.remove('click'));
+}
+
+// one screen to set every employee's basic pay and own overtime rate
+function openRates() {
+  const emps = activeEmps(), def = Number(S.settings.default_ot_rate), m = offMult(), off = offDay() != null;
+  const f = openDialog({title: 'Pay &amp; overtime rates', submit: 'Save rates', body: `
+    <p class="full hint" style="margin:0">Each employee can have their own overtime rate. Leave it empty to use the default (SAR ${money(def)} per hour).${off ? ` ${offName()} overtime is ${m}x the employee's rate.` : ''}</p>
+    <div class="full wrap" style="max-height:52vh;overflow:auto"><table class="rates"><thead><tr><th>Employee</th><th class="r">Basic pay / month</th><th class="r">OT rate / hour</th>${off ? `<th class="r">${offName()} OT / hour</th>` : ''}</tr></thead><tbody>
+      ${emps.map(e => `<tr data-id="${e.id}"><td><b>${esc(e.name)}</b><span class="sub">${esc(e.emp_code)}</span></td>
+        <td class="r"><input name="b_${e.id}" type="number" min="0" step="0.01" value="${e.basic_pay ?? 0}" aria-label="Basic pay, ${esc(e.name)}" style="width:110px;text-align:right"></td>
+        <td class="r"><input name="o_${e.id}" type="number" min="0" step="0.01" value="${e.ot_rate ?? ''}" placeholder="${money(def)}" aria-label="Overtime rate, ${esc(e.name)}" style="width:100px;text-align:right"></td>
+        ${off ? `<td class="r" data-off="${e.id}">${money(rateOf(e) * m)}</td>` : ''}</tr>`).join('') || '<tr><td colspan="4" class="empty">No active employees.</td></tr>'}
+    </tbody></table></div>`,
+    onSubmit: async fd => {
+      const rows = emps.map(e => ({employee_id: e.id, basic_pay: Number(fd['b_' + e.id] || 0), ot_rate: fd['o_' + e.id] === '' ? null : Number(fd['o_' + e.id])}))
+        .filter(r => { const e = empById(r.employee_id); return Number(e.basic_pay || 0) !== r.basic_pay || (e.ot_rate ?? null) !== r.ot_rate; });
+      if (!rows.length) { toast('Nothing changed'); return; }
+      for (let i = 0; i < rows.length; i += 200) must(await sb.from('hr_pay').upsert(rows.slice(i, i + 200), {onConflict: 'employee_id'}));
+      toast(`Rates saved for ${rows.length} employee(s)`); await loadBase(true); viewEmployees();
+    }});
+  f.addEventListener('input', e => { const n = e.target.name || ''; if (!n.startsWith('o_')) return;
+    const id = n.slice(2), cell = f.querySelector(`[data-off="${id}"]`); if (cell) cell.textContent = money((e.target.value === '' ? def : Number(e.target.value)) * m); });
 }
 
 function nextCode() {
@@ -911,6 +935,7 @@ async function viewKit() {
       <select id="kBatch" data-remember="hr.kit.round" aria-label="Kit round"><option value="">All rounds &amp; single items</option>${batches.map(b => `<option${b === kitFilter.batch ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select>
       <select id="kSt" data-remember="hr.kit.status" aria-label="Status"><option value="with">With employee</option><option value="back">Returned / replaced / lost</option><option value="all">All</option></select>
     </div>
+    <div id="roundBar"></div>
     <div class="wrap"><table><thead><tr><th>Code</th><th>Name</th><th>Item</th><th class="r">Qty</th><th>Issued</th><th>Round</th><th>Status</th><th class="r">Charge (SAR)</th><th></th></tr></thead><tbody id="krows"></tbody></table></div>`;
   $('#kSt').value = kitFilter.status;
   $('#ksched').innerHTML = sched.sort((a, b) => (a.next || '0') < (b.next || '0') ? -1 : 1).map(s => {
@@ -931,8 +956,13 @@ async function viewKit() {
         <td class="r">${fmtH(Number(k.qty))}</td><td>${shortDate(k.issued_on)}</td><td class="muted">${esc(k.batch || 'single')}</td>
         <td>${chip(KIT_CHIP[st], KIT_STATE[st])}${k.returned_on ? ` <span class="muted">${shortDate(k.returned_on)}</span>` : ''}</td>
         <td class="r">${Number(k.charge) ? money(k.charge) : ''}</td>
-        <td>${canEdit() && !k.returned_on ? '<button class="btn" data-ret>Return</button>' : ''}</td></tr>`; }).join('')
+        <td style="white-space:nowrap">${canEdit() ? (!k.returned_on ? '<button class="btn" data-ret>Return</button> ' : k.return_condition !== 'replaced' ? '<button class="btn" data-unret title="The return was recorded by mistake">Undo return</button> ' : '') + '<button class="btn danger" data-delkit title="Delete this item (entered by mistake)">Delete</button>' : ''}</td></tr>`; }).join('')
       || '<tr><td colspan="9" class="empty">No records. Use "Issue kit round" to give kits to everyone.</td></tr>';
+    const rn = kitFilter.batch ? all.filter(k => k.batch === kitFilter.batch) : [];
+    $('#roundBar').innerHTML = canEdit() && rn.length ? `<div class="offnote" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+      <span>Round <b>${esc(kitFilter.batch)}</b>: ${rn.length} item(s) for ${new Set(rn.map(k => k.employee_id)).size} employee(s), issued ${shortDate(rn[0].issued_on)}.</span>
+      <button class="btn danger" id="undoRound" type="button">Undo this round</button></div>` : '';
+    $('#undoRound')?.addEventListener('click', () => undoRound(all, kitFilter.batch));
   };
   draw();
   $('#kEmp').onchange = e => { kitFilter.emp = e.target.value; draw(); };
@@ -941,7 +971,25 @@ async function viewKit() {
   $('#issue')?.addEventListener('click', () => openIssue());
   $('#round')?.addEventListener('click', () => openRound(all, sched));
   $('#tpl')?.addEventListener('click', () => openTemplate());
-  $('#krows').addEventListener('click', e => { if (!e.target.closest('[data-ret]')) return; openReturn(all.find(k => k.id === e.target.closest('tr').dataset.id)); });
+  $('#krows').addEventListener('click', async e => {
+    const tr = e.target.closest('tr[data-id]'); if (!tr) return;
+    const k = all.find(x => x.id === tr.dataset.id), it = `${k.item}${k.size ? ' (' + k.size + ')' : ''}`, who = empById(k.employee_id)?.name || '';
+    if (e.target.closest('[data-ret]')) return openReturn(k);
+    try {
+      if (e.target.closest('[data-unret]')) {
+        if (!confirm(`Undo the return of ${it} for ${who}? It will show as "with employee" again${Number(k.charge) ? ' and its salary deduction will be removed' : ''}.`)) return;
+        must(await sb.from('hr_kit').update({returned_on: null, return_condition: null, charge: 0}).eq('id', k.id));
+        if (Number(k.charge) && isAdmin()) await sb.from('hr_adjustments').delete().eq('kit_id', k.id);
+        toast('Return undone'); route();
+      }
+      if (e.target.closest('[data-delkit]')) {
+        if (!confirm(`Delete ${it} for ${who}? Use this only for an item entered by mistake.`)) return;
+        if (isAdmin()) await sb.from('hr_adjustments').delete().eq('kit_id', k.id);
+        must(await sb.from('hr_kit').delete().eq('id', k.id));
+        toast('Item deleted'); route();
+      }
+    } catch (err) { toast(err.message || String(err), true); }
+  });
   $('#kitPdf').onclick = async () => {
     let pages;
     if (kitFilter.batch) pages = [...new Set(all.filter(k => k.batch === kitFilter.batch && (!kitFilter.emp || k.employee_id === kitFilter.emp)).map(k => k.employee_id))]
@@ -953,6 +1001,21 @@ async function viewKit() {
     try { (await kitPdf(pages)).save(kitFilter.batch ? `Kit-forms-${kitFilter.batch}${kitFilter.emp ? '-' + empById(kitFilter.emp).emp_code : ''}.pdf` : `Kit-${pages[0].e.emp_code}.pdf`); }
     catch (err) { toast('Could not create PDF: ' + (err.message || err), true); }
   };
+}
+// remove a whole kit round issued by mistake, and give back the items it marked "Replaced"
+async function undoRound(all, batch) {
+  const rows = all.filter(k => k.batch === batch); if (!rows.length) return;
+  const emps = new Set(rows.map(k => k.employee_id)), day = rows[0].issued_on;
+  const replaced = all.filter(k => emps.has(k.employee_id) && k.batch !== batch && k.return_condition === 'replaced' && k.returned_on === day);
+  if (!confirm(`Undo kit round "${batch}"? ${rows.length} item(s) for ${emps.size} employee(s) will be deleted.${replaced.length ? ` ${replaced.length} older item(s) that this round marked "Replaced" will show as "with employee" again.` : ''}`)) return;
+  try {
+    const ids = rows.map(k => k.id);
+    if (isAdmin()) for (let i = 0; i < ids.length; i += 200) await sb.from('hr_adjustments').delete().in('kit_id', ids.slice(i, i + 200));
+    for (let i = 0; i < ids.length; i += 200) must(await sb.from('hr_kit').delete().in('id', ids.slice(i, i + 200)));
+    const back = replaced.map(k => k.id);
+    for (let i = 0; i < back.length; i += 200) must(await sb.from('hr_kit').update({returned_on: null, return_condition: null, charge: 0}).in('id', back.slice(i, i + 200)));
+    kitFilter.batch = ''; toast(`Round ${batch} undone`); route();
+  } catch (err) { toast(err.message || String(err), true); }
 }
 const itemRows = (rows, n) => { const r = [...rows]; while (r.length < n) r.push({item: '', qty: 1}); return r; };
 function openRound(all, sched) {
@@ -1288,7 +1351,7 @@ async function viewSettings() {
       <label>Default overtime rate (SAR per hour) <span class="hint">Used for anyone without their own rate.</span><input name="default_ot_rate" type="number" min="0" step="0.01" required value="${s.default_ot_rate}"></label>
       <label>Weekly off day <span class="hint">All hours worked on this day count as overtime. Not-in employees are marked "Off day", not absent.</span>
         <select name="off_day"><option value="">No weekly off day</option>${DAY_NAMES.map((n, i) => `<option value="${i}"${offDay() != null && Number(offDay()) === i ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
-      <label>Overtime rate on the off day (SAR per hour) <span class="hint">Leave empty to use each employee's normal overtime rate.</span><input name="offday_ot_rate" type="number" min="0" step="0.01" value="${s.offday_ot_rate ?? ''}" placeholder="Same as normal rate"></label>
+      <label>Off-day overtime <span class="hint">Overtime on the weekly off day = each employee's own overtime rate x this number. 2 = double.</span><select name="offday_ot_multiplier">${[1, 1.25, 1.5, 2, 2.5, 3].map(n => `<option value="${n}"${Number(s.offday_ot_multiplier || 2) === n ? ' selected' : ''}>${n}x the employee's overtime rate</option>`).join('')}</select></label>
       <button class="btn primary">Save settings</button>
     </form>
     <h2>Check-in kiosk</h2>
@@ -1299,7 +1362,7 @@ async function viewSettings() {
     const fd = Object.fromEntries(new FormData(ev.target));
     try {
       S.settings = must(await sb.from('hr_settings').update({company_name: fd.company_name.trim(), shift_hours: Number(fd.shift_hours), default_ot_rate: Number(fd.default_ot_rate),
-        off_day: fd.off_day === '' ? null : Number(fd.off_day), offday_ot_rate: fd.offday_ot_rate === '' ? null : Number(fd.offday_ot_rate)}).eq('id', 1).select().single());
+        off_day: fd.off_day === '' ? null : Number(fd.off_day), offday_ot_multiplier: Number(fd.offday_ot_multiplier || 2)}).eq('id', 1).select().single());
       toast('Settings saved');
     } catch (e) { toast(e.message, true); }
   };

@@ -146,7 +146,7 @@ tr.inactive td{opacity:.5}
   <div class="docnav">
     <nav class="docgroups" id="groups" aria-label="Document groups">
       <a href="#leak" data-g="cert"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="5.5"/><path d="M9.5 13.8 8 21l4-2 4 2-1.5-7.2"/><path d="m9.8 9 1.6 1.6 2.9-3"/></svg><span>Certificates</span></a>
-      <a href="#quotation" data-g="sales"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg><span>Sales</span></a>
+      <a href="#quotation" data-g="sales"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg><span class="lg">Sales &amp; Cash</span><span class="sm">Sales</span></a>
       <a href="#jobcard" data-g="work"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg><span class="lg">Workshop &amp; Purchasing</span><span class="sm">Workshop</span></a>
     </nav>
     <nav class="docsub" id="tabs" aria-label="Document types">
@@ -157,6 +157,7 @@ tr.inactive td{opacity:.5}
       <a href="#quotation" data-t="quotation" data-g="sales">Quotation</a>
       <a href="#invoice" data-t="invoice" data-g="sales">Invoice</a>
       <a href="#receipt" data-t="receipt" data-g="sales">Cash Receipt</a>
+      <a href="#petty" data-t="petty" data-g="sales">Petty Cash</a>
       <a href="#dn" data-t="dn" data-g="sales">Delivery Note</a>
       <a href="#catalog" data-t="catalog" data-g="sales">Price List</a>
       <a href="#jobcard" data-t="jobcard" data-g="work">Job Card</a>
@@ -868,6 +869,24 @@ function words(n) {
 }
 const sarWords = total => { const h = Math.round(total * 100), r = Math.floor(h / 100), hal = h % 100;
   return `Saudi Riyals ${words(r)}${hal ? ` and ${words(hal)} Halalas` : ''} Only`; };
+// amount in Arabic words (تفقيط): فقط ألف ومائتان وخمسون ريال سعودي لا غير
+function arNum(n) {
+  const U = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة', 'عشرة', 'أحد عشر', 'اثنا عشر', 'ثلاثة عشر', 'أربعة عشر', 'خمسة عشر', 'ستة عشر', 'سبعة عشر', 'ثمانية عشر', 'تسعة عشر'];
+  const T = ['', '', 'عشرون', 'ثلاثون', 'أربعون', 'خمسون', 'ستون', 'سبعون', 'ثمانون', 'تسعون'];
+  const H = ['', 'مائة', 'مائتان', 'ثلاثمائة', 'أربعمائة', 'خمسمائة', 'ستمائة', 'سبعمائة', 'ثمانمائة', 'تسعمائة'];
+  const small = x => { const h = Math.floor(x / 100), r = x % 100, p = []; if (h) p.push(H[h]);
+    if (r) p.push(r < 20 ? U[r] : (r % 10 ? U[r % 10] + ' و' + T[Math.floor(r / 10)] : T[Math.floor(r / 10)])); return p.join(' و'); };
+  const scale = (x, one, two, few, many) => x === 1 ? one : x === 2 ? two : x <= 10 ? small(x) + ' ' + few : small(x) + ' ' + many;
+  if (!n) return 'صفر';
+  const m = Math.floor(n / 1e6), th = Math.floor(n % 1e6 / 1000), r = n % 1000, out = [];
+  if (m) out.push(scale(m, 'مليون', 'مليونان', 'ملايين', 'مليون'));
+  if (th) out.push(scale(th, 'ألف', 'ألفان', 'آلاف', 'ألف'));
+  if (r) out.push(small(r));
+  return out.join(' و');
+}
+const sarWordsAr = total => { const h = Math.round(total * 100), r = Math.floor(h / 100), hal = h % 100;
+  return `فقط ${arNum(r)} ريال سعودي${hal ? ` و${arNum(hal)} هللة` : ''} لا غير`; };
+const METHOD_AR = {'Cash': 'نقداً', 'Cheque': 'شيك', 'Bank transfer': 'تحويل بنكي', 'Card': 'بطاقة'};
 
 function quoteTotals(items) {
   let sub = 0, vat = 0;
@@ -1159,6 +1178,7 @@ const iPdf = async (type, r, photos) => {
   await arabicReady();
   if (type === 'receipt') return receiptPdf(r, await assets());
   if (type === 'cow') return cowPdf(r, await assets());
+  if (type === 'petty') { if (!photos) photos = r.files?.photos?.some(Boolean) ? (await recordFiles(r)).photos : []; return pettyPdf(r, {...await assets(), photos: await withEl(photos)}); }
   if (type !== 'tank' && type !== 'aramco') return itemsPdf(type, r, await assets());
   if (!photos) photos = r.files?.photos?.some(Boolean) ? (await recordFiles(r)).photos : [];
   return (type === 'aramco' ? aicPdf : tankPdf)(r, {...await assets(), photos: await withEl(photos)});
@@ -1179,6 +1199,7 @@ async function showIList(type) {
       ${type === 'invoice' ? '<a class="btn sec" href="#invoice/receivables">Receivables</a>' : ''}
       ${CAN_EDIT ? `<a class="btn" href="#${type}/new">+ New ${esc(T.title)}</a>` : ''}
     </div>
+    ${T.summary ? T.summary(list) : ''}
     <div class="table-wrap"><table><thead><tr><th>No.</th><th>Date</th>${T.listCols.map(c => `<th${c[2] ? ' style="text-align:right"' : ''}>${c[0]}</th>`).join('')}<th>Status</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
     <p class="muted" id="count" style="font-size:13px"></p>`;
   const draw = () => {
@@ -2355,6 +2376,259 @@ async function showCowForm(id, copyFrom) {
 }
 
 
+/* ===================== PETTY CASH (daily small expenses, PC-2026-001) ===================== */
+const PETTY_CATS = ['Fuel', 'Transport', 'Food & water', 'Tools & hardware', 'Stationery', 'Cleaning', 'Repairs & maintenance', 'Mobile & internet', 'Government fees', 'Courier', 'Other'];
+const pettySort = (a, b) => (a.doc_date || '').localeCompare(b.doc_date || '') || (a.created_at || '').localeCompare(b.created_at || '');
+const pettyClose = r => r2((Number(r.data?.opening) || 0) + (Number(r.data?.received) || 0) - (Number(r.data?.spent) || 0));
+IDOCS.petty = {
+  title: 'Petty Cash', plural: 'Petty Cash', group: 'staff', custom: true,
+  nextNo: (list, date) => { const y = (date || today()).slice(0, 4); return `PC-${y}-${String(maxNo(list, new RegExp(`^PC-${y}-(\\d+)$`)) + 1).padStart(3, '0')}`; },
+  listCols: [['Held by', r => who(r.party_name)], ['Items', r => (r.data?.items || []).length], ['Received (SAR)', r => Number(r.data?.received) ? money(r.data.received) : '', 'money'],
+             ['Spent (SAR)', r => money(r.data?.spent), 'money'], ['Balance (SAR)', r => `<b>${money(pettyClose(r))}</b>`, 'money']],
+  search: r => (r.data?.items || []).flatMap(i => [i.description, i.category, i.paid_to, i.bill_no]),
+  summary: list => {
+    if (!list.length) return '';
+    const last = list.slice().sort(pettySort).pop(), month = today().slice(0, 7), mine = list.filter(r => (r.doc_date || '').slice(0, 7) === month);
+    const spentM = r2(mine.reduce((a, r) => a + (Number(r.data?.spent) || 0), 0)), recM = r2(mine.reduce((a, r) => a + (Number(r.data?.received) || 0), 0));
+    const cats = {}; mine.forEach(r => (r.data?.items || []).forEach(i => { const c = i.category || 'Other'; cats[c] = r2((cats[c] || 0) + (Number(i.amount) || 0)); }));
+    const top = Object.entries(cats).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c, v]) => `${esc(c)} ${money(v)}`).join(' · ');
+    return `<div class="paybox"><div><b>SAR ${money(pettyClose(last))}</b><span>Cash in hand now (after ${esc(last.doc_no)})</span></div>
+      <div><b>SAR ${money(spentM)}</b><span>Spent this month</span></div><div><b>SAR ${money(recM)}</b><span>Received this month</span></div>
+      <div><b style="font-size:14px">${top || '-'}</b><span>Top this month</span></div></div>`;
+  }
+};
+function pettyPdf(r, img) {
+  const d = r.data || {}, items = (d.items || []).filter(i => i.description || Number(i.amount));
+  const D = certDoc(img, r.doc_no), {pdf, M, CW, W} = D;
+  D.title('PETTY CASH VOUCHER', 'سند صرف نثرية', 'Daily small expenses');
+  D.grid([
+    [[['Voucher No.', 'رقم السند'], r.doc_no || '(on save)'], [['Date', 'التاريخ'], fullDate(r.doc_date)]],
+    [[['Held by', 'أمين الصندوق'], r.party_name], [['Cash received from', 'استلام النقدية من'], Number(d.received) ? d.received_from || '-' : '-']]
+  ], 2, 9.5);
+  D.y += 4;
+  D.bar('Expenses', 'المصروفات');
+  const cols = [8, 70, 32, 34, 20, CW - 164];          // # | description | category | paid to | bill no | amount
+  const xs = cols.reduce((a, w, i) => (a.push(i ? a[i - 1] + cols[i - 1] : M), a), []);
+  const head = () => { pdf.setFillColor(...LIGHT); pdf.rect(M, D.y, CW, 6.5, 'F'); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.4); pdf.setTextColor(...C.slate);
+    ['#', 'Description', 'Category', 'Paid to', 'Bill No.', 'Amount (SAR)'].forEach((h, i) => pdf.text(h, i === 5 ? xs[i] + cols[i] - 1.6 : xs[i] + 1.6, D.y + 4.3, i === 5 ? {align: 'right'} : {})); D.y += 6.5; };
+  head();
+  items.forEach((it, i) => {
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8);
+    const desc = hasAr(it.description) ? null : pdf.splitTextToSize(String(it.description || '-'), cols[1] - 3);
+    const RH = Math.max(7, desc ? desc.length * 3.6 + 3.4 : 8);
+    if (D.y + RH > D.BOT) { D.page(); head(); }
+    if (i % 2) { pdf.setFillColor(250, 251, 252); pdf.rect(M, D.y, CW, RH, 'F'); }
+    pdf.setTextColor(...C.muted); pdf.text(String(i + 1), xs[0] + 1.6, D.y + 4.6);
+    pdf.setTextColor(...C.ink);
+    if (desc) pdf.text(desc, xs[1] + 1.4, D.y + 4.6); else { const a = arImg(it.description, 8.5, {maxW: cols[1] - 3}); const k = Math.min(1, (RH - 1.5) / a.h); pdf.addImage(a.dataUrl, 'PNG', xs[1] + 1.4, D.y + (RH - a.h * k) / 2, a.w * k, a.h * k); }
+    pdf.text(pdf.splitTextToSize(String(it.category || ''), cols[2] - 3)[0] || '', xs[2] + 1.4, D.y + 4.6);
+    if (hasAr(it.paid_to)) { const a = arImg(it.paid_to, 8, {maxW: cols[3] - 3}); const k = Math.min(1, (RH - 1.5) / a.h); pdf.addImage(a.dataUrl, 'PNG', xs[3] + 1.4, D.y + (RH - a.h * k) / 2, a.w * k, a.h * k); }
+    else pdf.text(pdf.splitTextToSize(String(it.paid_to || ''), cols[3] - 3)[0] || '', xs[3] + 1.4, D.y + 4.6);
+    pdf.text(String(it.bill_no || ''), xs[4] + 1.4, D.y + 4.6);
+    pdf.setFont('helvetica', 'bold'); pdf.text(money(it.amount), xs[5] + cols[5] - 1.6, D.y + 4.6, {align: 'right'});
+    pdf.setDrawColor(...C.line); pdf.setLineWidth(0.15); pdf.line(M, D.y + RH, W - M, D.y + RH);
+    D.y += RH;
+  });
+  if (!items.length) { pdf.setFont('helvetica', 'italic'); pdf.setFontSize(8.5); pdf.setTextColor(...C.muted); pdf.text('No expenses recorded.', M + 2, D.y + 5); D.y += 8; }
+  // summary
+  D.need(52); D.y += 4;
+  const spent = Number(d.spent) || 0, rows = [['Opening balance', 'الرصيد الافتتاحي', Number(d.opening) || 0], ['Cash received', 'النقدية المستلمة', Number(d.received) || 0],
+    ['Total spent', 'إجمالي المصروفات', spent], ['Closing balance', 'الرصيد الختامي', pettyClose(r)]];
+  const bx = W - M - 92;
+  rows.forEach(([en, a, v], i) => { const last = i === 3, yy = D.y + i * 8;
+    pdf.setFillColor(...(last ? C.slate : LIGHT)); pdf.rect(bx, yy, 92, 7.4, 'F');
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8.2); pdf.setTextColor(...(last ? [255, 255, 255] : C.ink)); pdf.text(en, bx + 2.5, yy + 4.9);
+    D.ar(a, bx + 58, yy + 3.7, 7.6, {color: last ? '#ffffff' : '#546470'});
+    pdf.setFontSize(9); pdf.text((i === 2 ? '- ' : '') + money(v), bx + 89.5, yy + 4.9, {align: 'right'}); });
+  // words for the total spent, left of the summary
+  pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.8); pdf.setTextColor(...C.slate); pdf.text('Total spent in words', M, D.y + 4);
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8.2); pdf.setTextColor(...C.ink); pdf.text(pdf.splitTextToSize(sarWords(spent), bx - M - 6), M, D.y + 9);
+  const aw = arImg(sarWordsAr(spent), 8.6, {maxW: bx - M - 6}); pdf.addImage(aw.dataUrl, 'PNG', bx - 6 - aw.w, D.y + 18, aw.w, aw.h);
+  D.y += 36;
+  if (d.note) { D.need(12); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8); pdf.setTextColor(...C.slate); pdf.text('Note', M, D.y + 3);
+    pdf.setFont('helvetica', 'normal'); pdf.setTextColor(...C.ink); const ls = pdf.splitTextToSize(d.note, CW - 14); pdf.text(ls, M + 12, D.y + 3); D.y += ls.length * 3.8 + 4; }
+  // signatures (3 boxes) + stamp
+  D.need(36); D.y += 4;
+  const boxes = [['Prepared by (cashier)', 'أمين الصندوق', d.prepared_by || r.party_name], ['Approved by', 'اعتماد', d.approver], ['Checked by (accounts)', 'المراجعة (الحسابات)', d.checker]];
+  const bw = (CW - 8) / 3;
+  boxes.forEach(([en, a, name], i) => { const x = M + i * (bw + 4);
+    pdf.setDrawColor(...C.line); pdf.setLineWidth(0.3); pdf.roundedRect(x, D.y, bw, 30, 1.2, 1.2, 'S');
+    pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.6); pdf.setTextColor(...C.slate); pdf.text(en, x + 3, D.y + 5);
+    D.ar(a, x + bw - 3, D.y + 4.3, 7.4, {color: '#546470'});
+    pdf.setFontSize(9); pdf.setTextColor(...C.ink); pdf.text(pdf.splitTextToSize(name || ' ', bw - 6)[0], x + 3, D.y + 11);
+    pdf.setDrawColor(...C.muted); pdf.setLineWidth(0.25); pdf.line(x + 3, D.y + 24, x + bw - 3, D.y + 24);
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(6.8); pdf.setTextColor(...C.muted); pdf.text('Signature & date', x + 3, D.y + 27.5); });
+  const st = img.stamp, sk = Math.min(40 / st.w, 18 / st.h);
+  pdf.addImage(st.dataUrl, 'PNG', M + bw + 4 + bw - st.w * sk - 3, D.y + 22 - st.h * sk, st.w * sk, st.h * sk, 'stamp');
+  D.y += 34;
+  // bills / receipts photos
+  const photos = (img.photos || []).filter(Boolean);
+  if (photos.length) {
+    D.page(); D.bar('Bills & receipts', 'الفواتير والإيصالات');
+    drawPhotoGrid(pdf, photos, M, D.y + 4, CW, 170);
+  }
+  return D.finish();
+}
+
+async function showPettyForm(id, copyFrom) {
+  const seq = ROUTE_SEQ, type = 'petty', T = IDOCS.petty;
+  view.innerHTML = '<div class="ah-skel" role="status" aria-label="Loading"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>';
+  let list, mrs;
+  try { [list, mrs] = await Promise.all([loadIList(type, true), loadIList('mr').catch(() => [])]); }
+  catch (e) { view.innerHTML = `<p class="flash">Database error: ${esc(nice(e))}. Has the latest <b>supabase_docs.sql</b> been run?</p>`; return; }
+  let rec = null, src = null;
+  if (id || copyFrom) {
+    const {data} = await sb.from('docs_documents').select('*').eq('id', id || copyFrom).eq('doc_type', type).maybeSingle();
+    if (!data) { view.innerHTML = `<p class="flash">Voucher not found. <a href="#petty">Back to list</a></p>`; return; }
+    src = data; if (id) rec = data;
+  }
+  const ro = !CAN_EDIT || locked(rec), dis = ro ? 'disabled' : '';
+  const dateNow = rec?.doc_date || today(), memo = signMemo.get('petty');
+  const d = {approver: memo.approver || '', checker: memo.checker || '', ...(src?.data || {})};
+  // opening balance = closing balance of the previous voucher
+  const prevOf = date => list.filter(x => x.id !== rec?.id && (x.doc_date < date || (x.doc_date === date && rec && x.created_at < rec.created_at) || (x.doc_date === date && !rec))).sort(pettySort).pop();
+  let openAuto = !rec || d.opening_auto !== false;
+  if (!rec) { const pv = prevOf(dateNow); d.opening = pv ? pettyClose(pv) : 0; d.received = ''; d.received_from = ''; d.note = ''; }
+  const items = (copyFrom && !rec ? [] : (d.items || [])).map(i => ({...i}));
+  while (items.length < 5) items.push({description: '', category: '', paid_to: '', bill_no: '', amount: ''});
+  const slots = [null, null, null, null], removed = new Set();
+  if (rec?.files?.photos?.some(Boolean)) (await recordFiles(rec)).photos.forEach((p, i) => { if (p) slots[i] = {...p, path: rec.files.photos[i]}; });
+  const holders = [...new Set([...list, ...mrs].map(x => x.party_name).filter(Boolean))].sort();
+  const stLine = await approvalLine(rec);
+  const whoLine = rec ? `Created by: ${esc(await nameOf(rec.created_by))} · ${new Date(rec.created_at).toLocaleString('en-GB', {dateStyle: 'medium', timeStyle: 'short'})}` +
+    (rec.updated_at ? ` &nbsp;|&nbsp; Last edited by: ${esc(await nameOf(rec.updated_by))} · ${new Date(rec.updated_at).toLocaleString('en-GB', {dateStyle: 'medium', timeStyle: 'short'})}` : '') : '';
+  if (seq !== ROUTE_SEQ) return;
+  view.innerHTML = `
+    <p style="margin:0 0 10px"><a href="#petty">&larr; Petty Cash</a></p>
+    <h2>${rec ? `Petty Cash <span class="mono" style="font-size:1.1rem">${esc(rec.doc_no)}</span>` : 'New Petty Cash Voucher'}</h2>
+    ${whoLine ? `<p class="meta">${whoLine}</p>` : ''}${stLine ? `<p class="status-line">${stLine}</p>` : ''}
+    <form id="f" autocomplete="off">
+      <div class="sheet">
+        <h3>Voucher</h3>
+        <div class="grid">
+          <div class="field"><label for="f_no">Voucher No.</label>${rec ? `<div class="fixed">${esc(rec.doc_no)}</div>` : `<input id="f_no" placeholder="Auto: ${esc(T.nextNo(list, dateNow))}" ${dis}>`}</div>
+          <div class="field"><label for="f_date">Date</label><input id="f_date" type="date" required value="${esc(dateNow)}" ${dis}></div>
+          <div class="field"><label for="f_party">Held by (cashier)</label><input id="f_party" list="holders" required value="${esc(src?.party_name)}" ${dis}>
+            <datalist id="holders">${holders.map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
+          <div class="field"><label for="f_opening">Opening balance (SAR)</label><input id="f_opening" type="number" step="0.01" value="${esc(d.opening ?? 0)}" ${dis}></div>
+          <div class="field"><label for="f_received">Cash received today (SAR)</label><input id="f_received" type="number" min="0" step="0.01" value="${esc(d.received ?? '')}" placeholder="0" ${dis}></div>
+          <div class="field"><label for="f_received_from">Received from</label><input id="f_received_from" value="${esc(d.received_from)}" placeholder="e.g. Accounts / Azeem" ${dis}></div>
+        </div>
+        <p class="hint" id="openHint">${openAuto ? 'Opening balance is the closing balance of the previous voucher.' : 'Opening balance was changed by hand.'}</p>
+      </div>
+      <div class="sheet">
+        <h3>Expenses</h3>
+        <div class="table-wrap"><table class="chk pc"><thead><tr><th>#</th><th>Description</th><th>Category</th><th>Paid to</th><th>Bill No.</th><th style="text-align:right">Amount (SAR)</th><th></th></tr></thead><tbody id="pcRows"></tbody></table></div>
+        ${ro ? '' : '<button class="btn sec" type="button" id="addRow" style="margin-top:10px">+ Add line</button>'}
+        <datalist id="pcCats">${PETTY_CATS.map(c => `<option value="${esc(c)}">`).join('')}</datalist>
+        <div class="paybox" style="margin-top:14px" id="pcSum"></div>
+        <div class="field"><label for="f_note">Note</label><input id="f_note" value="${esc(d.note)}" ${dis}></div>
+      </div>
+      <div class="sheet">
+        <h3>Signatures</h3>
+        <div class="grid">
+          <div class="field"><label for="f_approver">Approved by</label><input id="f_approver" value="${esc(d.approver)}" ${dis}></div>
+          <div class="field"><label for="f_checker">Checked by (accounts)</label><input id="f_checker" value="${esc(d.checker)}" ${dis}></div>
+        </div>
+        <h3>Bills &amp; receipts (photos)</h3>
+        <div class="photos" id="photos"></div>
+        <p class="hint" style="margin-top:14px">Optional: photos of up to 4 bills. They are printed on page 2 of the voucher.</p>
+      </div>
+      <p class="err" id="err" role="alert"></p>
+      <div class="bar">
+        ${ro ? '' : '<button class="btn" id="save" type="submit">Save</button><button class="btn sec" id="saveNew" type="button" title="Save, then start a new one">Save &amp; New</button>'}
+        <button class="btn sec" type="button" id="dl">Download PDF</button>
+        <button class="btn sec" type="button" id="pv">Preview</button>
+        <span class="share"><button class="btn sec" type="button" id="sh">Share</button></span>
+        ${approvalButtons(rec)}
+        <span class="grow"></span>
+        ${rec && CAN_DELETE ? '<button class="btn danger" type="button" id="del">Delete</button>' : ''}
+      </div>
+    </form>`;
+  wireApproval(rec, type);
+  const form = $('#f');
+  const readItems = () => [...$('#pcRows').querySelectorAll('tr')].map(tr => ({description: tr.querySelector('[data-k=description]').value.trim(), category: tr.querySelector('[data-k=category]').value.trim(),
+    paid_to: tr.querySelector('[data-k=paid_to]').value.trim(), bill_no: tr.querySelector('[data-k=bill_no]').value.trim(), amount: r2(Number(tr.querySelector('[data-k=amount]').value) || 0)}));
+  const drawRows = list2 => { $('#pcRows').innerHTML = list2.map((it, i) => `<tr><td class="muted">${i + 1}</td>
+      <td><input data-k="description" value="${esc(it.description)}" placeholder="e.g. Diesel for forklift" ${dis}></td>
+      <td><input data-k="category" list="pcCats" value="${esc(it.category)}" style="min-width:120px" ${dis}></td>
+      <td><input data-k="paid_to" value="${esc(it.paid_to)}" style="min-width:110px" ${dis}></td>
+      <td><input data-k="bill_no" value="${esc(it.bill_no)}" style="min-width:80px" ${dis}></td>
+      <td><input data-k="amount" type="number" min="0" step="0.01" value="${esc(it.amount)}" style="min-width:90px;text-align:right" ${dis}></td>
+      <td>${ro ? '' : `<button type="button" class="btn small danger" data-rm="${i}" aria-label="Remove line ${i + 1}">&times;</button>`}</td></tr>`).join(''); };
+  const sum = () => { const its = readItems(), spent = r2(its.reduce((a, i) => a + i.amount, 0)), open = Number($('#f_opening').value) || 0, rec2 = Number($('#f_received').value) || 0, close = r2(open + rec2 - spent);
+    $('#pcSum').innerHTML = `<div><b>${money(open)}</b><span>Opening</span></div><div><b>${money(rec2)}</b><span>Received</span></div><div><b>${money(spent)}</b><span>Spent (${its.filter(i => i.amount).length} items)</span></div>
+      <div><b style="color:${close < 0 ? 'var(--red)' : 'var(--green)'}">${money(close)}</b><span>Closing balance</span></div>`; return {spent, close}; };
+  drawRows(items); sum();
+  $('#addRow')?.addEventListener('click', () => { const its = readItems(); its.push({description: '', category: '', paid_to: '', bill_no: '', amount: ''}); drawRows(its); sum(); $('#pcRows tr:last-child [data-k=description]').focus(); dirty = true; });
+  $('#pcRows').addEventListener('click', e => { const b = e.target.closest('[data-rm]'); if (!b) return; const its = readItems(); its.splice(+b.dataset.rm, 1); if (!its.length) its.push({description: '', category: '', paid_to: '', bill_no: '', amount: ''}); drawRows(its); sum(); dirty = true; });
+  form.addEventListener('input', e => {
+    dirty = true;
+    if (e.target.id === 'f_opening') { openAuto = false; $('#openHint').textContent = 'Opening balance was changed by hand.'; }
+    if (e.target.id === 'f_date' && openAuto && e.target.value) { const pv = prevOf(e.target.value); $('#f_opening').value = pv ? pettyClose(pv) : 0; }
+    sum();
+  });
+  const drawSlots = () => { $('#photos').innerHTML = slots.map((sl, i) => `<div class="slot ${sl ? 'filled' : ''} ${ro ? 'ro' : ''}" data-i="${i}">
+      ${sl ? `<img src="${sl.dataUrl}" alt="Bill ${i + 1}">` : `<span class="lbl">${ro ? 'No image' : `+ Bill ${i + 1}<br><small>click to choose</small>`}</span>`}
+      ${sl && !ro ? `<button type="button" class="x" data-x="${i}" aria-label="Remove bill ${i + 1}">Remove</button>` : ''}
+      <input type="file" accept="image/*" aria-label="Bill ${i + 1}" ${ro ? 'disabled' : ''}></div>`).join(''); };
+  drawSlots();
+  form.addEventListener('change', async e => {
+    if (e.target.type !== 'file' || !e.target.closest('#photos')) return;
+    const file = e.target.files[0]; if (!file) return;
+    const i = e.target.closest('.slot').dataset.i;
+    try { const im = await shrink(file, 1400, 'image/jpeg', 0.75); if (slots[i]?.path) removed.add(slots[i].path); slots[i] = {...im, changed: true}; dirty = true; drawSlots(); }
+    catch (err) { toast('This image could not be opened: ' + nice(err), true); }
+  });
+  form.addEventListener('click', e => { const x = e.target.closest('[data-x]'); if (!x || !x.closest('#photos')) return;
+    const i = x.dataset.x; if (slots[i]?.path) removed.add(slots[i].path); slots[i] = null; dirty = true; drawSlots(); });
+  const collect = () => { const its = readItems().filter(i => i.description || i.amount), {spent} = sum();
+    return {doc_date: $('#f_date').value, party_name: $('#f_party').value.trim(), data: {opening: r2(Number($('#f_opening').value) || 0), opening_auto: openAuto,
+      received: r2(Number($('#f_received').value) || 0), received_from: $('#f_received_from').value.trim(), items: its, spent,
+      note: $('#f_note').value.trim(), prepared_by: $('#f_party').value.trim(), approver: $('#f_approver').value.trim(), checker: $('#f_checker').value.trim()}}; };
+  const draft = () => ({...collect(), doc_no: rec?.doc_no || ($('#f_no')?.value.trim() || '')});
+  const fileName = () => (draft().doc_no || 'Petty-Cash-DRAFT') + '.pdf';
+  const run = async (btn, fn) => { const t = btn.textContent; btn.disabled = true; btn.textContent = 'Please wait…'; $('#err').textContent = '';
+    try { await fn(); } catch (e) { $('#err').textContent = nice(e); } btn.disabled = false; btn.textContent = t; };
+  $('#dl').onclick = e => run(e.target, async () => (await iPdf(type, draft(), slots)).save(fileName()));
+  wireShare($('#sh'), () => iPdf(type, draft(), slots), fileName, () => { const v = draft(); return `Petty Cash Voucher ${v.doc_no || ''} - ${fmtDate(v.doc_date)} - spent SAR ${money(v.data.spent)}`; });
+  $('#pv').onclick = e => run(e.target, async () => { const w = window.open('', '_blank'); const url = (await iPdf(type, draft(), slots)).output('bloburl'); if (w) w.location = url; else location.href = url; });
+  $('#del')?.addEventListener('click', e => run(e.target, async () => {
+    if (!confirm(`Permanently delete ${rec.doc_no}? Later vouchers keep their own opening balance.`)) return;
+    const {error} = await sb.from('docs_documents').delete().eq('id', rec.id); if (error) throw error;
+    const ph = (rec.files?.photos || []).filter(Boolean); if (ph.length) await sb.storage.from(BUCKET).remove(ph);
+    dirty = false; toast(rec.doc_no + ' deleted'); location.hash = '#petty';
+  }));
+  form.addEventListener('submit', e => { e.preventDefault(); if (!ro) run($('#save'), async () => {
+    const v = collect();
+    if (!v.doc_date) throw new Error('Please enter the date.');
+    if (!v.party_name) { $('#f_party').focus(); throw new Error('Please enter who holds the petty cash.'); }
+    if (!v.data.items.length && !v.data.received) throw new Error('Add at least one expense, or the cash received.');
+    if (v.data.items.some(i => !i.amount)) throw new Error('Every expense line needs an amount.');
+    let res;
+    if (rec) res = await sb.from('docs_documents').update(v).eq('id', rec.id).select().single();
+    else { const manual = $('#f_no').value.trim(); res = await sb.from('docs_documents').insert({doc_type: type, ...v, ...(manual ? {doc_no: manual} : {})}).select().single(); }
+    if (res.error) throw new Error(res.error.code === '23505' ? 'This number already exists. Leave it blank or enter a different one.' : nice(res.error));
+    rec = res.data;
+    signMemo.set('petty', {approver: v.data.approver, checker: v.data.checker});
+    const stamp = Date.now(), photos = [];
+    for (let i = 0; i < 4; i++) {
+      const sl = slots[i]; if (!sl) { photos.push(null); continue; }
+      if (sl.changed) {
+        const path = `petty/${rec.id}/bill${i + 1}-${stamp}.jpg`;
+        const {error} = await sb.storage.from(BUCKET).upload(path, sl.blob, {contentType: 'image/jpeg', upsert: true});
+        if (error) throw new Error('Image upload failed: ' + nice(error) + '. Please click Save again.');
+        sl.path = path; sl.changed = false;
+      }
+      photos.push(sl.path);
+    }
+    if (photos.some(Boolean) || rec.files?.photos) { const up = await sb.from('docs_documents').update({files: {...(rec.files || {}), photos}}).eq('id', rec.id).select().single(); if (up.error) throw up.error; rec = up.data; }
+    if (removed.size) { await sb.storage.from(BUCKET).remove([...removed]); removed.clear(); }
+    dirty = false; toast(`${rec.doc_no} saved`);
+    goAfterSave(type, rec.id);
+  }); });
+}
+
 /* ===================== CASH RECEIPT (سند قبض) ===================== */
 // Money received from a customer. Can be linked to an invoice: the payment is then recorded on that invoice too.
 const RCPT_METHODS = ['Cash', 'Cheque', 'Bank transfer', 'Card'];
@@ -2409,12 +2683,27 @@ function receiptPdf(r, img) {
       else { pdf.setFont('helvetica', 'bold'); pdf.setFontSize(10); pdf.setTextColor(...C.ink); pdf.text(pdf.splitTextToSize(v, x1 - x0 - 2)[0], x0 + 1, y + 6); }
       y += h;
     };
-    line('Received from', 'استلمنا من السيد / السادة', r.party_name);
-    line('The sum of', 'مبلغ وقدره', sarWords(amount));
-    line('Being', 'وذلك عن', [d.purpose, d.invoice_no && `against invoice ${d.invoice_no}`].filter(Boolean).join(', '));
-    line('Paid by', 'طريقة الدفع', [d.method, d.reference && `No. ${d.reference}`, d.bank].filter(Boolean).join(', '));
+    line('Received from', 'استلمنا من السيد / السادة', r.party_name, 9);
+    line('The sum of', 'مبلغ وقدره', sarWords(amount), 7.5);
+    { const x0 = M + 40, x1 = W - M - 34, a = arImg(sarWordsAr(amount), 9.5, {bold: true, maxW: x1 - x0}); const k = Math.min(1, 6.5 / a.h);
+      pdf.addImage(a.dataUrl, 'PNG', x1 - a.w * k, y + 4.2 - a.h * k / 2, a.w * k, a.h * k); y += 8; }
+    line('Being', 'وذلك عن', [[d.purpose, d.invoice_no && `against invoice ${d.invoice_no}`].filter(Boolean).join(', '), d.purpose_ar].filter(Boolean).join('  /  '), 9);
+    line('Paid by', 'طريقة الدفع', [`${d.method || ''}${METHOD_AR[d.method] ? ` (${METHOD_AR[d.method]})` : ''}`, d.reference && `No. ${d.reference}`, d.bank].filter(Boolean).join(', '), 9);
+    // what was due, and what is still due after this receipt
+    const due = Number(d.due_total) || 0;
+    if (due > 0) {
+      const before = Number(d.paid_before) || 0, bal = r2(due - before - amount);
+      const cells = [['Total due', 'المبلغ المستحق', due], ...(before > 0.005 ? [['Paid before', 'المدفوع سابقاً', before]] : []), ['This receipt', 'هذا السند', amount], [bal >= -0.005 ? 'Balance due' : 'Overpaid', bal >= -0.005 ? 'المتبقي' : 'زيادة', Math.abs(bal)]];
+      const cw = CW / cells.length; y += 2;
+      cells.forEach(([en, a2, v], i) => { const x = M + i * cw, last = i === cells.length - 1;
+        pdf.setFillColor(...(last ? (bal > 0.005 ? [253, 238, 232] : [232, 245, 236]) : LIGHT)); pdf.rect(x + (i ? 0.6 : 0), y, cw - 0.6, 11, 'F');
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(7.4); pdf.setTextColor(...C.slate); pdf.text(en, x + 2.5, y + 4);
+        ar(a2, x + cw - 2.5, y + 3.4, 7.4, {color: '#2E5868'});
+        pdf.setFontSize(10.5); pdf.setTextColor(...(last && bal > 0.005 ? C.red : C.ink)); pdf.text('SAR ' + money(v), x + 2.5, y + 9.2); });
+      y += 12;
+    }
     // signatures + stamp
-    y += 18;
+    y += due > 0 ? 9 : 14;
     const sw = 46, sh = img.stamp.h * sw / img.stamp.w;
     pdf.addImage(img.stamp.dataUrl, 'PNG', W / 2 - sw / 2, y + 9 - sh, sw, sh, 'stamp');
     pdf.setDrawColor(...C.ink); pdf.setLineWidth(0.35); pdf.line(M, y + 6, M + 60, y + 6); pdf.line(W - M - 60, y + 6, W - M, y + 6);
@@ -2470,7 +2759,10 @@ async function showReceiptForm(id, copyFrom) {
         <div class="grid">
           <div class="field"><label for="f_invoice">Against invoice (optional)</label><select id="f_invoice" ${dis}></select></div>
           <div class="field"><label for="f_purpose">Being (for)</label><input id="f_purpose" value="${esc(d.purpose)}" placeholder="e.g. Advance for tank fabrication" ${dis}></div>
+          <div class="field"><label for="f_purpose_ar">Being (Arabic, optional)</label><input id="f_purpose_ar" dir="rtl" lang="ar" value="${esc(d.purpose_ar)}" placeholder="مثال: دفعة مقدمة لتصنيع خزان" ${dis}></div>
+          <div class="field" id="dueBox"><label for="f_due">Amount due before this receipt (SAR, optional)</label><input id="f_due" type="number" min="0" step="0.01" value="${esc(d.invoice_id ? '' : d.due_total)}" ${dis}></div>
         </div>
+        <p class="hint" id="dueLine"></p>
         ${ro ? '' : '<p class="hint">Choose an invoice to record this money as a payment on it too (it then shows in that invoice&#39;s Payments and in Receivables).</p>'}
       </div>
       <p class="err" id="err" role="alert"></p>
@@ -2492,17 +2784,24 @@ async function showReceiptForm(id, copyFrom) {
     const opts = invoices.filter(i => i.id === cur || ((i.party_name || '').trim().toLowerCase() === p && bal(i) > 0.005));
     $('#f_invoice').innerHTML = `<option value="">Not linked to an invoice</option>` + opts.map(i => `<option value="${i.id}"${i.id === cur ? ' selected' : ''}>${esc(i.doc_no)}, balance SAR ${money(bal(i))}</option>`).join('');
   };
-  const drawWords = () => { const a = Number($('#f_amount').value); $('#words').textContent = a > 0 ? sarWords(a) : ''; };
-  drawInvoices(); drawWords();
-  form.addEventListener('input', e => { dirty = true; if (e.target.id === 'f_amount') drawWords(); });
-  $('#f_party').addEventListener('change', drawInvoices);
+  const drawWords = () => { const a = Number($('#f_amount').value); $('#words').innerHTML = a > 0 ? `${esc(sarWords(a))}<br><span dir="rtl" lang="ar">${esc(sarWordsAr(a))}</span>` : ''; };
+  const dueInfo = () => { const inv = invoices.find(i => i.id === $('#f_invoice').value), a = r2(Number($('#f_amount').value) || 0);
+    if (inv) { const total = r2(Number(inv.data?.grand_total) || 0), before = r2(total - bal(inv)); return {due_total: total, paid_before: before, balance: r2(total - before - a)}; }
+    const due = r2(Number($('#f_due').value) || 0); return due > 0 ? {due_total: due, paid_before: 0, balance: r2(due - a)} : {due_total: 0, paid_before: 0, balance: 0}; };
+  const drawDue = () => { const linked = !!$('#f_invoice').value, x = dueInfo(); $('#dueBox').hidden = linked;
+    $('#dueLine').innerHTML = x.due_total > 0 ? `Printed on the receipt: total due <b>SAR ${money(x.due_total)}</b>${x.paid_before ? `, paid before SAR ${money(x.paid_before)}` : ''}, this receipt SAR ${money(Number($('#f_amount').value) || 0)}, <b>${x.balance >= -0.005 ? 'balance due' : 'overpaid'} SAR ${money(Math.abs(x.balance))}</b>` : ''; };
+  drawInvoices(); drawWords(); drawDue();
+  form.addEventListener('input', e => { dirty = true; if (e.target.id === 'f_amount') drawWords(); if (['f_amount', 'f_due'].includes(e.target.id)) drawDue(); });
+  $('#f_party').addEventListener('change', () => { drawInvoices(); drawDue(); });
+  $('#f_invoice').addEventListener('change', drawDue);
   $('#f_invoice').addEventListener('change', () => { const inv = invoices.find(i => i.id === $('#f_invoice').value);
     if (inv && !$('#f_amount').value) { $('#f_amount').value = bal(inv).toFixed(2); drawWords(); }
     if (inv && !$('#f_purpose').value.trim()) $('#f_purpose').value = 'Payment';
   });
   const collect = () => { const inv = invoices.find(i => i.id === $('#f_invoice').value);
     return {doc_date: $('#f_date').value, party_name: $('#f_party').value.trim(), data: {amount: r2(Number($('#f_amount').value) || 0), method: $('#f_method').value,
-      reference: $('#f_reference').value.trim(), bank: $('#f_bank').value.trim(), purpose: $('#f_purpose').value.trim(),
+      reference: $('#f_reference').value.trim(), bank: $('#f_bank').value.trim(), purpose: $('#f_purpose').value.trim(), purpose_ar: $('#f_purpose_ar').value.trim(),
+      due_total: dueInfo().due_total, paid_before: dueInfo().paid_before,
       invoice_id: inv ? inv.id : null, invoice_no: inv ? inv.doc_no : null, payment_id: rec?.data?.payment_id || null}}; };
   const draft = () => ({...collect(), doc_no: rec?.doc_no || ($('#f_no')?.value.trim() || '')});
   const run = async (btn, fn) => { const t = btn.textContent; btn.disabled = true; btn.textContent = 'Please wait…'; $('#err').textContent = '';
@@ -2745,7 +3044,7 @@ async function route() {
   ROUTE_SEQ++;
   const h = location.hash.replace(/^#/, '') || 'leak';
   const [type, a, b] = h.split('/');
-  if (!['leak', 'tank', 'aramco', 'cow', 'quotation', 'invoice', 'dn', 'po', 'jobcard', 'mr', 'receipt', 'catalog'].includes(type)) { location.hash = '#leak'; return; }
+  if (!['leak', 'tank', 'aramco', 'cow', 'quotation', 'invoice', 'dn', 'po', 'jobcard', 'mr', 'receipt', 'petty', 'catalog'].includes(type)) { location.hash = '#leak'; return; }
   $$('#tabs a').forEach(x => x.classList.toggle('on', x.dataset.t === type));
   const grp = $(`#tabs a[data-t="${type}"]`)?.dataset.g || 'cert';
   $$('#tabs a').forEach(x => x.hidden = x.dataset.g !== grp);
@@ -2755,7 +3054,7 @@ async function route() {
     if (last && $(`#tabs a[data-t="${last}"][data-g="${x.dataset.g}"]`)) x.setAttribute('href', '#' + last); });
   if (type === 'catalog') return showCatalog();
   if (type !== 'leak') {
-    const form = type === 'tank' ? (i, c) => showTankForm(i, c) : type === 'aramco' ? (i, c) => showAramcoForm(i, c) : type === 'cow' ? (i, c) => showCowForm(i, c) : type === 'receipt' ? (i, c) => showReceiptForm(i, c) : (i, c) => showIForm(type, i, c);
+    const form = type === 'tank' ? (i, c) => showTankForm(i, c) : type === 'aramco' ? (i, c) => showAramcoForm(i, c) : type === 'cow' ? (i, c) => showCowForm(i, c) : type === 'petty' ? (i, c) => showPettyForm(i, c) : type === 'receipt' ? (i, c) => showReceiptForm(i, c) : (i, c) => showIForm(type, i, c);
     if (!a) return showIList(type);
     if (a === 'new') return CAN_EDIT ? form(null) : (location.hash = '#' + type);
     if (a === 'copy') return CAN_EDIT ? form(null, b) : (location.hash = '#' + type);

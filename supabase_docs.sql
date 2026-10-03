@@ -37,7 +37,7 @@ alter table public.docs_documents add column if not exists approved_at timestamp
 -- document types (cash receipt, Aramco inspection and origin & warranty added later)
 alter table public.docs_documents drop constraint if exists docs_documents_doc_type_check;
 alter table public.docs_documents add constraint docs_documents_doc_type_check
-  check (doc_type in ('leak','tank','quotation','po','dn','invoice','jobcard','mr','receipt','aramco','cow'));
+  check (doc_type in ('leak','tank','quotation','po','dn','invoice','jobcard','mr','receipt','aramco','cow','petty'));
 alter table public.docs_documents drop constraint if exists docs_documents_status_check;
 alter table public.docs_documents add constraint docs_documents_status_check check (status in ('draft','approved'));
 
@@ -52,6 +52,7 @@ alter table public.docs_documents add constraint docs_documents_status_check che
 --      receipt : CR-2026-001, ... (cash receipt, restarts every year)
 --      aramco  : AIC-2026-001, ... (Aramco fuel tanker inspection, restarts every year)
 --      cow     : COW-2026-001, ... (certificate of origin & warranty, restarts every year)
+--      petty   : PC-2026-001, ... (petty cash voucher, restarts every year)
 --      invoice : INV-AL00001, ...
 --      jobcard : JC-2026-001, mr : MR-2026-001 (restart every year)
 --    A number typed in the form is used as-is (must be unique).
@@ -105,6 +106,11 @@ begin
         select coalesce(max((regexp_match(doc_no, '^CR-' || v_yr || '-(\d+)$'))[1]::int), 0) + 1 into v_n
           from public.docs_documents where doc_type = 'receipt';
         new.doc_no := 'CR-' || v_yr || '-' || lpad(v_n::text, 3, '0');
+      elsif new.doc_type = 'petty' then
+        v_yr := to_char(new.doc_date, 'YYYY');
+        select coalesce(max((regexp_match(doc_no, '^PC-' || v_yr || '-(\d+)$'))[1]::int), 0) + 1 into v_n
+          from public.docs_documents where doc_type = 'petty';
+        new.doc_no := 'PC-' || v_yr || '-' || lpad(v_n::text, 3, '0');
       elsif new.doc_type in ('aramco', 'cow') then
         v_yr := to_char(new.doc_date, 'YYYY');
         select coalesce(max((regexp_match(doc_no, '^' || case new.doc_type when 'aramco' then 'AIC' else 'COW' end || '-' || v_yr || '-(\d+)$'))[1]::int), 0) + 1 into v_n

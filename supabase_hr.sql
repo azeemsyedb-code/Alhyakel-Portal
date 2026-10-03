@@ -79,7 +79,7 @@ create policy hr_kit_read   on public.hr_kit for select to authenticated using (
 create policy hr_kit_insert on public.hr_kit for insert to authenticated with check (public.my_role('hr') in ('admin','supervisor'));
 create policy hr_kit_update on public.hr_kit for update to authenticated
   using (public.my_role('hr') in ('admin','supervisor')) with check (public.my_role('hr') in ('admin','supervisor'));
-create policy hr_kit_delete on public.hr_kit for delete to authenticated using (public.my_role('hr') = 'admin');
+create policy hr_kit_delete on public.hr_kit for delete to authenticated using (public.my_role('hr') in ('admin','supervisor'));   -- undo a wrong entry
 
 drop policy if exists hr_adj_admin  on public.hr_adjustments;
 drop policy if exists hr_adv_admin  on public.hr_advances;
@@ -125,9 +125,13 @@ alter table public.hr_settings add column if not exists kit_template jsonb not n
 -- ---------- weekly off day (Friday) ----------
 -- off_day: 0 = Sunday … 5 = Friday … 6 = Saturday, null = no weekly off day.
 -- On the off day every hour worked is overtime (not just the hours above the shift),
--- paid at offday_ot_rate when it is set, otherwise at the normal overtime rate.
+-- paid at the employee's own overtime rate x offday_ot_multiplier (2 by default).
 alter table public.hr_settings add column if not exists off_day int default 5;
 alter table public.hr_settings add column if not exists offday_ot_rate numeric(10,2);
+-- off-day overtime = each employee's own overtime rate x this multiplier (default 2 = double)
+alter table public.hr_settings add column if not exists offday_ot_multiplier numeric(4,2) not null default 2;
+alter table public.hr_settings drop constraint if exists hr_settings_offday_mult_check;
+alter table public.hr_settings add constraint hr_settings_offday_mult_check check (offday_ot_multiplier between 1 and 5);
 alter table public.hr_settings drop constraint if exists hr_settings_off_day_check;
 alter table public.hr_settings add constraint hr_settings_off_day_check check (off_day is null or off_day between 0 and 6);
 
