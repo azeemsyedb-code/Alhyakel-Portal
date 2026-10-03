@@ -8,83 +8,187 @@
 <link rel="icon" href="assets/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Naskh+Arabic:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&family=Noto+Naskh+Arabic:wght@600;700&display=swap" rel="stylesheet">
 <style>
-:root{--brand:#1D6E80;--orange:#E07A2E;--ink:#1F2D35;--muted:#73818A;--line:#E6EBEE;--bg:#F5F7F9;
-  --ok:#2E9E6A;--ok-bg:#E9F7EF;--bad:#D9475B;--bad-bg:#FDEEF0;--na:#73818A;--na-bg:#EEF1F3}
+/* One phone-width column: an engraved seal on top, the record card under it. */
+:root{
+  --paper:#F3F6F7; --card:#FFFFFF; --ink:#18272F; --muted:#66757D; --line:#E2E8EB;
+  --brand:#1D6E80; --brand-ink:#FFFFFF; --gold:#B8862F; --gold-2:#E3BE6B;
+  --ok:#23885A; --ok-bg:#E7F5EE; --warn:#B86B12; --warn-bg:#FDF2E2; --bad:#C23A4E; --bad-bg:#FCEBEE; --na:#6B7880; --na-bg:#EDF1F3;
+  --f-seal:'Cinzel','Trajan Pro',Georgia,serif; --f-body:'IBM Plex Sans','Segoe UI',system-ui,sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --f-ar:'Noto Naskh Arabic','Geeza Pro','Segoe UI',serif;
+  --tone:var(--na); --tone-bg:var(--na-bg); color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --paper:#0F171B; --card:#162228; --ink:#E6EEF1; --muted:#93A3AA; --line:#24343B;
+  --brand:#5DB3C6; --brand-ink:#0F171B; --gold:#D9AE5B; --gold-2:#F0D18E;
+  --ok:#4CC08A; --ok-bg:#15322A; --warn:#E3A048; --warn-bg:#36291A; --bad:#EE7183; --bad-bg:#3A1D24; --na:#A0AEB5; --na-bg:#202D33; color-scheme:dark}}
 *{box-sizing:border-box}
 html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font:15px/1.5 'IBM Plex Sans','Segoe UI',system-ui,sans-serif;min-height:100vh;
-  display:flex;flex-direction:column;align-items:center;padding:24px 16px calc(24px + env(safe-area-inset-bottom))}
-.ar{font-family:'Noto Naskh Arabic','Segoe UI',serif;direction:rtl}
-.brand{display:flex;align-items:center;gap:12px;margin:6px 0 18px}
-.brand img{height:46px;width:auto}
-.brand b{display:block;font-size:16px;font-weight:600;line-height:1.2}
-.brand span{display:block;color:var(--muted);font-size:13px}
-.card{background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(30,60,80,.10);width:min(440px,100%);overflow:hidden}
-.st{padding:26px 22px 22px;text-align:center}
-.st .ic{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;margin:0 auto 12px;color:#fff}
-.st .ic svg{width:34px;height:34px}
-.st h1{margin:0;font-size:26px;font-weight:600;letter-spacing:.01em}
-.st h1 .ar{display:block;font-size:20px;font-weight:700;margin-top:2px}
-.st p{margin:8px 0 0;color:var(--ink);font-size:15px}
-.ok{background:var(--ok-bg)} .ok .ic{background:var(--ok)} .ok h1{color:var(--ok)}
-.bad{background:var(--bad-bg)} .bad .ic{background:var(--bad)} .bad h1{color:var(--bad)}
-.na{background:var(--na-bg)} .na .ic{background:var(--na)} .na h1{color:var(--na)}
-dl{margin:0;padding:6px 22px 4px}
-dl div{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--line)}
+body{background:var(--paper);color:var(--ink);font:15px/1.5 var(--f-body);min-height:100vh}
+.wrap{max-width:460px;margin:0 auto;padding-inline:16px;padding-block:calc(18px + env(safe-area-inset-top,0px)) calc(28px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px}
+.ar{font-family:var(--f-ar);direction:rtl}
+.brand{display:flex;align-items:center;gap:12px}
+.brand img{height:40px;width:auto;border-radius:6px}
+.brand b{display:block;font-size:15px;font-weight:600;line-height:1.25}
+.brand span{display:block;font-size:13px;color:var(--muted)}
+
+.hero{background:var(--card);border-radius:20px;box-shadow:0 14px 40px rgba(20,50,60,.10);overflow:hidden}
+.hero-top{padding:22px 20px 18px;text-align:center;background:radial-gradient(120% 80% at 50% 0%,color-mix(in srgb,var(--tone) 14%,transparent),transparent 70%)}
+.seal{position:relative;width:200px;height:200px;margin:0 auto 10px;max-width:100%}
+.seal canvas,.seal svg{position:absolute;inset:0;width:100%;height:100%}
+.seal svg{overflow:visible}
+.ring{transform-origin:100px 100px;animation:spin 40s linear infinite}
+.ring text{font-family:var(--f-seal);font-weight:700;font-size:11.4px;letter-spacing:2.6px;fill:var(--gold)}
+.core{fill:var(--tone)}
+.tick{fill:none;stroke:#fff;stroke-width:7;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:80;animation:draw .9s .35s ease-out both}
+.seal-pop{animation:pop .7s cubic-bezier(.2,1.4,.4,1) both}
+.loading .ring{animation-duration:3s}
+.loading .core{opacity:.25}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes draw{from{stroke-dashoffset:80}to{stroke-dashoffset:0}}
+@keyframes pop{from{transform:scale(.86)}to{transform:scale(1)}}
+.stamp{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-14deg);font:700 26px var(--f-seal);letter-spacing:3px;color:var(--bad);
+  border:3px solid var(--bad);border-radius:8px;padding:2px 12px;background:color-mix(in srgb,var(--card) 70%,transparent);white-space:nowrap}
+h1{margin:0;font-size:28px;line-height:1.15;font-weight:600;color:var(--tone);text-wrap:balance}
+h1 .ar{display:block;font-size:21px;font-weight:700;margin-top:4px}
+.lead{margin:8px auto 0;max-width:34ch;font-size:15px}
+
+/* moving strip + running clock: a screenshot of this page looks frozen */
+.holo{position:relative;margin:16px 0 0;border-radius:12px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  color:#14323A;font:600 12.5px var(--f-body);letter-spacing:.06em;text-transform:uppercase;overflow:hidden;
+  background:linear-gradient(110deg,#cfe9ef,#f3e2b8,#e6d0f0,#c9ecdc,#cfe9ef);background-size:300% 100%;animation:holo 6s linear infinite}
+.holo::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.75) 50%,transparent 70%);transform:translateX(-100%);animation:sheen 3.2s ease-in-out infinite}
+.holo .ar{text-transform:none;letter-spacing:0;font-size:14px;white-space:nowrap}
+.holo.off{background:var(--na-bg);color:var(--na);animation:none}.holo.off::after{display:none}
+@keyframes holo{to{background-position:300% 0}}
+@keyframes sheen{60%,100%{transform:translateX(100%)}}
+.live{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;font:500 12.5px var(--f-mono);color:var(--muted)}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--ok);animation:pulse 1.8s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 60%,transparent)}70%,100%{box-shadow:0 0 0 7px transparent}}
+
+.sect{padding:16px 20px;border-top:1px solid var(--line)}
+.sect h2{margin:0 0 12px;font-size:11.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.bar{position:relative;height:8px;border-radius:99px;background:var(--line);margin:30px 6px 10px}
+.bar .fill{position:absolute;left:0;top:0;bottom:0;border-radius:99px;background:var(--tone)}
+.bar .now{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;background:var(--card);border:4px solid var(--tone);transform:translate(-50%,-50%)}
+.bar .now span{position:absolute;bottom:18px;left:50%;transform:translateX(var(--lx,-50%));white-space:nowrap;font:600 11.5px var(--f-body);color:var(--tone)}
+.ends{display:flex;justify-content:space-between;gap:12px;font-size:13px}
+.ends div:last-child{text-align:right}
+.ends b{display:block;font-weight:600;font-variant-numeric:tabular-nums}
+.ends span{color:var(--muted);font-size:12px}
+.left{margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--tone-bg);font-size:14px}
+.left b{color:var(--tone);font-variant-numeric:tabular-nums}
+dl{margin:0}
+dl div{display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px dashed var(--line)}
 dl div:last-child{border-bottom:0}
 dt{color:var(--muted);font-size:13.5px;flex:0 0 auto}
-dd{margin:0;text-align:right;font-weight:500;word-break:break-word}
-.act{padding:14px 22px 22px}
-.btn{display:block;text-align:center;background:var(--brand);color:#fff;text-decoration:none;font-weight:600;padding:13px 16px;border-radius:10px}
-.btn:focus-visible{outline:3px solid #9CC9D3;outline-offset:2px}
-.foot{color:var(--muted);font-size:12.5px;text-align:center;margin-top:18px;max-width:440px}
+dd{margin:0;text-align:right;font-weight:500;min-width:0;overflow-wrap:anywhere}
+dd.mono{font-family:var(--f-mono);font-size:14px}
+.acts{display:grid;gap:10px;padding:16px 20px 20px;border-top:1px solid var(--line)}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;padding:13px 16px;font:600 15px var(--f-body);text-decoration:none;background:var(--brand);color:var(--brand-ink)}
+.btn svg{width:18px;height:18px}
+.btn:focus-visible{outline:3px solid var(--gold-2);outline-offset:2px}
+.contact{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13.5px;color:var(--muted)}
+.contact a{color:var(--ink);font-family:var(--f-mono);font-weight:500;text-decoration:none}
+.foot{text-align:center;font-size:12px;color:var(--muted);max-width:40ch;margin:0 auto}
 .foot a{color:var(--brand)}
-.load{padding:40px 22px;text-align:center;color:var(--muted)}
+@media (prefers-reduced-motion: reduce){*{animation:none!important}}
 </style>
 </head>
 <body>
-<div class="brand"><img src="assets/logo_mark.png" alt=""><div><b>Al Hyakel Metal Industries</b><span class="ar">شركة الهياكل المعدنية الصناعية</span></div></div>
-<main class="card" id="card" aria-live="polite"><div class="load">Checking certificate…</div></main>
-<p class="foot">This page is generated by the Al Hyakel portal from its live records.<br>Questions: <a href="tel:+966541857480">0541857480</a> · <a href="https://www.alhyakel.com">www.alhyakel.com</a></p>
+<div class="wrap">
+  <div class="brand"><img src="assets/logo_mark.png" alt=""><div><b>Al Hyakel Metal Industries</b><span class="ar">شركة الهياكل المعدنية الصناعية</span></div></div>
+  <main class="hero" id="hero" aria-live="polite"></main>
+  <p class="foot">This check reads the live records of the Al Hyakel portal. A screenshot cannot show the moving strip or the running clock.<br><a href="https://www.alhyakel.com">www.alhyakel.com</a></p>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/config.js"></script>
 <script>
 (async () => {
-  const card = document.getElementById('card'), CFG = window.PORTAL_CONFIG || {};
+  const hero = document.getElementById('hero'), CFG = window.PORTAL_CONFIG || {}, root = document.documentElement;
+  const PHONE = '0541857480';
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
-  const ICON = {ok: '<path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>',
-    bad: '<path d="M7 7l10 10M17 7L7 17" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>',
-    na: '<path d="M12 7v6M12 16.5v.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>'};
-  const show = (cls, en, ar, line, rows = [], pdf = '') => {
-    card.innerHTML = `<div class="st ${cls}"><div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true">${ICON[cls]}</svg></div>
-      <h1>${en}<span class="ar">${ar}</span></h1>${line ? `<p>${line}</p>` : ''}</div>
-      ${rows.length ? `<dl>${rows.filter(r => r[1]).map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>` : ''}
-      ${pdf ? `<div class="act"><a class="btn" href="${pdf}" target="_blank" rel="noopener">Open the certificate (PDF)</a></div>` : ''}`;
-  };
-  const token = (new URLSearchParams(location.search).get('c') || '').toLowerCase();
-  if (!/^[0-9a-f]{32}$/.test(token) || !CFG.SUPABASE_URL) { show('na', 'Not recognised', 'غير معروف', 'This QR code does not belong to a certificate issued by Al Hyakel.'); return; }
-  const sb = supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {auth: {persistSession: false}});
-  const {data: c, error} = await sb.rpc('cert_verify', {p_token: token});
-  if (error) { show('na', 'Could not check', 'تعذر التحقق', 'Please check the internet connection and scan again.'); return; }
-  if (!c) { show('bad', 'Not found', 'غير موجودة', 'No certificate with this code exists in our records. It may have been withdrawn.'); return; }
-  const fmt = d => d ? new Intl.DateTimeFormat('en-GB', {day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC'}).format(new Date(d + 'T00:00:00Z')) : '';
+  const fmt = d => d ? new Intl.DateTimeFormat('en-GB', {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'}).format(new Date(d + 'T00:00:00Z')) : '';
   const today = new Intl.DateTimeFormat('en-CA', {timeZone: 'Asia/Riyadh'}).format(new Date());
+  const days = (a, b) => Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 864e5);
+  const PATH = {ok: 'M70 101 L91 121 L131 80', warn: 'M70 101 L91 121 L131 80', bad: 'M78 78 L122 122 M122 78 L78 122', na: 'M100 72 L100 108 M100 128 L100 129'};
+
+  function guilloche(cv) {
+    const gold = getComputedStyle(root).getPropertyValue('--gold').trim() || '#B8862F';
+    const dpr = Math.min(2, window.devicePixelRatio || 1); cv.width = 200 * dpr; cv.height = 200 * dpr;
+    const c = cv.getContext('2d'); c.scale(dpr, dpr); c.translate(100, 100); c.strokeStyle = gold; c.lineWidth = .6;
+    [[86, 7, 6, 26], [74, 9, 5, 18], [63, 12, 4, 13]].forEach(([R, n, a, k], ri) => {
+      c.globalAlpha = .55 - ri * .12;
+      for (let j = 0; j < k; j++) { c.beginPath();
+        for (let t = 0; t <= Math.PI * 2 + .01; t += Math.PI / 180) { const r = R + a * Math.sin(n * t + j * (Math.PI * 2 / k) / n * 3); t === 0 ? c.moveTo(r * Math.cos(t), r * Math.sin(t)) : c.lineTo(r * Math.cos(t), r * Math.sin(t)); }
+        c.stroke(); }
+    });
+    c.globalAlpha = 1; c.lineWidth = 1.4; c.beginPath(); c.arc(0, 0, 95, 0, Math.PI * 2); c.stroke();
+    c.lineWidth = .8; c.beginPath(); c.arc(0, 0, 91, 0, Math.PI * 2); c.stroke();
+  }
+  const sealHtml = (tone, {loading = false, stamp = ''} = {}) => `
+    <div class="seal ${loading ? 'loading' : 'seal-pop'}" aria-hidden="true"><canvas></canvas>
+      <svg viewBox="0 0 200 200"><defs><path id="circ" d="M100,100 m-78,0 a78,78 0 1,1 156,0 a78,78 0 1,1 -156,0"/></defs>
+        <g class="ring"><text><textPath href="#circ">AL HYAKEL · VERIFIED · TANK &amp; LEAK TEST · JEDDAH ·</textPath></text></g>
+        <circle cx="100" cy="100" r="54" class="core"/>
+        <circle cx="100" cy="100" r="48" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="1.2" stroke-dasharray="2 3"/>
+        ${loading ? '' : `<path d="${PATH[tone]}" class="tick"/>`}</svg>
+      ${stamp ? `<div class="stamp">${stamp}</div>` : ''}</div>`;
+  const setTone = t => { root.style.setProperty('--tone', `var(--${t})`); root.style.setProperty('--tone-bg', `var(--${t}-bg)`); };
+  const clock = () => { const el = document.getElementById('clock'); if (el) el.textContent = 'Live check · ' + new Intl.DateTimeFormat('en-GB', {day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Riyadh'}).format(new Date()).replace(',', ' ·') + ' KSA'; };
+
+  function show({tone, en, ar, lead, genuine = false, stamp = '', timeline = '', rows = [], pdf = ''}) {
+    setTone(tone);
+    hero.innerHTML = `<div class="hero-top">${sealHtml(tone, {stamp})}
+        <h1>${en}<span class="ar">${ar}</span></h1>${lead ? `<p class="lead">${lead}</p>` : ''}
+        <div class="holo ${genuine ? '' : 'off'}"><span>${genuine ? 'Genuine record' : 'No matching record'}</span><span class="ar">${genuine ? 'وثيقة أصلية' : 'لا يوجد سجل'}</span></div>
+        <div class="live"><i></i><span id="clock"></span></div></div>
+      ${timeline}
+      ${rows.filter(r => r[1]).length ? `<section class="sect"><h2>Details</h2><dl>${rows.filter(r => r[1]).map(([k, v, m]) => `<div><dt>${k}</dt><dd class="${m || ''}">${esc(v)}</dd></div>`).join('')}</dl></section>` : ''}
+      <div class="acts">
+        ${pdf ? `<a class="btn" href="${pdf}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 14h6M9 17h4"/></svg>Open the certificate (PDF)</a>` : ''}
+        <div class="contact"><span>Questions or booking</span><a href="tel:+966${PHONE.slice(1)}">${PHONE}</a></div>
+      </div>`;
+    guilloche(hero.querySelector('canvas')); clock();
+  }
+
+  // loading state
+  setTone('na');
+  hero.innerHTML = `<div class="hero-top">${sealHtml('na', {loading: true})}<h1 style="color:var(--muted)">Checking certificate…<span class="ar">جارٍ التحقق</span></h1></div>`;
+  guilloche(hero.querySelector('canvas'));
+  setInterval(clock, 1000);
+
+  const token = (new URLSearchParams(location.search).get('c') || '').toLowerCase();
+  if (!/^[0-9a-f]{32}$/.test(token) || !CFG.SUPABASE_URL) {
+    show({tone: 'na', en: 'Not recognised', ar: 'غير معروف', lead: 'This QR code does not belong to a certificate issued by Al Hyakel.'}); return; }
+  let c, error;
+  try { const sb = supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY, {auth: {persistSession: false}}); ({data: c, error} = await sb.rpc('cert_verify', {p_token: token})); }
+  catch (e) { error = e; }
+  if (error) { show({tone: 'na', en: 'Could not check', ar: 'تعذر التحقق', lead: 'Please check the internet connection and scan the QR code again.'}); return; }
+  if (!c) { show({tone: 'bad', en: 'Not found', ar: 'غير موجودة', lead: 'No certificate with this code exists in our records. It may be fake or withdrawn. Please call us to confirm.'}); return; }
+
   const pdf = `${String(CFG.SUPABASE_URL).replace(/\/+$/, '')}/storage/v1/object/public/certs/${token}.pdf`;
   if (c.type === 'tank') {
-    const valid = c.valid_until && c.valid_until >= today;
-    const rows = [['Certificate No.', c.doc_no], ['Customer', c.party_name], ['Issued', fmt(c.doc_date)], ['Valid until', fmt(c.valid_until)],
-      ['Tank No.', c.tank_no], ['Truck plate', c.truck_plate], ['Serial No.', c.serial_no], ['Capacity', c.capacity]];
-    if (!c.valid_until) show('ok', 'Genuine certificate', 'شهادة أصلية', 'Tank Trailer Axles Certificate', rows, pdf);
-    else if (valid) show('ok', 'Valid', 'صالحة', `Tank Trailer Axles Certificate, valid until <b>${fmt(c.valid_until)}</b>`, rows, pdf);
-    else show('bad', 'Expired', 'منتهية الصلاحية', `This certificate expired on <b>${fmt(c.valid_until)}</b>. A new inspection is required.`, rows, pdf);
+    const rows = [['Certificate No.', c.doc_no, 'mono'], ['Customer', c.party_name], ['Tank No.', c.tank_no, 'mono'], ['Truck plate', c.truck_plate], ['Serial No.', c.serial_no, 'mono'], ['Capacity', c.capacity]];
+    const lead = 'Tank Trailer Axles Certificate, issued by Al Hyakel workshop.';
+    if (!c.valid_until) { show({tone: 'ok', en: 'Genuine certificate', ar: 'شهادة أصلية', lead, genuine: true, rows, pdf}); return; }
+    const total = Math.max(1, days(c.doc_date, c.valid_until)), left = days(today, c.valid_until);
+    const pct = Math.min(100, Math.max(0, (total - Math.max(left, 0)) / total * 100));
+    const tone = left < 0 ? 'bad' : left <= 30 ? 'warn' : 'ok';
+    const timeline = `<section class="sect"><h2>Validity</h2>
+        <div class="bar"><div class="fill" style="width:${pct}%"></div><div class="now" style="left:${pct}%;--lx:${pct > 85 ? '-85%' : pct < 15 ? '-15%' : '-50%'}"><span>${left >= 0 ? 'Today' : 'Expired'}</span></div></div>
+        <div class="ends"><div><span>Inspected</span><b>${fmt(c.doc_date)}</b></div><div><span>Valid until</span><b>${fmt(c.valid_until)}</b></div></div>
+        <div class="left">${left > 0 ? `<b>${left} day${left === 1 ? '' : 's'}</b> of validity left. Valid unless the tank is damaged or in an accident.` : left === 0 ? '<b>Last day</b> of validity. Please book the next inspection.' : `Expired <b>${-left} day${left === -1 ? '' : 's'} ago</b>. A new inspection is required.`}</div></section>`;
+    if (tone === 'ok') show({tone, en: 'Valid certificate', ar: 'شهادة صالحة', lead, genuine: true, timeline, rows, pdf});
+    else if (tone === 'warn') show({tone, en: 'Valid, renew soon', ar: 'صالحة، تنتهي قريباً', lead: 'This certificate is still valid but expires soon. Please book the next inspection.', genuine: true, timeline, rows, pdf});
+    else show({tone, en: 'Expired', ar: 'منتهية الصلاحية', lead: 'This certificate is no longer valid. The tank needs a new inspection before service.', genuine: true, stamp: 'EXPIRED', timeline, rows, pdf});
   } else {
     const pass = c.result !== 'FAIL';
-    const rows = [['Test No.', c.doc_no], ['Customer', c.party_name], ['Test date', fmt(c.doc_date)], ['Result', pass ? 'PASS' : 'FAIL'],
-      ['Trailer chassis No.', c.chassis_no], ['Tank serial No.', c.tank_serial], ['Capacity', c.capacity]];
-    if (pass) show('ok', 'Genuine certificate', 'شهادة أصلية', `Leak Test Inspection: <b>PASS</b>, tested on ${fmt(c.doc_date)}`, rows, pdf);
-    else show('bad', 'Test failed', 'لم يجتز الاختبار', `Leak Test Inspection on ${fmt(c.doc_date)}: <b>FAIL</b>. Not certified for service.`, rows, pdf);
+    const rows = [['Test No.', c.doc_no, 'mono'], ['Customer', c.party_name], ['Result', pass ? 'PASS' : 'FAIL'], ['Trailer chassis No.', c.chassis_no, 'mono'], ['Tank serial No.', c.tank_serial, 'mono'], ['Capacity', c.capacity]];
+    const timeline = `<section class="sect"><h2>Inspection</h2><div class="ends"><div><span>Tested on</span><b>${fmt(c.doc_date)}</b></div><div><span>Result</span><b style="color:var(--${pass ? 'ok' : 'bad'})">${pass ? 'PASS' : 'FAIL'}</b></div></div></section>`;
+    if (pass) show({tone: 'ok', en: 'Test passed', ar: 'اجتاز الاختبار', lead: 'Leak Test Inspection completed and passed at Al Hyakel workshop.', genuine: true, timeline, rows, pdf});
+    else show({tone: 'bad', en: 'Test failed', ar: 'لم يجتز الاختبار', lead: 'This tank did not pass the Leak Test Inspection. It is not certified for service.', genuine: true, stamp: 'FAILED', timeline, rows, pdf});
   }
 })();
 </script>

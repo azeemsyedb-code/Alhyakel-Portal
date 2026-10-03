@@ -87,6 +87,23 @@ td.money{text-align:right;white-space:nowrap}
 .payform{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-top:12px}
 .payform .field{margin:0;flex:1 1 140px}
 .share{position:relative}
+/* WhatsApp send */
+.btn.wa{background:#1F9D55;border-color:#1F9D55;color:#fff}
+.btn.wa:hover{background:#188548;border-color:#188548}
+.btn.wa svg{width:16px;height:16px;vertical-align:-3px;margin-right:6px}
+td .btn.wa svg{margin-right:0}
+.wa-dlg{border:0;border-radius:14px;padding:0;width:min(500px,94vw);box-shadow:0 24px 60px rgba(20,40,50,.25)}
+.wa-dlg::backdrop{background:rgba(20,40,50,.45)}
+.wa-dlg form{padding:18px 20px 20px;display:grid;gap:12px}
+.wa-h{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.wa-h b{font-size:18px;font-weight:600}
+.wa-h .x{border:0;background:none;font-size:26px;line-height:1;cursor:pointer;color:var(--muted);padding:2px 6px}
+.wa-dlg .field{margin:0}
+.wa-dlg textarea{min-height:190px;font:inherit;font-size:14px;line-height:1.5}
+.wa-link{font-size:12.5px;color:var(--muted);word-break:break-all;background:#F4F8F9;border-radius:8px;padding:8px 10px}
+.wa-link a{color:var(--teal-dark)}
+.wa-acts{display:flex;gap:8px;flex-wrap:wrap}
+.wa-err{color:#B4283D;font-size:13px;min-height:0;margin:0}
 .picker{display:flex;gap:10px;flex-wrap:wrap;align-items:end;background:#F7FAFB;border:1px dashed #CFE2E6;border-radius:10px;padding:12px 14px;margin-bottom:12px}
 .picker .field{margin:0;flex:1 1 170px}
 .picker b{flex:1 1 100%;font-weight:600;font-size:13px;color:var(--teal-dark)}
@@ -399,6 +416,80 @@ function wireShare(btn, getPdf, getName, getText) {
   });
 }
 
+/* ============================== WhatsApp ==============================
+   Certificates send the public "Verified" page (it opens the PDF).
+   Delivery notes and job cards: the current PDF is uploaded to the public certs bucket
+   under s/<record id>.pdf. The id is a random UUID, so only people with the link can open it. */
+const WA_TYPES = {leak: 'Leak Test Certificate', tank: 'Tank Certificate', dn: 'Delivery Note', jobcard: 'Job Card'};
+const WA_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3 10 14"/><path d="M21 3l-6.5 18-3.5-7-7-3.5z"/></svg>';
+const waNum = s => { let d = String(s || '').replace(/\D/g, ''); if (d.startsWith('00')) d = d.slice(2);
+  if (/^05\d{8}$/.test(d)) d = '966' + d.slice(1); else if (/^5\d{8}$/.test(d)) d = '966' + d; return d; };
+const waMemo = {
+  get: p => { try { return JSON.parse(localStorage.getItem('docs.wa.numbers') || '{}')[String(p || '').trim().toLowerCase()] || ''; } catch (e) { return ''; } },
+  set: (p, n) => { try { const m = JSON.parse(localStorage.getItem('docs.wa.numbers') || '{}'); m[String(p || '').trim().toLowerCase()] = n; localStorage.setItem('docs.wa.numbers', JSON.stringify(m)); } catch (e) {} }
+};
+const shareUrl = id => certUrl(`s/${id}`);
+async function waLink(type, rec, makePdf) {
+  if (type === 'leak' || type === 'tank') {
+    const t = rec.files?.qr_token;
+    if (!t) throw new Error('This certificate has no QR link yet. Open it and click Save once, then send it.');
+    return verifyUrl(t);
+  }
+  const pdf = await makePdf();
+  const {error} = await sb.storage.from(CERT_BUCKET).upload(`s/${rec.id}.pdf`, pdf.output('blob'), {contentType: 'application/pdf', upsert: true, cacheControl: '60'});
+  if (error) throw new Error('Could not create the PDF link: ' + nice(error));
+  return shareUrl(rec.id);
+}
+function waText(type, r, link) {
+  const d = r.data || {}, hi = 'Assalamu alaikum,\n\n', sign = '\n\nRegards,\nAl Hyakel Metal Industries\n0541857480';
+  if (type === 'tank') return hi + `Please find the Tank Trailer Axles Certificate ${r.doc_no}` + (r.party_name ? ` for ${r.party_name}` : '') + '.'
+    + (d.tank_no ? `\nTank No.: ${d.tank_no}` : '') + (d.truck_plate ? `\nTruck plate: ${d.truck_plate}` : '') + (d.valid_until ? `\nValid until: ${fmtDate(d.valid_until)}` : '')
+    + `\n\nView, verify and download the certificate:\n${link}` + sign;
+  if (type === 'leak') return hi + `Please find the Leak Test Certificate ${r.doc_no}` + (r.party_name ? ` for ${r.party_name}` : '') + '.'
+    + `\nTest date: ${fmtDate(r.doc_date)}\nResult: ${d.result === 'FAIL' ? 'FAIL' : 'PASS'}` + (d.chassis_no ? `\nChassis No.: ${d.chassis_no}` : '')
+    + `\n\nView, verify and download the certificate:\n${link}` + sign;
+  if (type === 'dn') return hi + `Please find Delivery Note ${r.doc_no}` + (r.party_name ? ` for ${r.party_name}` : '') + '.'
+    + (d.po_no ? `\nPO No.: ${d.po_no}` : '') + (d.truck_no ? `\nTruck No.: ${d.truck_no}` : '') + `\n\nDelivery note (PDF):\n${link}` + sign;
+  return hi + `Please find Job Card ${r.doc_no}` + (r.party_name ? ` for ${r.party_name}` : '') + '.'
+    + (d.equipment ? `\nEquipment: ${d.equipment}` : '') + (d.job_status ? `\nStatus: ${d.job_status}` : '') + `\n\nJob card (PDF):\n${link}` + sign;
+}
+async function sendWhatsApp(type, rec, makePdf) {
+  const link = await waLink(type, rec, makePdf), text = waText(type, rec, link);
+  document.getElementById('waDlg')?.remove();
+  const dl = document.createElement('dialog'); dl.id = 'waDlg'; dl.className = 'wa-dlg';
+  dl.innerHTML = `<form method="dialog">
+      <div class="wa-h"><b>Send ${esc(rec.doc_no)} on WhatsApp</b><button class="x" value="close" aria-label="Close">&times;</button></div>
+      <div class="field"><label for="wa_no">Customer mobile</label><input id="wa_no" type="tel" inputmode="tel" autocomplete="off" placeholder="05XXXXXXXX (optional)" value="${esc(waMemo.get(rec.party_name))}">
+        <div class="hint">Leave it empty to pick the contact inside WhatsApp. The number is remembered for ${esc(rec.party_name || 'this customer')} on this device.</div></div>
+      <div class="field"><label for="wa_msg">Message</label><textarea id="wa_msg">${esc(text)}</textarea></div>
+      <div class="wa-link">Link: <a href="${esc(link)}" target="_blank" rel="noopener">${esc(link)}</a></div>
+      <p class="wa-err" id="wa_err" role="alert"></p>
+      <div class="wa-acts"><button type="button" class="btn wa" id="wa_go">${WA_ICON}Open WhatsApp</button><button type="button" class="btn sec" id="wa_copy">Copy message</button></div>
+    </form>`;
+  document.body.appendChild(dl); dl.showModal();
+  dl.addEventListener('close', () => dl.remove());
+  dl.querySelector('#wa_go').onclick = () => {
+    const raw = dl.querySelector('#wa_no').value.trim(), n = waNum(raw);
+    if (raw && n.length < 11) { dl.querySelector('#wa_err').textContent = 'Please check the mobile number, e.g. 0551234567 or +966551234567.'; return; }
+    waMemo.set(rec.party_name, raw);
+    window.open(`https://wa.me/${n}?text=${encodeURIComponent(dl.querySelector('#wa_msg').value)}`, '_blank', 'noopener');
+    dl.close();
+  };
+  dl.querySelector('#wa_copy').onclick = async () => {
+    const ta = dl.querySelector('#wa_msg');
+    try { await navigator.clipboard.writeText(ta.value); toast('Message copied'); } catch (e) { ta.select(); document.execCommand('copy'); toast('Message copied'); }
+  };
+}
+async function waClick(btn, type, rec, makePdf, inForm) {
+  if (!rec?.id) { toast('Save the document first, then send it on WhatsApp.', true); return; }
+  if (inForm && dirty && !confirm('You have unsaved changes. The customer will get the last saved version. Continue?')) return;
+  const old = btn.innerHTML; btn.disabled = true; btn.textContent = 'Please wait…';
+  try { await sendWhatsApp(type, rec, makePdf); } catch (err) { toast(nice(err), true); }
+  finally { btn.disabled = false; btn.innerHTML = old; }
+}
+const waBtn = (type, id) => WA_TYPES[type] ? `<button class="btn small wa" data-wa="${id}" title="Send on WhatsApp" aria-label="Send on WhatsApp">${WA_ICON}</button>` : '';
+const waFormBtn = type => WA_TYPES[type] ? `<button class="btn wa" type="button" id="wa">${WA_ICON}WhatsApp</button>` : '';
+
 /* Invoice payments */
 const PAY_LABEL = {paid: 'Paid', partial: 'Partially paid', unpaid: 'Unpaid', overdue: 'Overdue'};
 function payState(total, paid, due) {
@@ -465,12 +556,14 @@ async function showList() {
         <td>${r.data?.project_no ? `<b>${esc(r.data.project_no)}</b> ` : ''}${esc(r.data?.project_name)}</td>
         <td>${who(r.party_name)}</td><td>${esc([r.data?.chassis_no || r.data?.equipment_tag, r.data?.tank_serial].filter(Boolean).join(' / '))}</td>
         <td><span class="res ${r.data?.result === 'FAIL' ? 'FAIL' : 'PASS'}">${r.data?.result === 'FAIL' ? 'FAIL' : 'PASS'}</span></td><td>${statusPill(r)}</td>
-        <td style="white-space:nowrap"><button class="btn small sec" data-pdf="${r.id}">PDF</button></td></tr>`).join('')
+        <td style="white-space:nowrap"><button class="btn small sec" data-pdf="${r.id}">PDF</button>${waBtn('leak', r.id)}</td></tr>`).join('')
       : `<tr><td colspan="8" class="empty">${LIST.length ? 'No certificates match this search.' : 'No certificates yet.' + (CAN_EDIT ? ' <a href="#leak/new">Create the first certificate</a>.' : '')}</td></tr>`;
     $('#count').textContent = LIST.length ? `${rows.length} of ${LIST.length} certificates` : '';
   };
   $('#q').addEventListener('input', draw); $('#fr').addEventListener('change', draw);
   $('#rows').addEventListener('click', async e => {
+    const w = e.target.closest('[data-wa]');
+    if (w) { e.stopPropagation(); return waClick(w, 'leak', LIST.find(x => x.id === w.dataset.wa)); }
     const b = e.target.closest('[data-pdf]');
     if (b) {
       e.stopPropagation(); b.disabled = true; b.textContent = '…';
@@ -582,6 +675,7 @@ async function showForm(id, copyFrom) {
         <button class="btn sec" type="button" id="dl">Download PDF</button>
         <button class="btn sec" type="button" id="pv">Preview</button>
         <span class="share"><button class="btn sec" type="button" id="sh">Share</button></span>
+        ${waFormBtn('leak')}
         ${rec && CAN_EDIT ? `<a class="btn sec" href="#leak/copy/${rec.id}">Copy as new</a>` : ''}
         ${approvalButtons(rec)}
         <span class="grow"></span>
@@ -650,6 +744,7 @@ async function showForm(id, copyFrom) {
     try { await fn(); } catch (e) { $('#err').textContent = nice(e); } btn.disabled = false; btn.textContent = t; };
 
   $('#dl').onclick = e => run(e.target, async () => (await makePdf()).save((rec?.doc_no || 'Leak-Test-DRAFT') + '.pdf'));
+  $('#wa')?.addEventListener('click', e => waClick(e.currentTarget, 'leak', rec, null, true));
   wireShare($('#sh'), makePdf, () => (rec?.doc_no || 'Leak-Test-DRAFT') + '.pdf',
     () => `Leak Test Certificate ${rec?.doc_no || ''} - ${$('#party_name').value.trim()}${$('#chassis_no').value.trim() ? ' (Chassis ' + $('#chassis_no').value.trim() + ')' : ''}`);
   $('#pv').onclick = e => run(e.target, async () => {
@@ -1051,12 +1146,14 @@ async function showIList(type) {
     const rows = list.filter(r => !q || [r.doc_no, r.party_name, ...T.search(r)].join(' ').toLowerCase().includes(q));
     $('#rows').innerHTML = rows.length ? rows.map(r => `<tr class="click" data-id="${r.id}"><td class="no">${esc(r.doc_no)}</td>
         <td style="white-space:nowrap">${esc(fmtDate(r.doc_date))}</td>${T.listCols.map(c => `<td class="${c[2] || ''}">${c[1](r)}</td>`).join('')}<td>${statusPill(r)}</td>
-        <td><button class="btn small sec" data-pdf="${r.id}">PDF</button></td></tr>`).join('')
+        <td style="white-space:nowrap"><button class="btn small sec" data-pdf="${r.id}">PDF</button>${waBtn(type, r.id)}</td></tr>`).join('')
       : `<tr><td colspan="${T.listCols.length + 4}" class="empty">${list.length ? 'Nothing matches this search.' : `No ${esc(T.title)} yet.` + (CAN_EDIT ? ` <a href="#${type}/new">Create the first one</a>.` : '')}</td></tr>`;
     $('#count').textContent = list.length ? `${rows.length} of ${list.length}` : '';
   };
   $('#q').addEventListener('input', draw);
   $('#rows').addEventListener('click', async e => {
+    const w = e.target.closest('[data-wa]');
+    if (w) { e.stopPropagation(); const r = list.find(x => x.id === w.dataset.wa); return waClick(w, type, r, () => iPdf(type, r)); }
     const b = e.target.closest('[data-pdf]');
     if (b) {
       e.stopPropagation(); b.disabled = true;
@@ -1148,6 +1245,7 @@ async function showIForm(type, id, copyFrom, fromQuote) {
         <button class="btn sec" type="button" id="dl">Download PDF</button>
         <button class="btn sec" type="button" id="pv">Preview</button>
         <span class="share"><button class="btn sec" type="button" id="sh">Share</button></span>
+        ${waFormBtn(type)}
         ${rec && CAN_EDIT ? `<a class="btn sec" href="#${type}/copy/${rec.id}">Copy as new</a>` : ''}
         ${rec && CAN_EDIT && type === 'quotation' ? `<a class="btn sec" href="#invoice/fromquote/${rec.id}">Make Invoice</a>` : ''}
         ${approvalButtons(rec)}
@@ -1210,6 +1308,7 @@ async function showIForm(type, id, copyFrom, fromQuote) {
     try { await fn(); } catch (e) { $('#err').textContent = nice(e); } btn.disabled = false; btn.textContent = t; };
   const draft = () => ({...collect(), doc_no: rec?.doc_no || ($('#f_no')?.value.trim() || '')});
   $('#dl').onclick = e => run(e.target, async () => (await iPdf(type, draft())).save((draft().doc_no || T.title.replace(/ /g, '-') + '-DRAFT') + '.pdf'));
+  $('#wa')?.addEventListener('click', e => waClick(e.currentTarget, type, rec, () => iPdf(type, rec), true));
   wireShare($('#sh'), () => iPdf(type, draft()), () => (draft().doc_no || T.title.replace(/ /g, '-') + '-DRAFT') + '.pdf',
     () => { const v = draft(); return `${T.title} ${v.doc_no || ''} - ${v.party_name}${T.money ? ` - SAR ${money(v.data.grand_total)}` : ''}`; });
   $('#pv').onclick = e => run(e.target, async () => {
@@ -1220,6 +1319,7 @@ async function showIForm(type, id, copyFrom, fromQuote) {
     if (!confirm(`Permanently delete ${rec.doc_no}?`)) return;
     const {error} = await sb.from('docs_documents').delete().eq('id', rec.id);
     if (error) throw error;
+    if (WA_TYPES[type]) sb.storage.from(CERT_BUCKET).remove([`s/${rec.id}.pdf`]).catch(() => {});   // its WhatsApp PDF link, if one was made
     dirty = false; toast(rec.doc_no + ' deleted'); location.hash = '#' + type;
   }));
   form.addEventListener('submit', e => { e.preventDefault(); if (!ro) run($('#save'), async () => {
@@ -1466,6 +1566,7 @@ async function showTankForm(id, copyFrom) {
         <button class="btn sec" type="button" id="dl">Download PDF</button>
         <button class="btn sec" type="button" id="pv">Preview</button>
         <span class="share"><button class="btn sec" type="button" id="sh">Share</button></span>
+        ${waFormBtn('tank')}
         ${rec && CAN_EDIT ? `<a class="btn sec" href="#tank/copy/${rec.id}">Copy as new</a>` : ''}
         ${approvalButtons(rec)}
         <span class="grow"></span>
@@ -1507,6 +1608,7 @@ async function showTankForm(id, copyFrom) {
   const run = async (btn, fn) => { const t = btn.textContent; btn.disabled = true; btn.textContent = 'Please wait…'; $('#err').textContent = '';
     try { await fn(); } catch (e) { $('#err').textContent = nice(e); } btn.disabled = false; btn.textContent = t; };
   $('#dl').onclick = e => run(e.target, async () => (await iPdf(type, draft(), slots)).save((draft().doc_no || 'Tank-Certificate-DRAFT') + '.pdf'));
+  $('#wa')?.addEventListener('click', e => waClick(e.currentTarget, 'tank', rec, null, true));
   wireShare($('#sh'), () => iPdf(type, draft(), slots), () => (draft().doc_no || 'Tank-Certificate-DRAFT') + '.pdf',
     () => { const v = draft(); return `Tank Inspection Certificate ${v.doc_no || ''} - ${v.party_name} - Tank ${v.data.tank_no || '-'}, valid until ${fmtDate(v.data.valid_until)}`; });
   $('#pv').onclick = e => run(e.target, async () => { const w = window.open('', '_blank'); const url = (await iPdf(type, draft(), slots)).output('bloburl'); if (w) w.location = url; else location.href = url; });
