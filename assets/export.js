@@ -131,10 +131,6 @@
         const a = await all('hr_adjustments', '*', q => between('adj_date', from, to)(q).order('adj_date'));
         add('Deductions & bonuses', a.map(x => ({Date: x.adj_date, ...E(x.employee_id), Type: x.kind, Reason: x.reason, 'Amount (SAR)': num(x.amount)})));
       });
-      await tryPart('advances', async () => {
-        const a = await all('hr_advances', '*', q => between('given_on', from, to)(q).order('given_on'));
-        add('Advances', a.map(x => ({'Given on': x.given_on, ...E(x.employee_id), 'Amount (SAR)': num(x.amount), 'Monthly installment': num(x.installment), Note: x.note})));
-      });
       await tryPart('salary payments', async () => {
         const s = await all('hr_salary_payments', '*', q => between('paid_on', from, to)(q).order('paid_on'));
         add('Salary payments', s.map(x => ({'Paid on': x.paid_on, 'Salary month': x.month, ...E(x.employee_id), 'Amount (SAR)': num(x.amount), Method: x.method, Reference: x.reference, Note: x.note, 'Recorded by': who(x.created_by)})));
@@ -144,7 +140,7 @@
         add('Payslips', s.map(x => { const d = x.data || {}, dd = d.days || {};
           const sum = f => (d.ded || []).filter(f).reduce((a, y) => a + Number(y.amount || 0), 0);
           return {Month: x.month, ...E(x.employee_id), 'Basic (SAR)': num(d.basic), 'Overtime hours': num(d.otHours), 'Gross (SAR)': num(d.gross),
-            'Absent deduction': sum(y => y.kind === 'absent'), 'Violations / deductions': sum(y => y.kind === 'violation' || y.kind === 'deduction'), 'Advance recovery': sum(y => y.kind === 'advance'),
+            'Absent deduction': sum(y => y.kind === 'absent'), 'Violations / deductions': sum(y => y.kind === 'violation' || y.kind === 'deduction'),
             'Total deductions': num(d.totalDed), 'Net pay (SAR)': num(x.net), 'Present days': num(dd.present), 'Absent days': num(dd.absent), 'Half days': num(dd.half), 'Saved at': riyadh(x.created_at)}; }));
       });
     }
