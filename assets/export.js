@@ -9,7 +9,7 @@
   const riyadh = ts => ts ? new Intl.DateTimeFormat('en-GB', {timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false})
     .format(new Date(ts)).replace(/(\d+)\/(\d+)\/(\d+),?/, '$3-$2-$1') : '';
   const num = v => v === '' || v == null || isNaN(Number(v)) ? (v ?? '') : Number(v);
-  const DOC_NAMES = {leak: 'Leak Test', tank: 'Tank Certificate', quotation: 'Quotation', invoice: 'Invoice', dn: 'Delivery Note', po: 'Purchase Order', jobcard: 'Job Card', mr: 'Material Request', receipt: 'Cash Receipt', aramco: 'Aramco Inspection', cow: 'Origin & Warranty'};
+  const DOC_NAMES = {leak: 'Leak Test', tank: 'Tank Certificate', quotation: 'Quotation', invoice: 'Invoice', dn: 'Delivery Note', po: 'Purchase Order', jobcard: 'Job Card', mr: 'Material Request', receipt: 'Cash Receipt', aramco: 'Aramco Inspection', cow: 'Origin & Warranty', petty: 'Petty Cash'};
   const human = k => k.replace(/_/g, ' ').replace(/\b\w/, c => c.toUpperCase()).replace(/\bno\b/i, 'No.').replace(/\bvat\b/i, 'VAT');
 
   const PERIODS = {

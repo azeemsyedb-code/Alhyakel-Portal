@@ -67,7 +67,7 @@
   const addDays = (d, n) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
   const addMonths = (d, n) => { const [y, m, day] = d.split('-').map(Number), x = new Date(Date.UTC(y, m - 1 + n, 1));
     x.setUTCDate(Math.min(day, new Date(Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + 1, 0)).getUTCDate())); return x.toISOString().slice(0, 10); };
-  const DOC_NAMES = {leak: 'Leak Test', tank: 'Tank Certificate', quotation: 'Quotation', invoice: 'Invoice', dn: 'Delivery Note', po: 'Purchase Order', jobcard: 'Job Card', mr: 'Material Request', receipt: 'Cash Receipt', aramco: 'Aramco Inspection', cow: 'Origin & Warranty'};
+  const DOC_NAMES = {leak: 'Leak Test', tank: 'Tank Certificate', quotation: 'Quotation', invoice: 'Invoice', dn: 'Delivery Note', po: 'Purchase Order', jobcard: 'Job Card', mr: 'Material Request', receipt: 'Cash Receipt', aramco: 'Aramco Inspection', cow: 'Origin & Warranty', petty: 'Petty Cash'};
   window.portalDocNames = DOC_NAMES;
   const initials = n => String(n || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
 
