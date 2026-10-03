@@ -29,7 +29,7 @@ assets/portal.css, logo_mark.png, favicon.png
 assets/header.jpg, footer.jpg, stamp.png   letterhead and company stamp for PDFs
 supabase_setup.sql    database (run once)
 supabase_docs.sql     Documents database, price list, storage for photos and certificates
-supabase_hr.sql       Employees: working kit, paid tasks, deductions, advances, payslips
+supabase_hr.sql       Employees: working kit, paid tasks, deductions, payslips
 manifest.webmanifest, sw.js   for installing on a phone like an app
 assets/export.js      Data export to Excel and backups (Users & Access page)
 verify.html           public page the certificate QR codes open
@@ -55,7 +55,7 @@ In the same way, open **SQL Editor → New query**, paste the full content of `s
 
 ### Step 1c — Employees: kit and payroll
 
-Then **Run** `supabase_hr.sql` the same way. This creates the tables for working kit (rounds and standard kit), paid tasks, deductions / violations, advances and payslips. It is also safe to run again.
+Then **Run** `supabase_hr.sql` the same way. This creates the tables for working kit (rounds and standard kit), paid tasks, deductions / violations, payslips and salary payments. It is also safe to run again.
 
 ### Step 1d — Extras (stock count, kiosk photo, backups, notifications)
 
@@ -151,7 +151,7 @@ window.PORTAL_CONFIG = {
   - **Single items:** for giving something in between (a new joiner, torn shoes); this does not change the next kit date.
   - **Return:** Good / Damaged / Lost. Damaged or Lost items carry a charge; if the HR admin keeps "Deduct from salary" on, it is deducted in the payslip.
 - **Paid tasks:** when creating a task, the HR admin ticks **Paid task** and enters the amount. It is added to the salary for the month in which the task is marked "Done".
-- **Payroll (HR admin only):** choose a month. Each employee's payslip: basic + overtime + paid tasks + bonus, minus absences (basic ÷ 30 per day, half day = half), violations / deductions and the advance installment. Record these with **+ Deduction / violation / bonus** and **+ Advance** (advance installments start being deducted from the next month). **Save** stores the payslip and counts the advance repayment; if something changes later, the row shows "Changed since" — click **Re-save**. Print **Payslip** / **All payslips (PDF)** and have the employee sign.
+- **Payroll (HR admin only):** choose a month. Each employee's payslip: basic + overtime + paid tasks + bonus, minus absences (basic ÷ 30 per day, half day = half), violations / deductions. Record these with **+ Deduction / violation / bonus**. **Save** stores the payslip; if something changes later, the row shows "Changed since" — click **Re-save**. Print **Payslip** / **All payslips (PDF)** and have the employee sign.
 
 ## Invoice and ZATCA
 
@@ -214,7 +214,7 @@ A free Supabase project is paused if it is not used at all for **7 days**. With 
 
 ## Data export (portal admins)
 
-**Users & Access → Data export**: choose a period (this month, last month, this year, last year, custom dates, or all time) and the sections, then **Download Excel**. You get one `.xlsx` file with a Summary sheet and a separate sheet for each kind of record: every document type, document lines, payments, price list, suppliers, products, stock movements, employees, attendance, tasks, working kit, deductions & bonuses, advances, payslips, and (optional) users & roles. Use **All time** once a month as a backup, since the free Supabase plan has no automatic backups. The export only includes sections the logged-in admin has a role in.
+**Users & Access → Data export**: choose a period (this month, last month, this year, last year, custom dates, or all time) and the sections, then **Download Excel**. You get one `.xlsx` file with a Summary sheet and a separate sheet for each kind of record: every document type, document lines, payments, price list, suppliers, products, stock movements, employees, attendance, tasks, working kit, deductions & bonuses, salary payments, payslips, and (optional) users & roles. Use **All time** once a month as a backup, since the free Supabase plan has no automatic backups. The export only includes sections the logged-in admin has a role in.
 
 ## Fresh start (delete all data)
 
@@ -231,7 +231,7 @@ Kept: logins and roles (Users & Access) and HR settings. Document numbers start 
 - **Pay**: record money given to the employee (cash, bank transfer or cheque). You can pay part of the salary during the month and the rest later; each payment is listed under **Salary payments** for that month.
 - Tick "Download a payment voucher" (or click **Voucher** on a payment) to print a Salary Payment Voucher for the employee to sign: amount, amount in words, net for the month, paid before and balance left.
 - **Pay all balances**: one payment for everyone's remaining balance (for example the monthly bank / WPS transfer).
-- The payslip PDF lists the payments made and the balance due. Salary payments are different from **Advances** (a loan recovered in monthly installments).
+- The payslip PDF lists the payments made and the balance due.
 - Needs the latest `supabase_hr.sql`.
 
 ## Cash Receipt (Documents → Cash Receipt)

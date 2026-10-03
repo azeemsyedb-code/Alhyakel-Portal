@@ -1066,20 +1066,19 @@ async function kitPdf(pages) {
   return d.finish();
 }
 
-/* ============ PAYROLL (payslips, deductions, advances) ============ */
+/* ============ PAYROLL (payslips, deductions, salary payments) ============ */
 let payMonth = todayStr().slice(0, 7);
 const ADJ = {violation: 'Violation', deduction: 'Deduction', bonus: 'Bonus'};
 async function payrollData(ym) {
   const {start, end} = monthRange(ym), next = addDays(end, 1);
-  const [att, tasks, adj, adv, slips] = await Promise.all([
+  const [att, tasks, adj, slips] = await Promise.all([
     sb.from('hr_attendance').select('employee_id,work_date,status,ot_hours').gte('work_date', start).lte('work_date', end),
     sb.from('hr_tasks').select('id,employee_id,title,amount,completed_at').eq('status', 'done').eq('paid', true).gte('completed_at', `${start}T00:00:00+03:00`).lt('completed_at', `${next}T00:00:00+03:00`),
     sb.from('hr_adjustments').select('*').gte('adj_date', start).lte('adj_date', end).order('adj_date'),
-    sb.from('hr_advances').select('*').order('given_on'),
     sb.from('hr_payslips').select('id,employee_id,month,data,net,created_at')].map(q => q.then(must)));
   // salary payments for this month (part payments during the month are allowed)
   const {data: pays, error: pe} = await sb.from('hr_salary_payments').select('*').eq('month', ym).order('paid_on').order('created_at');
-  return {att, tasks, adj, adv, slips, pays: pe ? [] : pays, paysReady: !pe};
+  return {att, tasks, adj, slips, pays: pe ? [] : pays, paysReady: !pe};
 }
 function calcSlip(e, ym, D) {
   const {days} = monthRange(ym), basic = Number(e.basic_pay || 0), daily = basic / 30;
@@ -1099,18 +1098,9 @@ function calcSlip(e, ym, D) {
   const absentDays = dd.absent + dd.half * 0.5;
   if (absentDays) ded.push({label: `Absent (${fmtH(absentDays)} day${absentDays === 1 ? '' : 's'} x ${money(r2(daily))})`, amount: r2(absentDays * daily), kind: 'absent'});
   D.adj.filter(a => a.employee_id === e.id && a.kind !== 'bonus').forEach(a => ded.push({label: `${ADJ[a.kind]}: ${a.reason}`, amount: Number(a.amount), kind: a.kind, date: a.adj_date}));
-  const advances = [];
-  D.adv.filter(a => a.employee_id === e.id && a.given_on.slice(0, 7) < ym).forEach(a => {   // recovery starts the month after the advance
-    const before = D.slips.filter(s => s.employee_id === e.id && s.month < ym).reduce((x, s) => x + Number((s.data.advances || []).find(v => v.id === a.id)?.amount || 0), 0);
-    const left = r2(Number(a.amount) - before);
-    if (left <= 0.005) return;
-    const take = r2(Math.min(Number(a.installment), left));
-    advances.push({id: a.id, amount: take, remaining: r2(left - take), total: Number(a.amount)});
-    ded.push({label: `Advance recovery (given ${shortDate(a.given_on)} ${a.given_on.slice(0, 4)}, SAR ${money(a.amount)}; left after this: ${money(r2(left - take))})`, amount: take, kind: 'advance'});
-  });
   const gross = r2(earn.reduce((a, x) => a + x.amount, 0)), totalDed = r2(ded.reduce((a, x) => a + x.amount, 0));
   return {emp: {id: e.id, code: e.emp_code, name: e.name, designation: e.designation || ''}, month: ym, basic, days: dd, otHours: otH,
-          earn, ded, advances, gross, totalDed, net: r2(gross - totalDed)};
+          earn, ded, gross, totalDed, net: r2(gross - totalDed)};
 }
 async function payslipPdf(slips) {
   if (!slips.length) throw new Error('No payslips.');
@@ -1192,23 +1182,23 @@ async function viewPayroll() {
   const payChip = r => { const paid = paidOf(r.e.id), bal = balOf(r);
     return !paid ? chip('off', 'Unpaid') : bal > 0.005 ? chip('half_day', 'Part paid') : bal < -0.005 ? chip('absent', 'Overpaid') : chip('done', 'Paid'); };
   main.innerHTML = `
-    <div class="head"><div><h1>Payroll</h1><p>${monthName(ym)}. Payslip = basic + overtime + paid tasks + bonus, minus absent days, violations / deductions and advance installments.</p></div>
+    <div class="head"><div><h1>Payroll</h1><p>${monthName(ym)}. Payslip = basic + overtime + paid tasks + bonus, minus absent days and violations / deductions.</p></div>
       <div class="tools"><input type="month" id="pm" value="${ym}" aria-label="Month">
-        <button class="btn" id="addAdj">+ Deduction / violation / bonus</button><button class="btn" id="addAdv">+ Advance</button></div></div>
+        <button class="btn" id="addAdj">+ Deduction / violation / bonus</button></div></div>
     <div class="tools" style="margin-bottom:12px"><button class="btn primary" id="saveAll">Save all payslips</button><button class="btn" id="pdfAll">All payslips (PDF)</button>
       ${D.paysReady ? '<button class="btn" id="payAll">Pay all balances</button>' : ''}
       <span class="muted">Net total: <b>SAR ${money(tot)}</b> · Paid: <b>SAR ${money(totPaid)}</b> · Balance: <b>SAR ${money(tot - totPaid)}</b></span></div>
     ${D.paysReady ? '' : '<div class="offnote">Salary payments are not set up yet: run the latest supabase_hr.sql in Supabase.</div>'}
-    <div class="wrap"><table><thead><tr><th>Code</th><th>Name</th><th class="r">Basic</th><th class="r">Overtime</th><th class="r">Tasks + bonus</th><th class="r">Absent</th><th class="r">Other ded.</th><th class="r">Advance</th><th class="r">Net (SAR)</th><th class="r">Paid</th><th class="r">Balance</th><th>Status</th><th></th></tr></thead>
+    <div class="wrap"><table><thead><tr><th>Code</th><th>Name</th><th class="r">Basic</th><th class="r">Overtime</th><th class="r">Tasks + bonus</th><th class="r">Absent</th><th class="r">Other ded.</th><th class="r">Net (SAR)</th><th class="r">Paid</th><th class="r">Balance</th><th>Status</th><th></th></tr></thead>
     <tbody>${rows.map(r => { const s = shown(r), ot = s.earn.filter(x => x.label.startsWith('Overtime')).reduce((a, x) => a + x.amount, 0), extra = s.gross - s.basic - ot;
       const changed = r.saved && Math.abs(Number(r.saved.net) - r.calc.net) > 0.005;
       return `<tr data-id="${r.e.id}"><td class="muted">${esc(r.e.emp_code)}</td><td>${esc(r.e.name)}</td><td class="r">${money(s.basic)}</td><td class="r">${money(ot)}</td><td class="r">${money(extra)}</td>
-        <td class="r">${money(sumBy(s, x => x.kind === 'absent'))}</td><td class="r">${money(sumBy(s, x => x.kind === 'violation' || x.kind === 'deduction'))}</td><td class="r">${money(sumBy(s, x => x.kind === 'advance'))}</td>
+        <td class="r">${money(sumBy(s, x => x.kind === 'absent'))}</td><td class="r">${money(sumBy(s, x => x.kind !== 'absent'))}</td>
         <td class="r"><b>${money(s.net)}</b></td><td class="r">${paidOf(r.e.id) ? money(paidOf(r.e.id)) : ''}</td><td class="r">${paidOf(r.e.id) ? `<b>${money(balOf(r))}</b>` : ''}</td>
         <td>${r.saved ? chip('done', 'Saved') + (changed ? ` ${chip('half_day', 'Changed since')}` : '') : chip('off', 'Not saved')} ${D.paysReady ? payChip(r) : ''}</td>
         <td style="white-space:nowrap"><button class="btn" data-pdf>Payslip</button> <button class="btn" data-save>${r.saved ? 'Re-save' : 'Save'}</button>${D.paysReady ? ' <button class="btn primary" data-pay>Pay</button>' : ''}</td></tr>`; }).join('')
-      || '<tr><td colspan="13" class="empty">No active employees.</td></tr>'}</tbody></table></div>
-    <p class="muted" style="font-size:13px">Absence deduction: basic ÷ 30 per absent day (half day = half). Advance installments start from the following month. Saving locks in the payslip and records the advance recovery. "Pay" records salary actually handed over; you can pay part of it during the month and the rest later.</p>
+      || '<tr><td colspan="12" class="empty">No active employees.</td></tr>'}</tbody></table></div>
+    <p class="muted" style="font-size:13px">Absence deduction: basic ÷ 30 per absent day (half day = half). Saving locks in the payslip. "Pay" records salary actually handed over; you can pay part of it during the month and the rest later.</p>
     ${D.paysReady ? `<h2>Salary payments: ${monthName(ym)}</h2>
     <div class="wrap"><table><thead><tr><th>Paid on</th><th>Employee</th><th>Method</th><th>Reference / note</th><th class="r">Amount (SAR)</th><th></th></tr></thead>
     <tbody>${D.pays.map(p => `<tr data-payid="${p.id}"><td>${shortDate(p.paid_on)} ${p.paid_on.slice(0, 4)}</td><td>${esc(empById(p.employee_id)?.name)}</td><td>${esc(p.method)}</td>
@@ -1219,15 +1209,7 @@ async function viewPayroll() {
     <div class="wrap"><table><thead><tr><th>Date</th><th>Employee</th><th>Type</th><th>Reason</th><th class="r">Amount (SAR)</th><th></th></tr></thead>
     <tbody>${D.adj.map(a => `<tr><td>${shortDate(a.adj_date)}</td><td>${esc(empById(a.employee_id)?.name)}</td><td>${chip({violation: 'absent', deduction: 'half_day', bonus: 'done'}[a.kind], ADJ[a.kind])}</td>
       <td class="wrapcell">${esc(a.reason)}</td><td class="r">${money(a.amount)}</td><td><button class="btn danger" data-deladj="${a.id}">Delete</button></td></tr>`).join('')
-      || '<tr><td colspan="6" class="empty">No records this month.</td></tr>'}</tbody></table></div>
-    <h2>Advances / loans</h2>
-    <div class="wrap"><table><thead><tr><th>Employee</th><th>Given on</th><th class="r">Amount</th><th class="r">Monthly installment</th><th class="r">Recovered (saved)</th><th class="r">Remaining</th><th>Note</th><th></th></tr></thead>
-    <tbody>${D.adv.map(a => { const rec = D.slips.filter(s => s.employee_id === a.employee_id).reduce((x, s) => x + Number((s.data.advances || []).find(v => v.id === a.id)?.amount || 0), 0), left = Number(a.amount) - rec;
-      if (left <= 0.005 && a.given_on.slice(0, 7) < addDays(monthRange(ym).start, -200).slice(0, 7)) return '';
-      return `<tr><td>${esc(empById(a.employee_id)?.name)}</td><td>${shortDate(a.given_on)} ${a.given_on.slice(0, 4)}</td><td class="r">${money(a.amount)}</td><td class="r">${money(a.installment)}</td>
-        <td class="r">${money(rec)}</td><td class="r">${left > 0.005 ? `<b>${money(left)}</b>` : chip('done', 'Paid back')}</td><td>${esc(a.note)}</td>
-        <td>${rec ? '' : `<button class="btn danger" data-deladv="${a.id}">Delete</button>`}</td></tr>`; }).join('')
-      || '<tr><td colspan="8" class="empty">No advances given.</td></tr>'}</tbody></table></div>`;
+      || '<tr><td colspan="6" class="empty">No records this month.</td></tr>'}</tbody></table></div>`;
 
   $('#pm').onchange = e => { if (e.target.value) { payMonth = e.target.value; route(); } };
   const pick = id => rows.find(r => r.e.id === id);
@@ -1253,16 +1235,6 @@ async function viewPayroll() {
       <p class="full hint">Violations / deductions are subtracted on the payslip. Bonuses are added to earnings. A violation amount can be 0 (for the record only).</p>`,
     onSubmit: async fd => { must(await sb.from('hr_adjustments').insert({employee_id: fd.employee_id, kind: fd.kind, adj_date: fd.adj_date, amount: Number(fd.amount || 0), reason: fd.reason.trim()}));
       if (fd.adj_date.slice(0, 7) !== ym) payMonth = fd.adj_date.slice(0, 7); toast('Recorded'); route(); }});
-  $('#addAdv').onclick = () => openDialog({title: 'Give an advance / loan', submit: 'Save', body: `
-      <label>Employee<select name="employee_id" required>${empOpts('', 'Choose employee')}</select></label>
-      <label>Given on<input type="date" name="given_on" required value="${todayStr()}"></label>
-      <label>Amount (SAR)<input type="number" name="amount" min="1" step="0.01" required></label>
-      <label>Monthly installment (SAR)<input type="number" name="installment" min="1" step="0.01" required></label>
-      <label class="full">Note<input name="note" placeholder="e.g. to send home"></label>
-      <p class="full hint">Installments are deducted starting from next month's payslip until the full advance is recovered.</p>`,
-    onSubmit: async fd => { if (Number(fd.installment) > Number(fd.amount)) throw new Error('Installment cannot be more than the advance.');
-      must(await sb.from('hr_advances').insert({employee_id: fd.employee_id, given_on: fd.given_on, amount: Number(fd.amount), installment: Number(fd.installment), note: fd.note.trim() || null}));
-      toast('Advance recorded'); route(); }});
   const METHODS = ['Cash', 'Bank transfer', 'Cheque'];
   const payDialog = r => { const bal = balOf(r), paid = paidOf(r.e.id);
     openDialog({title: `Pay salary: ${esc(r.e.name)}`, submit: 'Record payment', body: `
@@ -1303,8 +1275,6 @@ async function viewPayroll() {
     try { must(await sb.from('hr_salary_payments').delete().eq('id', b.closest('tr').dataset.payid)); toast('Deleted'); route(); } catch (err) { toast(err.message, true); } });
   main.querySelectorAll('[data-deladj]').forEach(b => b.onclick = async () => { if (!confirm('Delete this record?')) return;
     try { must(await sb.from('hr_adjustments').delete().eq('id', b.dataset.deladj)); toast('Deleted'); route(); } catch (err) { toast(err.message, true); } });
-  main.querySelectorAll('[data-deladv]').forEach(b => b.onclick = async () => { if (!confirm('Delete this advance?')) return;
-    try { must(await sb.from('hr_advances').delete().eq('id', b.dataset.deladv)); toast('Deleted'); route(); } catch (err) { toast(err.message, true); } });
 }
 
 /* ============ SETTINGS ============ */
