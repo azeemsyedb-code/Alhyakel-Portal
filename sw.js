@@ -1,7 +1,7 @@
 /* Al Hyakel Portal service worker: lets the portal be installed like an app.
    Pages and files come from the network first (so updates show at once);
    the saved copy is only used when there is no internet. Supabase data is never cached. */
-const CACHE = 'ah-portal-v2';
+const CACHE = 'ah-portal-v3';
 const CORE = ['index.html', 'login.html', 'documents.html', 'inventory.html', 'employees.html', 'access.html',
   'assets/portal.css', 'assets/shell.css', 'assets/portal.js', 'assets/config.js', 'assets/logo_mark.png',
   'assets/header.jpg', 'assets/footer.jpg', 'assets/stamp.png', 'assets/icon-192.png'];

@@ -7,71 +7,441 @@
 <link rel="icon" href="assets/favicon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="assets/portal.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira:wght@500;600&family=Noto+Naskh+Arabic:wght@500;600&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/adhan@4.4.6/lib/bundles/adhan.umd.min.js"></script>
 <script src="assets/config.js"></script>
 <script src="assets/portal.js"></script>
+<style>
+/* Home: blueprint-teal banner with the live day, a strip of key numbers, then work panels, then the sections. */
+.h{--disp:'Saira','Bahnschrift','Segoe UI',sans-serif;--good:#23885A;--good-bg:#E6F4EC;--warn:#B86B12;--warn-bg:#FCF1E1;--crit:#C23A4E;--crit-bg:#FBE9EC;
+  display:flex;flex-direction:column;gap:16px}
+.h .ar{font-family:'Noto Naskh Arabic','Geeza Pro',serif;direction:rtl}
+.h .num{font-family:var(--disp);font-variant-numeric:tabular-nums}
+/* banner */
+.h-hero{position:relative;overflow:hidden;border-radius:18px;color:#fff;padding:22px 24px;background:linear-gradient(120deg,#0F4652,#1D6E80);
+  display:grid;grid-template-columns:1fr auto;gap:18px;align-items:center}
+.h-hero::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px),
+  linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
+  background-size:96px 96px,96px 96px,24px 24px,24px 24px}
+.h-hero>*{position:relative;min-width:0}
+.h-eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.72)}
+.h-hero h1{margin:4px 0 2px;font:600 30px/1.15 var(--disp);color:#fff;text-wrap:balance}
+.h-dates{color:rgba(255,255,255,.75);display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline}
+.h-dates .ar{font-size:15px;color:#fff}
+.h-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.h-chip{display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border-radius:999px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.16);font-size:13px;color:#fff;text-decoration:none}
+a.h-chip:hover{background:rgba(255,255,255,.2)}
+.h-chip b{font-weight:600}.h-chip svg{width:15px;height:15px;flex:none}
+.h-clock{text-align:right}
+.h-clock .t{font:600 52px/1 var(--disp);letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.h-clock .t small{font-size:22px;opacity:.7;margin-left:4px}
+.h-clock .z{color:rgba(255,255,255,.72);font-size:12.5px;margin-top:6px}
+.h-new{margin-top:12px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.h-new a{background:#fff;color:#13505E;font-weight:600;font-size:13px;padding:8px 13px;border-radius:9px;text-decoration:none}
+.h-new a:hover{background:#E6F2F4}
+/* key numbers */
+.h-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.h-kpi{background:#fff;border:1px solid var(--ah-line);border-radius:14px;padding:14px 16px;display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;
+  color:inherit;text-decoration:none;transition:transform .15s,box-shadow .15s}
+.h-kpi:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(20,50,60,.08)}
+.h-kpi .lbl{grid-column:1/-1;font-size:12.5px;color:var(--ah-muted)}
+.h-kpi .v{font:600 30px/1 var(--disp);font-variant-numeric:tabular-nums;color:var(--ah-ink)}
+.h-kpi .v small{font-size:16px;color:var(--ah-muted);font-weight:500}
+.h-kpi .sub{grid-column:1/-1;font-size:12.5px;color:var(--ah-muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.h-pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap}
+.h-pill.good{background:var(--good-bg);color:var(--good)}.h-pill.warn{background:var(--warn-bg);color:var(--warn)}.h-pill.crit{background:var(--crit-bg);color:var(--crit)}.h-pill.info{background:var(--ah-brand-l);color:var(--ah-brand)}
+.h-pill svg{width:12px;height:12px}
+.h-ring{width:52px;height:52px}.h-ring circle{fill:none;stroke-width:6}
+.h-spark{width:96px;height:36px;overflow:visible}
+/* panels */
+.h-cols{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px}
+.h-cols.one{grid-template-columns:minmax(0,1fr)}
+.h-panel{background:#fff;border:1px solid var(--ah-line);border-radius:16px;padding:16px 18px;min-width:0}
+.h-ph{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px}
+.h-ph h2{margin:0;font-size:16px;font-weight:600}
+.h-ph p{margin:2px 0 0;color:var(--ah-muted);font-size:12.5px}
+.h-ph a{font-size:13px;font-weight:500;color:var(--ah-brand);text-decoration:none;white-space:nowrap}
+.h-chart{position:relative}
+.h-chart svg{width:100%;height:auto;display:block}
+.h-chart .g line{stroke:var(--ah-line)}
+.h-chart .ax text{fill:var(--ah-muted);font:12px var(--ah-font)}
+.h-chart .bar{fill:var(--ah-brand);transition:opacity .15s}
+.h-chart .bar.zero{fill:var(--ah-line)}
+.h-chart .bar.today{fill:var(--ah-orange)}
+.h-chart .vl{fill:var(--ah-ink);font:600 12px var(--ah-font)}
+.h-chart:hover .bar{opacity:.55}.h-chart .bar.hl{opacity:1}
+.h-tip{position:absolute;pointer-events:none;background:var(--ah-ink);color:#fff;font-size:12.5px;padding:6px 9px;border-radius:8px;white-space:nowrap;transform:translate(-50%,-115%)}
+.h-legend{display:flex;gap:14px;font-size:12px;color:var(--ah-muted);margin-top:6px}
+.h-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.h-stack{display:flex;align-items:center;flex-wrap:wrap;row-gap:6px}
+.h-stack span{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:600;border:2px solid #fff;margin-left:-8px}
+.h-stack span:first-child{margin-left:0}
+.h-stack em{margin-left:10px;font-style:normal;color:var(--ah-muted);font-size:13px}
+.h-split{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0 4px}
+.h-split div{background:var(--ah-bg);border-radius:10px;padding:9px 10px}
+.h-split b{display:block;font:600 20px var(--disp)}
+.h-split span{font-size:12px;color:var(--ah-muted)}
+.h-list{display:flex;flex-direction:column}
+.h-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--ah-line);color:inherit;text-decoration:none}
+.h-row:first-child{border-top:0}
+a.h-row:hover .tx b{color:var(--ah-brand)}
+.h-row .ic{flex:none;width:34px;height:34px;border-radius:10px;display:grid;place-items:center}
+.h-row .ic svg{width:17px;height:17px}
+.h-row .tx{flex:1;min-width:0}
+.h-row .tx b{display:block;font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.h-row .tx span{color:var(--ah-muted);font-size:12.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.h-row time{color:var(--ah-muted);font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.h-days{font:600 13px var(--disp);white-space:nowrap}
+.h-wa{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:9px;padding:7px 10px;background:#1F9D55;color:#fff;font:600 12.5px var(--ah-font);cursor:pointer;white-space:nowrap}
+.h-wa:hover{background:#188548}.h-wa svg{width:14px;height:14px}
+.h-none{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;color:var(--ah-muted);padding:18px 8px}
+.h-none::before{content:"";width:48px;height:48px;border-radius:14px;background:var(--good-bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2323885A' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center/24px no-repeat}
+.h-none.tray::before{background:var(--ah-brand-l) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231D6E80' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 13h5l1.5 2.5h5L16 13h5'/%3E%3Cpath d='M5.5 6.5 3 13v5a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-5l-2.5-6.5a1 1 0 0 0-.9-.6H6.4a1 1 0 0 0-.9.6z'/%3E%3C/svg%3E") center/24px no-repeat}
+.h-none a{background:var(--ah-brand);color:#fff;padding:8px 14px;border-radius:9px;font-weight:600;text-decoration:none}
+/* sections */
+.h-mods{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.h-mod{position:relative;overflow:hidden;background:#fff;border:1px solid var(--ah-line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:6px;color:inherit;text-decoration:none;
+  transition:transform .18s,box-shadow .18s,border-color .18s}
+.h-mod:hover{transform:translateY(-3px);box-shadow:0 14px 30px rgba(20,50,60,.10);border-color:color-mix(in srgb,var(--c) 40%,var(--ah-line))}
+.h-mod .ic{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;color:#fff;background:var(--c)}
+.h-mod .ic svg{width:21px;height:21px}
+.h-mod small{color:var(--ah-muted);font-size:12px}
+.h-mod h3{margin:4px 0 0;font-size:17px;font-weight:600}
+.h-mod p{margin:0;color:var(--ah-muted);font-size:13px;flex:1}
+.h-mod .go{padding-top:8px;font-size:13px;font-weight:600;color:var(--c);display:flex;justify-content:space-between;gap:8px}
+.h-mod .go span{color:var(--ah-muted);font-weight:500}
+.h-mod::after{content:"";position:absolute;right:-30px;top:-30px;width:110px;height:110px;border-radius:50%;background:var(--c);opacity:.07}
+/* WhatsApp reminder dialog */
+.wa-dlg{border:0;border-radius:14px;padding:0;width:min(500px,94vw);box-shadow:0 24px 60px rgba(20,40,50,.25)}
+.wa-dlg::backdrop{background:rgba(20,40,50,.45)}
+.wa-dlg form{padding:18px 20px 20px;display:grid;gap:12px}
+.wa-h{display:flex;justify-content:space-between;align-items:center;gap:12px}.wa-h b{font-size:18px;font-weight:600}
+.wa-h .x{border:0;background:none;font-size:26px;line-height:1;cursor:pointer;color:var(--ah-muted);padding:2px 6px}
+.wa-dlg .field{margin:0}.wa-dlg textarea{min-height:170px;font:inherit;font-size:14px;line-height:1.5;width:100%}.wa-dlg input{width:100%}
+.wa-dlg .hint{font-size:12.5px;color:var(--ah-muted)}
+.wa-err{color:#B4283D;font-size:13px;margin:0}
+.wa-acts{display:flex;gap:8px;flex-wrap:wrap}
+.btn.wa{background:#1F9D55;box-shadow:none}.btn.wa:hover{background:#188548}
+@media (max-width:980px){.h-cols{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:640px){
+  .h-hero{grid-template-columns:1fr;padding:18px}
+  .h-clock{text-align:left;order:-1}.h-clock .t{font-size:40px}.h-new{justify-content:flex-start}
+  .h-hero h1{font-size:25px}.h-kpi .v{font-size:26px}
+  .h-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+</style>
 </head>
 <body>
 <main>
   <div id="denied" class="flash" hidden></div>
-  <div class="hello"><div><h1 id="hello">Welcome</h1><p id="today"></p></div><div id="newbtn"></div></div>
-  <div class="kpis" id="kpis"></div>
-  <div class="module-grid" id="grid"></div>
-  <div class="home-cols">
-    <div class="card list-card" style="padding:0"><h3>Needs attention</h3><div id="attn"><div class="none">Loading…</div></div></div>
-    <div class="card list-card" style="padding:0"><h3>Quick actions</h3><div id="quick"></div></div>
+  <div class="h" id="home">
+    <section class="h-hero" aria-label="Today">
+      <div>
+        <div class="h-eyebrow">Al Hyakel Metal Industries · Jeddah</div>
+        <h1 id="greet">Welcome</h1>
+        <div class="h-dates"><span id="gdate"></span><span class="ar" id="hdate" lang="ar"></span></div>
+        <div class="h-chips" id="chips"></div>
+      </div>
+      <div class="h-clock"><div class="t" id="clock">--:--</div><div class="z">Riyadh time</div><div class="h-new" id="newbtn"></div></div>
+    </section>
+    <section class="h-kpis ah-stagger" id="kpis" aria-label="Key numbers">
+      <div class="h-kpi"><div class="ah-skel lines" style="grid-column:1/-1"><i></i><i></i><i></i></div></div>
+      <div class="h-kpi"><div class="ah-skel lines" style="grid-column:1/-1"><i></i><i></i><i></i></div></div>
+      <div class="h-kpi"><div class="ah-skel lines" style="grid-column:1/-1"><i></i><i></i><i></i></div></div>
+      <div class="h-kpi"><div class="ah-skel lines" style="grid-column:1/-1"><i></i><i></i><i></i></div></div>
+    </section>
+    <section class="h-cols" id="rowA">
+      <div class="h-panel" id="pWeek" hidden>
+        <div class="h-ph"><div><h2>Certificates issued this week</h2><p>Tank and leak test certificates, by day</p></div><a href="documents.html#tank">Open documents</a></div>
+        <div class="h-chart" id="chart"><div class="ah-skel rows"><i></i><i></i><i></i></div></div>
+      </div>
+      <div class="h-panel" id="pPeople" hidden>
+        <div class="h-ph"><div><h2>Who is in today</h2><p>From the gate kiosk and attendance</p></div><a href="employees.html#today">Attendance</a></div>
+        <div id="people"><div class="ah-skel lines"><i></i><i></i><i></i><i></i></div></div>
+      </div>
+    </section>
+    <section class="h-cols" id="rowB">
+      <div class="h-panel" id="pExp" hidden>
+        <div class="h-ph"><div><h2>Tank certificates expiring soon</h2><p>Next 30 days. Send the customer a reminder in one tap</p></div><a href="documents.html#tank">All certificates</a></div>
+        <div class="h-list" id="exp"><div class="ah-skel rows"><i></i><i></i><i></i></div></div>
+      </div>
+      <div class="h-panel" id="pAttn">
+        <div class="h-ph"><div><h2>Needs attention</h2><p>Approvals, stock, tasks and kit</p></div></div>
+        <div class="h-list" id="attn"><div class="ah-skel rows"><i></i><i></i><i></i></div></div>
+      </div>
+    </section>
+    <section class="h-cols" id="rowC">
+      <div class="h-panel" id="pAct" hidden>
+        <div class="h-ph"><div><h2>Recent activity</h2><p>What was done in the portal lately</p></div></div>
+        <div class="h-list" id="act"><div class="ah-skel rows"><i></i><i></i><i></i><i></i></div></div>
+      </div>
+      <div class="h-panel" id="pQuick">
+        <div class="h-ph"><div><h2>Quick actions</h2><p>Jump straight to common work</p></div></div>
+        <div class="h-list" id="quick"></div>
+      </div>
+    </section>
+    <section class="h-mods ah-stagger" id="grid" aria-label="Sections"></section>
+    <div class="install" id="install" hidden><button class="btn sec" id="installBtn">Install on this phone / computer</button><span class="muted">Add the portal to your home screen like an app.</span></div>
   </div>
-  <div class="install" id="install" hidden><button class="btn sec" id="installBtn">Install on this phone / computer</button><span class="muted">Add the portal to your home screen like an app.</span></div>
 </main>
 <script>
 (async () => {
-  const U = await window.PORTAL_READY, L = PORTAL_CONFIG.links, sb = window.portalSb, ic = window.portalIcon, COL = window.portalColors;
+  const U = await window.PORTAL_READY, L = PORTAL_CONFIG.links, sb = window.portalSb, ic = window.portalIcon;
+  const TZ = 'Asia/Riyadh', LAT = 21.4858, LON = 39.1925;
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
   const $ = id => document.getElementById(id);
-  const sar = n => (Number(n) || 0).toLocaleString('en-US', {maximumFractionDigits: 0});
-  $('hello').textContent = `Welcome, ${U.full_name.split(' ')[0]}`;
-  $('today').textContent = new Date().toLocaleDateString('en-GB', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Riyadh'});
-  const d = new URLSearchParams(location.search).get('denied');
-  if (d) { const el = $('denied'); el.textContent = `You don't have access to ${({docs: 'Documents', inv: 'Inventory', hr: 'Employees', admin: 'Users & Access'})[d] || d}.`; el.hidden = false; }
-  if (U.docs_role === 'manager' || U.docs_role === 'staff') $('newbtn').innerHTML = `<a class="btn" href="documents.html#quotation/new">+ New Quotation</a>`;
+  const today = new Intl.DateTimeFormat('en-CA', {timeZone: TZ}).format(new Date());
+  const addDays = (d, n) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+  const dow = d => new Date(d + 'T00:00:00Z').getUTCDay();            // 0 Sun … 6 Sat
+  const fmtD = d => d ? new Intl.DateTimeFormat('en-GB', {day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'}).format(new Date(d + 'T00:00:00Z')) : '';
+  const first = String(U.full_name || '').split(' ')[0];
+  const SEND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3 10 14"/><path d="M21 3l-6.5 18-3.5-7-7-3.5z"/></svg>';
+  const AV = ['#1D6E80', '#E07A2E', '#23885A', '#3B82C4', '#8A5CC2', '#C27A1A', '#2E8E9E', '#B5487A'];
+  const avColor = n => { let h = 0; for (const ch of String(n)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return AV[h % AV.length]; };
+  const isDocsEditor = U.docs_role === 'manager' || U.docs_role === 'staff';
 
-  // module cards
-  const card = (href, color, icn, small, title, text, roleLabel, role, extra = '') =>
-    `<a class="module-card" href="${href}"${extra}><span class="dot" style="background:${color}">${ic(icn)}</span><small id="${'c_' + icn}">${esc(small)}</small><h3>${title}</h3><p>${text}</p>
-      <div class="meta"><span>${roleLabel}</span><b>${esc(/\.html$/.test(role) ? role : role.charAt(0).toUpperCase() + role.slice(1))}</b></div></a>`;
-  const kioskUrl = new URL(L.kiosk, location.href).href;
+  const d0 = new URLSearchParams(location.search).get('denied');
+  if (d0) { const el = $('denied'); el.textContent = `You don't have access to ${({docs: 'Documents', inv: 'Inventory', hr: 'Employees', admin: 'Users & Access'})[d0] || d0}.`; el.hidden = false; }
+  if (isDocsEditor) $('newbtn').innerHTML = '<a href="documents.html#tank/new">+ Tank Certificate</a><a href="documents.html#leak/new">+ Leak Test</a>';
+
+  /* ---------- live day: greeting, dates, clock, next prayer ---------- */
+  const fHM = new Intl.DateTimeFormat('en-GB', {hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TZ});
+  const fS = new Intl.DateTimeFormat('en-GB', {second: '2-digit', timeZone: TZ});
+  let fH; try { fH = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-latn', {day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ}); } catch (e) {}
+  const PR = [['fajr', 'Fajr'], ['dhuhr', 'Dhuhr'], ['asr', 'Asr'], ['maghrib', 'Maghrib'], ['isha', 'Isha']];
+  const ymd = dt => new Intl.DateTimeFormat('en-CA', {timeZone: TZ}).format(dt).split('-').map(Number);
+  const prayers = dt => { const a = window.adhan; if (!a) return null; const [y, m, d] = ymd(dt); return new a.PrayerTimes(new a.Coordinates(LAT, LON), new Date(y, m - 1, d, 12), a.CalculationMethod.UmmAlQura()); };
+  const chip = {prayer: '', wx: '', att: ''};
+  const drawChips = () => { $('chips').innerHTML = [chip.wx, chip.prayer, chip.att].filter(Boolean).join(''); };
+  function nextPrayer(now) {
+    const t = prayers(now); if (!t) return '';
+    let n = PR.find(([k]) => t[k] > now), at;
+    if (n) at = t[n[0]]; else { n = PR[0]; at = prayers(new Date(now.getTime() + 864e5)).fajr; }
+    const fri = new Intl.DateTimeFormat('en-GB', {weekday: 'long', timeZone: TZ}).format(now) === 'Friday';
+    const name = n[0] === 'dhuhr' && fri ? 'Jumuah' : n[1], mins = Math.max(1, Math.round((at - now) / 6e4));
+    return `<span class="h-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20h16M6 20v-6a6 6 0 0 1 12 0v6M12 4v2"/></svg>${name} <b>${fHM.format(at)}</b> · in <b>${mins >= 60 ? Math.floor(mins / 60) + 'h ' : ''}${mins % 60}m</b></span>`;
+  }
+  let lastMin = '';
+  function tick() {
+    const now = new Date(), hm = fHM.format(now);
+    $('clock').innerHTML = `${hm}<small>${fS.format(now).padStart(2, '0')}</small>`;
+    if (hm !== lastMin) {
+      lastMin = hm; const h = +hm.slice(0, 2);
+      $('greet').textContent = `${h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'}, ${first}`;
+      $('gdate').textContent = new Intl.DateTimeFormat('en-GB', {weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: TZ}).format(now);
+      if (fH) $('hdate').textContent = fH.format(now);
+      chip.prayer = nextPrayer(now); drawChips();
+    }
+  }
+  tick(); setInterval(tick, 1000);
+  fetch(`https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,weather_code&timezone=Asia%2FRiyadh`)
+    .then(r => r.ok ? r.json() : Promise.reject()).then(d => { const c = d.current; if (!c) return;
+      const w = c.weather_code, txt = w === 0 ? 'Clear' : w <= 2 ? 'Partly cloudy' : w === 3 ? 'Cloudy' : w <= 48 ? 'Hazy' : w >= 95 ? 'Thunderstorm' : (w <= 67 || (w >= 80 && w <= 82)) ? 'Rain' : 'Cloudy';
+      chip.wx = `<span class="h-chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2"/><circle cx="12" cy="12" r="4"/></svg><b>${Math.round(c.temperature_2m)}°</b> ${txt}</span>`; drawChips(); })
+    .catch(() => {});
+
+  /* ---------- sections ---------- */
+  const mod = (href, c, icn, small, title, text, role, extra = '') => `<a class="h-mod" href="${href}" style="--c:${c}"${extra}><span class="ic">${ic(icn)}</span><small data-small="${icn}">${esc(small)}</small><h3>${title}</h3><p>${text}</p><span class="go">Open →<span>${esc(role)}</span></span></a>`;
+  const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
   $('grid').innerHTML = [
-    U.docs_role && card(L.documents, COL.brand, 'doc', '9 document types', 'Documents', 'Certificates, quotations, invoices, cash receipts, PO, delivery notes, job cards, material requests and the price list.', 'Your role', U.docs_role),
-    U.inv_role && card(L.inventory, COL.orange, 'box', 'Stock', 'Inventory', 'Stock in / out with barcode scan, products, suppliers and low-stock alerts.', 'Your role', U.inv_role),
-    U.hr_role && card(L.employees, COL.green, 'team', 'Staff', 'Employees', 'Attendance, overtime, tasks, working kit and monthly payslips.', 'Your role', U.hr_role),
-    U.is_admin && card(L.access, COL.purple, 'key', 'Logins', 'Users &amp; Access', 'Create logins, reset passwords and decide who opens what.', 'Your role', 'Portal admin'),
-    U.hr_role === 'admin' && card(L.kiosk, COL.blue, 'gate', 'Gate tablet', 'Check-in kiosk', 'Employees check in and out with their PIN at the gate.', 'Open on tablet', 'kiosk.html', ' target="_blank" rel="noopener"')
-  ].filter(Boolean).join('') || '<div class="card">You have not been given access to any section yet. Please contact your admin.</div>';
+    U.docs_role && mod(L.documents, '#1D6E80', 'doc', '9 document types', 'Documents', 'Certificates, delivery notes, job cards, quotations, PO, material requests and the price list.', cap(U.docs_role)),
+    U.inv_role && mod(L.inventory, '#E07A2E', 'box', 'Stock', 'Inventory', 'Stock in and out with barcode scan, stock counts, suppliers and low-stock alerts.', cap(U.inv_role)),
+    U.hr_role && mod(L.employees, '#23885A', 'team', 'Staff', 'Employees', 'Attendance, overtime, tasks, working kit, payroll and salary payments.', cap(U.hr_role)),
+    U.is_admin && mod(L.access, '#7A55B8', 'key', 'Logins', 'Users &amp; Access', 'Create logins, reset passwords, data export and backups.', 'Portal admin'),
+    U.hr_role === 'admin' && mod(L.kiosk, '#3B82C4', 'gate', 'Gate tablet', 'Check-in kiosk', 'Employees check in and out with their PIN at the gate.', 'Open on tablet', ' target="_blank" rel="noopener"')
+  ].filter(Boolean).join('') || '<div class="h-panel"><div class="h-none tray">You have not been given access to any section yet. Please contact your admin.</div></div>';
 
-  // quick actions
   const qa = [];
-  if (U.docs_role === 'manager' || U.docs_role === 'staff') qa.push(['documents.html#quotation/new', COL.brand, 'doc', 'New Quotation', 'Documents'],
-    ['documents.html#leak/new', COL.brand, 'check', 'New Leak Test Certificate', 'Documents'], ['documents.html#invoice', COL.brand, 'cash', 'Invoices & payments', 'Documents']);
-  if (U.inv_role === 'admin' || U.inv_role === 'storekeeper') qa.push(['inventory.html#scan', COL.orange, 'box', 'Stock in / out (scan)', 'Inventory']);
-  if (U.hr_role) qa.push(['employees.html#today', COL.green, 'clock', "Today's attendance", 'Employees']);
-  if (U.is_admin) qa.push([L.access, COL.purple, 'key', 'Add a user', 'Users & Access']);
-  $('quick').innerHTML = qa.map(([h, c, i, t, s]) => `<a class="row" href="${h}"><span class="dot" style="background:${c}">${ic(i)}</span><span><b>${esc(t)}</b><span>${esc(s)}</span></span></a>`).join('')
-    || '<div class="none">No quick actions available.</div>';
+  if (isDocsEditor) qa.push(['documents.html#tank/new', '#1D6E80', 'check', 'New Tank Certificate', 'Documents'], ['documents.html#leak/new', '#1D6E80', 'check', 'New Leak Test Certificate', 'Documents'],
+    ['documents.html#dn/new', '#1D6E80', 'doc', 'New Delivery Note', 'Documents']);
+  if (U.inv_role === 'admin' || U.inv_role === 'storekeeper') qa.push(['inventory.html#scan', '#E07A2E', 'box', 'Stock in / out (scan)', 'Inventory']);
+  if (U.hr_role) qa.push(['employees.html#today', '#23885A', 'clock', "Today's attendance", 'Employees']);
+  if (U.hr_role === 'admin') qa.push(['employees.html#payroll', '#23885A', 'cash', 'Payroll & salary payments', 'Employees']);
+  if (U.is_admin) qa.push([L.access, '#7A55B8', 'key', 'Add a user', 'Users & Access']);
+  const icRow = (bg, fg, svg) => `<span class="ic" style="background:${bg};color:${fg}">${svg}</span>`;
+  $('quick').innerHTML = qa.map(([h, c, i, t, s]) => `<a class="h-row" href="${h}">${icRow(`color-mix(in srgb,${c} 13%,#fff)`, c, ic(i))}<span class="tx"><b>${esc(t)}</b><span>${esc(s)}</span></span></a>`).join('')
+    || '<div class="h-none tray">No quick actions for your role.</div>';
 
-  // dashboard numbers + needs attention
-  const a = await window.portalAlerts(), s = a.stats, k = [];
-  if (U.docs_role === 'manager') k.push(['documents.html#quotation', COL.orange, 'check', s.approvals ?? 0, 'Waiting for approval']);
-  if (U.inv_role) k.push(['inventory.html#products', COL.red, 'alert', s.low ?? 0, 'Low stock items']);
-  if (U.hr_role) k.push(['employees.html#today', COL.green, 'clock', `${s.checkedIn ?? 0} / ${s.employees ?? 0}`, 'Checked in today']);
-  if (U.docs_role) k.push(['documents.html#invoice', COL.blue, 'cash', sar(s.invoicedMonth), 'Invoiced this month (SAR)']);
-  if (U.docs_role && s.overdue) k.push(['documents.html#invoice', COL.red, 'cash', s.overdue, `Overdue invoices (SAR ${sar(s.overdueAmount)})`]);
-  $('kpis').innerHTML = k.map(([h, c, i, n, t]) => `<a class="kpi" href="${h}"><span class="dot" style="background:${c}">${ic(i)}</span><span><b>${esc(n)}</b><span>${esc(t)}</span></span></a>`).join('');
-  if (!k.length) $('kpis').hidden = true;
-  if (s.products != null && $('c_box')) $('c_box').textContent = `${s.products} products`;
-  if (s.employees != null && $('c_team')) $('c_team').textContent = `${s.employees} employees`;
-  const rows = a.groups.flatMap(g => g.items.slice(0, 4).map(i => ({...i, g})));
-  $('attn').innerHTML = rows.length ? rows.map(r => `<a class="row" href="${r.href}"><span class="dot" style="background:${r.g.color}">${ic(r.g.icon)}</span><span><b>${esc(r.label)}</b><span>${esc(r.g.title)} · ${esc(r.sub)}</span></span></a>`).join('')
-    : '<div class="none">All clear. Nothing needs your attention right now.</div>';
+  /* ---------- data ---------- */
+  const safe = p => p.then(r => r, () => ({data: null, error: true}));
+  const monthStart = today.slice(0, 7) + '-01';
+  const sixStart = (() => { const [y, m] = today.split('-').map(Number); const x = new Date(Date.UTC(y, m - 6, 1)); return x.toISOString().slice(0, 10); })();
+  const weekStart = addDays(today, -((dow(today) + 1) % 7));       // weeks run Saturday to Friday
+  const jobs = {
+    alerts: window.portalAlerts(),
+    certs: U.docs_role ? safe(sb.from('docs_documents').select('doc_type, doc_date').in('doc_type', ['tank', 'leak']).gte('doc_date', sixStart < weekStart ? sixStart : weekStart).limit(5000)) : null,
+    exp: U.docs_role ? safe(sb.from('docs_documents').select('id, doc_no, party_name, data, files').eq('doc_type', 'tank').gte('data->>valid_until', today).lte('data->>valid_until', addDays(today, 30)).limit(60)) : null,
+    emps: U.hr_role ? safe(sb.from('hr_employees').select('id, name').eq('active', true)) : null,
+    att: U.hr_role ? safe(sb.from('hr_attendance').select('employee_id, status, check_in').eq('work_date', today)) : null,
+    docAct: U.docs_role ? safe(sb.from('docs_documents').select('id, doc_type, doc_no, party_name, status, created_at, created_by, updated_at, updated_by, approved_at, approved_by').order('created_at', {ascending: false}).limit(12)) : null,
+    docUpd: U.docs_role ? safe(sb.from('docs_documents').select('id, doc_type, doc_no, party_name, status, created_at, created_by, updated_at, updated_by, approved_at, approved_by').not('updated_at', 'is', null).order('updated_at', {ascending: false}).limit(12)) : null,
+    mov: U.inv_role ? safe(sb.from('inv_movements').select('id, product_id, type, qty, reference, created_at, user_id').order('created_at', {ascending: false}).limit(8)) : null
+  };
+  const R = {}; await Promise.all(Object.entries(jobs).map(async ([k, p]) => { R[k] = p ? await p : null; }));
+  const A = R.alerts || {groups: [], stats: {}}, S = A.stats || {};
+
+  // who is in today
+  let people = null;
+  if (U.hr_role && R.emps?.data) {
+    const att = {}; (R.att?.data || []).forEach(a => att[a.employee_id] = a);
+    const emps = R.emps.data.slice().sort((a, b) => a.name.localeCompare(b.name));
+    const inn = emps.filter(e => att[e.id]?.check_in && !['absent', 'leave', 'off'].includes(att[e.id].status));
+    const away = emps.filter(e => ['absent', 'leave', 'off'].includes(att[e.id]?.status));
+    const notyet = emps.filter(e => !inn.includes(e) && !away.includes(e));
+    people = {emps, inn, away, notyet, att};
+    chip.att = `<a class="h-chip" href="employees.html#today"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg><b>${inn.length} / ${emps.length}</b> checked in</a>`; drawChips();
+  }
+
+  // certificates per month + this week
+  let certs = null;
+  if (R.certs?.data) {
+    const rows = R.certs.data, month = rows.filter(r => r.doc_date >= monthStart);
+    const months = []; for (let i = 5; i >= 0; i--) { const [y, m] = today.split('-').map(Number); const x = new Date(Date.UTC(y, m - 1 - i, 1)); months.push(x.toISOString().slice(0, 7)); }
+    certs = {month: month.length, tank: month.filter(r => r.doc_type === 'tank').length, leak: month.filter(r => r.doc_type === 'leak').length,
+      series: months.map(m => rows.filter(r => r.doc_date.slice(0, 7) === m).length),
+      week: Array.from({length: 7}, (_, i) => { const d = addDays(weekStart, i); return {d, tank: rows.filter(r => r.doc_date === d && r.doc_type === 'tank').length, leak: rows.filter(r => r.doc_date === d && r.doc_type === 'leak').length}; })};
+  }
+
+  /* ---------- key numbers ---------- */
+  const k = [];
+  if (people) { const pct = people.emps.length ? Math.round(people.inn.length / people.emps.length * 100) : 0, c = 2 * Math.PI * 21;
+    k.push(`<a class="h-kpi" href="employees.html#today"><div class="lbl">Attendance today</div><div class="v"><span data-count="${people.inn.length}">${people.inn.length}</span><small> / ${people.emps.length}</small></div>
+      <svg class="h-ring" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="21" stroke="var(--ah-line)"/><circle cx="26" cy="26" r="21" stroke="var(--good)" stroke-linecap="round" stroke-dasharray="${(c * pct / 100).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 26 26)"/></svg>
+      <div class="sub"><span class="h-pill ${pct >= 80 ? 'good' : pct >= 50 ? 'warn' : 'crit'}">${pct}%</span>${people.away.length} away · ${people.notyet.length} not in yet</div></a>`); }
+  if (certs) { const v = certs.series, w = 96, h = 36, mx = Math.max(4, ...v) * 1.15;
+    const pts = v.map((y, i) => [i * (w - 6) / (v.length - 1) + 3, h - 3 - (y / mx) * (h - 8)]), d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' '), last = pts[pts.length - 1];
+    k.push(`<a class="h-kpi" href="documents.html#tank"><div class="lbl">Certificates this month</div><div class="v" data-count="${certs.month}">${certs.month}</div>
+      <svg class="h-spark" viewBox="0 0 96 36" aria-label="Last 6 months: ${v.join(', ')}"><path d="${d} L${last[0]} ${h} L3 ${h}Z" fill="var(--ah-brand)" opacity=".12"/><path d="${d}" fill="none" stroke="var(--ah-brand)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${last[0]}" cy="${last[1]}" r="3.5" fill="var(--ah-brand)" stroke="#fff" stroke-width="2"/></svg>
+      <div class="sub">${certs.tank} tank · ${certs.leak} leak test</div></a>`); }
+  if (U.docs_role) { const n = S.expiring || 0;
+    k.push(`<a class="h-kpi" href="#pExp"><div class="lbl">Expiring in 30 days</div><div class="v" data-count="${n}">${n}</div>${n ? '<span class="h-pill warn">Renew</span>' : '<span class="h-pill good">All good</span>'}<div class="sub">Tank certificates to follow up</div></a>`); }
+  if (U.inv_role) { const n = S.low || 0;
+    k.push(`<a class="h-kpi" href="inventory.html#products"><div class="lbl">Low stock items</div><div class="v" data-count="${n}">${n}</div>${n ? '<span class="h-pill crit">Order</span>' : '<span class="h-pill good">OK</span>'}<div class="sub">${S.products ?? 0} products in store</div></a>`); }
+  if (U.docs_role === 'manager' && k.length < 4) { const n = S.approvals || 0;
+    k.push(`<a class="h-kpi" href="documents.html#tank"><div class="lbl">Waiting for approval</div><div class="v" data-count="${n}">${n}</div>${n ? '<span class="h-pill info">Review</span>' : ''}<div class="sub">Draft documents</div></a>`); }
+  if (U.hr_role && !U.docs_role && S.overdueTasks != null && k.length < 4) k.push(`<a class="h-kpi" href="employees.html#tasks"><div class="lbl">Overdue tasks</div><div class="v" data-count="${S.overdueTasks}">${S.overdueTasks}</div><div class="sub">Past their due date</div></a>`);
+  $('kpis').innerHTML = k.join(''); $('kpis').hidden = !k.length;
+  window.portalCountUp($('kpis'));
+  document.querySelectorAll('[data-small]').forEach(el => { if (el.dataset.small === 'box' && S.products != null) el.textContent = `${S.products} products`; if (el.dataset.small === 'team' && people) el.textContent = `${people.emps.length} employees`; });
+
+  /* ---------- this week chart ---------- */
+  if (certs) {
+    $('pWeek').hidden = false;
+    const D = certs.week, W = 600, H = 230, Lm = 30, Rm = 8, T = 22, B = 30, top = Math.max(4, ...D.map(x => x.tank + x.leak));
+    const max = Math.ceil(top / 2) * 2, y = v => T + (H - T - B) * (1 - v / max), bw = (W - Lm - Rm) / 7, barW = Math.min(46, bw * .56);
+    const ticks = [0, max / 2, max];
+    let g = '<g class="g">' + ticks.map(v => `<line x1="${Lm}" x2="${W - Rm}" y1="${y(v)}" y2="${y(v)}"/>`).join('') + '</g><g class="ax">' + ticks.map(v => `<text x="${Lm - 8}" y="${y(v) + 4}" text-anchor="end">${v}</text>`).join('') + '</g>';
+    D.forEach((x, i) => {
+      const v = x.tank + x.leak, cx = Lm + bw * i + bw / 2, bx = cx - barW / 2, t = v ? y(v) : y(0) - 4, r = Math.min(4, (y(0) - t) / 2);
+      const cls = 'bar' + (!v ? ' zero' : x.d === today ? ' today' : '');
+      g += `<path class="${cls}" data-i="${i}" d="M${bx} ${y(0)} V${t + r} Q${bx} ${t} ${bx + r} ${t} H${bx + barW - r} Q${bx + barW} ${t} ${bx + barW} ${t + r} V${y(0)}Z"/>`;
+      if (v) g += `<text class="vl" x="${cx}" y="${t - 6}" text-anchor="middle">${v}</text>`;
+      const lab = new Intl.DateTimeFormat('en-GB', {weekday: 'short', timeZone: 'UTC'}).format(new Date(x.d + 'T00:00:00Z'));
+      g += `<g class="ax"><text x="${cx}" y="${H - 9}" text-anchor="middle"${x.d === today ? ' style="font-weight:600;fill:var(--ah-ink)"' : ''}>${x.d === today ? 'Today' : lab}</text></g>`;
+      g += `<rect x="${cx - bw / 2}" y="${T}" width="${bw}" height="${H - T - B}" fill="transparent" data-hit="${i}"/>`;
+    });
+    $('chart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Certificates per day this week">${g}</svg><div class="h-tip" id="tip" hidden></div>
+      <div class="h-legend"><span><i style="background:var(--ah-brand)"></i>Certificates</span><span><i style="background:var(--ah-orange)"></i>Today</span><span>Week ${fmtD(weekStart).replace(/ \d{4}$/, '')} – ${fmtD(addDays(weekStart, 6))}</span></div>`;
+    const svg = $('chart').querySelector('svg'), tip = $('tip'), bars = [...svg.querySelectorAll('.bar')];
+    const show = i => { const x = D[i], b = bars[i], r = svg.getBoundingClientRect(), s = r.width / W, bb = b.getBBox();
+      bars.forEach(z => z.classList.toggle('hl', z === b));
+      tip.innerHTML = `<b>${fmtD(x.d)}</b> · ${x.tank} tank, ${x.leak} leak test`; tip.style.left = (bb.x + bb.width / 2) * s + 'px'; tip.style.top = bb.y * s + 'px'; tip.hidden = false; };
+    svg.addEventListener('mousemove', e => { const h = e.target.closest('[data-hit]'); if (h) show(+h.dataset.hit); else { tip.hidden = true; bars.forEach(z => z.classList.remove('hl')); } });
+    svg.addEventListener('mouseleave', () => { tip.hidden = true; bars.forEach(z => z.classList.remove('hl')); });
+  }
+
+  /* ---------- who is in ---------- */
+  if (people) {
+    $('pPeople').hidden = false;
+    const P = people, initials = n => String(n).trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+    const shown = P.inn.slice(0, 9);
+    const listRow = (bg, fg, svg, title, sub) => `<div class="h-row">${icRow(bg, fg, svg)}<span class="tx"><b>${title}</b><span>${sub}</span></span></div>`;
+    const names = arr => esc(arr.slice(0, 6).map(e => e.name).join(', ') + (arr.length > 6 ? ` +${arr.length - 6} more` : ''));
+    $('people').innerHTML = !P.emps.length ? '<div class="h-none tray">No active employees yet.<a href="employees.html#employees">Add employees</a></div>' : `
+      <div class="h-stack">${shown.map(e => `<span style="background:${avColor(e.name)}" title="${esc(e.name)}">${esc(initials(e.name))}</span>`).join('')}<em>${P.inn.length ? (P.inn.length > shown.length ? `+${P.inn.length - shown.length} more checked in` : 'checked in') : 'Nobody has checked in yet'}</em></div>
+      <div class="h-split"><div><b style="color:var(--good)">${P.inn.length}</b><span>Checked in</span></div><div><b style="color:var(--warn)">${P.notyet.length}</b><span>Not in yet</span></div><div><b style="color:var(--crit)">${P.away.length}</b><span>Absent / leave / off</span></div></div>
+      <div class="h-list">
+        ${P.notyet.length ? listRow('var(--warn-bg)', 'var(--warn)', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>', names(P.notyet), 'Not checked in yet') : ''}
+        ${P.away.length ? listRow('var(--crit-bg)', 'var(--crit)', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>', names(P.away), 'Absent, on leave or off today') : ''}
+        ${!P.notyet.length && !P.away.length ? '<div class="h-none">Everyone is in today.</div>' : ''}
+      </div>`;
+  }
+  const one = id => { const row = $(id), vis = [...row.children].filter(c => !c.hidden); row.classList.toggle('one', vis.length === 1); row.hidden = !vis.length; };
+  one('rowA');
+
+  /* ---------- expiring soon + WhatsApp reminder ---------- */
+  if (R.exp?.data) {
+    $('pExp').hidden = false;
+    const rows = R.exp.data.slice().sort((a, b) => String(a.data?.valid_until).localeCompare(String(b.data?.valid_until)));
+    const left = d => Math.round((Date.parse(d + 'T00:00:00Z') - Date.parse(today + 'T00:00:00Z')) / 864e5);
+    $('exp').innerHTML = rows.length ? rows.slice(0, 6).map(r => { const n = left(r.data.valid_until), soon = n <= 14;
+      return `<div class="h-row"><a href="documents.html#tank/${r.id}" style="display:contents;color:inherit;text-decoration:none">${icRow(soon ? 'var(--warn-bg)' : 'var(--ah-brand-l)', soon ? 'var(--warn)' : 'var(--ah-brand)', `<span class="h-days">${n}d</span>`)}
+        <span class="tx"><b>${esc(r.party_name || r.doc_no)}</b><span>${esc(r.doc_no)}${r.data.tank_no ? ' · Tank ' + esc(r.data.tank_no) : ''} · until ${fmtD(r.data.valid_until)}</span></span></a>
+        <button class="h-wa" type="button" data-rem="${r.id}">${SEND}Remind</button></div>`; }).join('') + (rows.length > 6 ? `<a class="h-row" href="documents.html#tank" style="justify-content:center;color:var(--ah-brand);font-weight:600">See all ${rows.length}</a>` : '')
+      : '<div class="h-none">No tank certificate expires in the next 30 days.</div>';
+    $('exp').addEventListener('click', e => { const b = e.target.closest('[data-rem]'); if (b) remind(rows.find(r => r.id === b.dataset.rem)); });
+  }
+  const waNum = s => { let d = String(s || '').replace(/\D/g, ''); if (d.startsWith('00')) d = d.slice(2); if (/^05\d{8}$/.test(d)) d = '966' + d.slice(1); else if (/^5\d{8}$/.test(d)) d = '966' + d; return d; };
+  const memo = {get: p => { try { return JSON.parse(localStorage.getItem('docs.wa.numbers') || '{}')[String(p || '').trim().toLowerCase()] || ''; } catch (e) { return ''; } },
+    set: (p, n) => { try { const m = JSON.parse(localStorage.getItem('docs.wa.numbers') || '{}'); m[String(p || '').trim().toLowerCase()] = n; localStorage.setItem('docs.wa.numbers', JSON.stringify(m)); } catch (e) {} }};
+  function remind(r) {
+    const d = r.data || {}, link = r.files?.qr_token ? new URL('verify.html?c=' + r.files.qr_token, location.href).href : '';
+    const text = `This is a reminder that the Tank Trailer Axles Certificate ${r.doc_no}` + (r.party_name ? ` for ${r.party_name}` : '') + ` expires on ${fmtD(d.valid_until)}.`
+      + (d.tank_no ? `\nTank No.: ${d.tank_no}` : '') + (d.truck_plate ? `\nTruck plate: ${d.truck_plate}` : '')
+      + `\n\nPlease contact us to book the next inspection.` + (link ? `\n\nCurrent certificate:\n${link}` : '') + '\n\nRegards,\nAl Hyakel Metal Industries\n0541857480';
+    document.getElementById('waDlg')?.remove();
+    const dl = document.createElement('dialog'); dl.id = 'waDlg'; dl.className = 'wa-dlg';
+    dl.innerHTML = `<form method="dialog"><div class="wa-h"><b>Reminder for ${esc(r.party_name || r.doc_no)}</b><button class="x" value="close" aria-label="Close">&times;</button></div>
+      <div class="field"><label for="wa_no">Customer mobile</label><input id="wa_no" type="tel" inputmode="tel" autocomplete="off" placeholder="05XXXXXXXX (optional)" value="${esc(memo.get(r.party_name))}">
+        <div class="hint">Leave it empty to pick the contact inside WhatsApp.</div></div>
+      <div class="field"><label for="wa_msg">Message</label><textarea id="wa_msg">${esc(text)}</textarea></div>
+      <p class="wa-err" id="wa_err" role="alert"></p>
+      <div class="wa-acts"><button type="button" class="btn wa" id="wa_go">${SEND}Open WhatsApp</button><button type="button" class="btn sec" id="wa_copy">Copy message</button></div></form>`;
+    document.body.appendChild(dl); dl.showModal(); dl.addEventListener('close', () => dl.remove());
+    dl.querySelector('#wa_go').onclick = () => { const raw = dl.querySelector('#wa_no').value.trim(), n = waNum(raw);
+      if (raw && n.length < 11) { dl.querySelector('#wa_err').textContent = 'Please check the mobile number, e.g. 0551234567 or +966551234567.'; return; }
+      memo.set(r.party_name, raw); window.open(`https://wa.me/${n}?text=${encodeURIComponent(dl.querySelector('#wa_msg').value)}`, '_blank', 'noopener'); dl.close(); };
+    dl.querySelector('#wa_copy').onclick = async () => { const ta = dl.querySelector('#wa_msg'); try { await navigator.clipboard.writeText(ta.value); } catch (e) { ta.select(); document.execCommand('copy'); } dl.querySelector('#wa_err').textContent = ''; dl.querySelector('#wa_copy').textContent = 'Copied'; };
+  }
+
+  /* ---------- needs attention (the bell's list, without expiring tanks shown above) ---------- */
+  const groups = (A.groups || []).filter(g => !(g.key === 'expiry' && R.exp?.data));
+  const attn = groups.flatMap(g => g.items.slice(0, 4).map(i => ({...i, g})));
+  $('attn').innerHTML = attn.length ? attn.slice(0, 8).map(r => `<a class="h-row" href="${r.href}">${icRow(`color-mix(in srgb,${r.g.color} 13%,#fff)`, r.g.color, ic(r.g.icon))}<span class="tx"><b>${esc(r.label)}</b><span>${esc(r.g.title)} · ${esc(r.sub)}</span></span></a>`).join('')
+    : '<div class="h-none">All clear. Nothing needs your attention right now.</div>';
+  one('rowB');
+
+  /* ---------- recent activity ---------- */
+  const ev = [];
+  const DN = window.portalDocNames || {};
+  [R.docAct?.data, R.docUpd?.data].forEach(list => (list || []).forEach(d => {
+    const name = `${DN[d.doc_type] || d.doc_type} ${d.doc_no}`, href = `documents.html#${d.doc_type}/${d.id}`, party = d.party_name || '';
+    ev.push({k: d.id + 'c', at: d.created_at, who: d.created_by, verb: 'created', name, href, sub: party, tone: 'doc'});
+    if (d.updated_at && Math.abs(Date.parse(d.updated_at) - Date.parse(d.created_at)) > 60000) ev.push({k: d.id + 'u' + d.updated_at, at: d.updated_at, who: d.updated_by, verb: 'updated', name, href, sub: party, tone: 'doc'});
+    if (d.approved_at) ev.push({k: d.id + 'a', at: d.approved_at, who: d.approved_by, verb: 'approved', name, href, sub: party, tone: 'ok'});
+  }));
+  if (R.mov?.data?.length) {
+    const ids = [...new Set(R.mov.data.map(m => m.product_id))];
+    const {data: prods} = await safe(sb.from('inv_products').select('id, name, unit').in('id', ids));
+    const pn = {}; (prods || []).forEach(p => pn[p.id] = p);
+    R.mov.data.forEach(m => { const p = pn[m.product_id] || {}, q = Math.abs(Number(m.qty));
+      ev.push({k: 'm' + m.id, at: m.created_at, who: m.user_id, verb: m.type === 'IN' ? 'received' : m.type === 'OUT' ? 'issued' : 'adjusted', name: `${q.toLocaleString('en-US')} ${p.unit || ''} ${p.name || 'item'}`.replace(/\s+/g, ' '), href: 'inventory.html#movements', sub: m.reference || 'Inventory', tone: 'inv'}); });
+  }
+  const seen = new Set(), events = ev.filter(e => e.at && !seen.has(e.k) && seen.add(e.k)).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 7);
+  if (U.docs_role || U.inv_role) {
+    $('pAct').hidden = false;
+    const ids = [...new Set(events.map(e => e.who).filter(Boolean))], names = {};
+    if (ids.length) { const {data} = await safe(sb.from('portal_users').select('id, full_name, username').in('id', ids)); (data || []).forEach(u => names[u.id] = (u.full_name || u.username || '').split(' ')[0]); }
+    const when = t => { const dt = new Date(t), d = new Intl.DateTimeFormat('en-CA', {timeZone: TZ}).format(dt);
+      return d === today ? fHM.format(dt) : d === addDays(today, -1) ? 'Yesterday' : new Intl.DateTimeFormat('en-GB', {day: 'numeric', month: 'short', timeZone: TZ}).format(dt); };
+    const TONE = {doc: ['var(--ah-brand-l)', 'var(--ah-brand)', ic('doc')], ok: ['var(--good-bg)', 'var(--good)', ic('check')], inv: ['color-mix(in srgb,var(--ah-orange) 14%,#fff)', 'var(--ah-orange)', ic('box')]};
+    $('act').innerHTML = events.length ? events.map(e => { const [bg, fg, svg] = TONE[e.tone];
+      return `<a class="h-row" href="${e.href}">${icRow(bg, fg, svg)}<span class="tx"><b>${names[e.who] ? esc(names[e.who]) + ' ' + e.verb : e.verb.charAt(0).toUpperCase() + e.verb.slice(1)} ${esc(e.name)}</b><span>${esc(e.sub)}</span></span><time>${when(e.at)}</time></a>`; }).join('')
+      : `<div class="h-none tray">Nothing done yet.${isDocsEditor ? '<a href="documents.html#tank/new">+ Create the first certificate</a>' : ''}</div>`;
+  }
+  one('rowC');
 
   // install as an app
   let deferred = null;

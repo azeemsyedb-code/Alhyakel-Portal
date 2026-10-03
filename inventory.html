@@ -690,7 +690,7 @@ function supplierForm(s){
 const CNT = {id: null, filter: "todo", addOne: false, last: {code: "", t: 0}};
 async function counts(){
   stopCamera(); CNT.id = null;
-  $("#view").innerHTML = `<div class="page-head"><h2>Stock count</h2></div><div class="empty">Loading…</div>`;
+  $("#view").innerHTML = `<div class="page-head"><h2>Stock count</h2></div><div class="ah-skel" role="status" aria-label="Loading"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>`;
   const { data, error } = await sb.from("inv_counts").select("id,name,category,status,lines,created_by,created_at,applied_at").order("created_at",{ascending:false}).limit(60);
   if (error) { $("#view").innerHTML = `<div class="page-head"><h2>Stock count</h2></div><div class="panel">Stock count is not set up yet. Run <b>supabase_extras.sql</b> in Supabase (README).<br><span style="color:var(--muted)">${h(niceErr(error))}</span></div>`; return; }
   const open = data.filter(c => c.status === "open"), done = data.filter(c => c.status !== "open");

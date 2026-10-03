@@ -339,7 +339,7 @@ async function route() {
   let v = VIEWS[location.hash.slice(1)] ? location.hash.slice(1) : 'today';
   if ((v === 'settings' || v === 'payroll') && !isAdmin()) v = 'today';
   document.querySelectorAll('#nav a').forEach(a => a.classList.toggle('on', a.dataset.v === v));
-  main.innerHTML = '<div class="empty">Loading…</div>';
+  main.innerHTML = '<div class="ah-skel" role="status" aria-label="Loading"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>';
   try { await VIEWS[v](); }
   catch (e) { console.error(e); main.innerHTML = `<div class="empty">Something went wrong: ${esc(e.message || e)}</div>`; }
 }

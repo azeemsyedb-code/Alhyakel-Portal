@@ -535,7 +535,7 @@ function wireApproval(rec, type) {
 /* ============================== list ============================== */
 async function showList() {
   const seq = ROUTE_SEQ;
-  view.innerHTML = '<p class="muted">Loading…</p>';
+  view.innerHTML = '<div class="ah-skel" role="status" aria-label="Loading"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>';
   try { await loadList(true); } catch (e) { view.innerHTML = `<p class="flash">Database error: ${esc(nice(e))}. Has <b>supabase_docs.sql</b> been run?</p>`; return; }
   if (seq !== ROUTE_SEQ) return;   // user already moved to another page
   view.innerHTML = `
@@ -557,7 +557,7 @@ async function showList() {
         <td>${who(r.party_name)}</td><td>${esc([r.data?.chassis_no || r.data?.equipment_tag, r.data?.tank_serial].filter(Boolean).join(' / '))}</td>
         <td><span class="res ${r.data?.result === 'FAIL' ? 'FAIL' : 'PASS'}">${r.data?.result === 'FAIL' ? 'FAIL' : 'PASS'}</span></td><td>${statusPill(r)}</td>
         <td style="white-space:nowrap"><button class="btn small sec" data-pdf="${r.id}">PDF</button>${waBtn('leak', r.id)}</td></tr>`).join('')
-      : `<tr><td colspan="8" class="empty">${LIST.length ? 'No certificates match this search.' : 'No certificates yet.' + (CAN_EDIT ? ' <a href="#leak/new">Create the first certificate</a>.' : '')}</td></tr>`;
+      : `<tr><td colspan="8" class="empty">${LIST.length ? 'No certificates match this search.' : 'No certificates yet.' + (CAN_EDIT ? ' <a href="#leak/new">+ Create the first certificate</a>' : '')}</td></tr>`;
     $('#count').textContent = LIST.length ? `${rows.length} of ${LIST.length} certificates` : '';
   };
   $('#q').addEventListener('input', draw); $('#fr').addEventListener('change', draw);
@@ -588,7 +588,7 @@ window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); 
 
 async function showForm(id, copyFrom) {
   const seq = ROUTE_SEQ;
-  view.innerHTML = '<p class="muted">Loading…</p>';
+  view.innerHTML = '<div class="ah-skel" role="status" aria-label="Loading"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>';
   try { await loadList(); } catch (e) { view.innerHTML = `<p class="flash">Database error: ${esc(nice(e))}</p>`; return; }
   let rec = null;
   if (id) {
@@ -1128,7 +1128,7 @@ const iPdf = async (type, r, photos) => {
 async function showIList(type) {
   const seq = ROUTE_SEQ;
   const T = IDOCS[type];
-  view.innerHTML = '<p class="muted">Loading…</p>';
+  view.innerHTML = '<div class="ah-skel" role="status" aria-label="Loading"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>';
   let list;
   try { list = await loadIList(type, true); } catch (e) { view.innerHTML = `<p class="flash">Database error: ${esc(nice(e))}</p>`; return; }
   if (seq !== ROUTE_SEQ) return;   // user already moved to another page
@@ -1147,7 +1147,7 @@ async function showIList(type) {
     $('#rows').innerHTML = rows.length ? rows.map(r => `<tr class="click" data-id="${r.id}"><td class="no">${esc(r.doc_no)}</td>
         <td style="white-space:nowrap">${esc(fmtDate(r.doc_date))}</td>${T.listCols.map(c => `<td class="${c[2] || ''}">${c[1](r)}</td>`).join('')}<td>${statusPill(r)}</td>
         <td style="white-space:nowrap"><button class="btn small sec" data-pdf="${r.id}">PDF</button>${waBtn(type, r.id)}</td></tr>`).join('')
-      : `<tr><td colspan="${T.listCols.length + 4}" class="empty">${list.length ? 'Nothing matches this search.' : `No ${esc(T.title)} yet.` + (CAN_EDIT ? ` <a href="#${type}/new">Create the first one</a>.` : '')}</td></tr>`;
+      : `<tr><td colspan="${T.listCols.length + 4}" class="empty">${list.length ? 'Nothing matches this search.' : `No ${esc(T.title)} yet.` + (CAN_EDIT ? ` <a href="#${type}/new">+ Create the first one</a>` : '')}</td></tr>`;
     $('#count').textContent = list.length ? `${rows.length} of ${list.length}` : '';
   };
   $('#q').addEventListener('input', draw);
@@ -1170,7 +1170,7 @@ async function showIList(type) {
 async function showIForm(type, id, copyFrom, fromQuote) {
   const seq = ROUTE_SEQ;
   const T = IDOCS[type];
-  view.innerHTML = '<p class="muted">Loading…</p>';
+  view.innerHTML = '<div class="ah-skel" role="status" aria-label="Loading"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>';
   let list, others;
   try { [list, ...others] = await Promise.all([loadIList(type, true), ...GROUP_TYPES(T.group).filter(t => t !== type).map(t => loadIList(t))]); others = others.flat(); }
   catch (e) { view.innerHTML = `<p class="flash">Database error: ${esc(nice(e))}</p>`; return; }
@@ -1234,7 +1234,7 @@ async function showIForm(type, id, copyFrom, fromQuote) {
         ${ro ? '' : '<button type="button" class="btn sec small" id="addItem" style="margin-top:10px">+ Add item</button>'}
         ${T.money ? '<div class="totals" id="totals"></div><p class="hint" id="inwords"></p>' : ''}
       </div>
-      ${type === 'invoice' && rec ? '<div class="sheet" id="pays"><h3>Payments</h3><p class="muted">Loading…</p></div>' : ''}
+      ${type === 'invoice' && rec ? '<div class="sheet" id="pays"><h3>Payments</h3><div class="ah-skel lines" role="status" aria-label="Loading"><i></i><i></i><i></i></div></div>' : ''}
       <div class="sheet"${T.extra.length || T.notes.length ? '' : ' hidden'}>
         ${T.extra.map(s => `<h3>${esc(s.title)}</h3><div class="grid">${s.fields.map(f => fld(f, d[f[0]])).join('')}</div>`).join('')}
         ${T.notes.map(([k, l]) => `<div class="field" style="margin-top:12px"><label for="f_${k}">${esc(l)}</label><textarea id="f_${k}" rows="3" ${dis}>${esc(d[k])}</textarea></div>`).join('')}
@@ -1498,7 +1498,7 @@ function tankPdf(r, img) {
 async function showTankForm(id, copyFrom) {
   const seq = ROUTE_SEQ;
   const type = 'tank', T = IDOCS.tank;
-  view.innerHTML = '<p class="muted">Loading…</p>';
+  view.innerHTML = '<div class="ah-skel" role="status" aria-label="Loading"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>';
   let list, others;
   try { [list, ...others] = await Promise.all([loadIList(type, true), ...GROUP_TYPES('customer').filter(t => t !== type).map(t => loadIList(t))]); others = others.flat(); }
   catch (e) { view.innerHTML = `<p class="flash">Database error: ${esc(nice(e))}</p>`; return; }
@@ -1729,7 +1729,7 @@ function receiptPdf(r, img) {
 
 async function showReceiptForm(id, copyFrom) {
   const seq = ROUTE_SEQ, type = 'receipt', T = IDOCS.receipt;
-  view.innerHTML = '<p class="muted">Loading…</p>';
+  view.innerHTML = '<div class="ah-skel" role="status" aria-label="Loading"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>';
   let list, invoices, others;
   try { [list, invoices, ...others] = await Promise.all([loadIList(type, true), loadIList('invoice', true), ...GROUP_TYPES('customer').filter(t => t !== type && t !== 'invoice').map(t => loadIList(t))]); others = others.flat(); }
   catch (e) { view.innerHTML = `<p class="flash">Database error: ${esc(nice(e))}</p>`; return; }
@@ -1886,7 +1886,7 @@ async function drawPayments(rec) {
 /* receivables: what each customer still owes, by how late it is */
 async function showReceivables() {
   const seq = ROUTE_SEQ;
-  view.innerHTML = '<p class="muted">Loading…</p>';
+  view.innerHTML = '<div class="ah-skel" role="status" aria-label="Loading"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>';
   let list; try { list = await loadIList('invoice', true); } catch (e) { view.innerHTML = `<p class="flash">Database error: ${esc(nice(e))}</p>`; return; }
   if (seq !== ROUTE_SEQ) return;
   const t = today(), days = d => Math.floor((new Date(t) - new Date(d)) / 864e5);
@@ -1968,7 +1968,7 @@ async function wirePicker(items, redraw) {
 
 async function showCatalog() {
   const seq = ROUTE_SEQ;
-  view.innerHTML = '<p class="muted">Loading…</p>';
+  view.innerHTML = '<div class="ah-skel" role="status" aria-label="Loading"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>';
   let list; try { list = await loadCatalog(true); } catch (e) { view.innerHTML = `<p class="flash">Price list not found: ${esc(nice(e))}. Run the latest <b>supabase_docs.sql</b> in Supabase.</p>`; return; }
   if (seq !== ROUTE_SEQ) return;
   view.innerHTML = `
